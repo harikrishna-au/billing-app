@@ -1,0 +1,11 @@
+export * from './machines';
+export * from './payments';
+export * from './logs';
+export * from './services';
+export * as authApi from './auth';
+export { dashboardApi } from './dashboard';
+export { machinesApi } from './machines';
+export { default as apiClient } from './client';
+export { catalogHistoryApi } from './catalogHistory';
+export { paymentsApi } from './payments';
+export { analyticsApi } from './analytics';
