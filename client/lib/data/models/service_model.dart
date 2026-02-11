@@ -12,8 +12,6 @@ enum ServiceStatus {
 @JsonSerializable()
 class Service {
   final String id;
-  @JsonKey(name: 'machine_id')
-  final String machineId;
   final String name;
   final double price;
   final ServiceStatus status;
@@ -24,7 +22,6 @@ class Service {
 
   Service({
     required this.id,
-    required this.machineId,
     required this.name,
     required this.price,
     this.status = ServiceStatus.active,

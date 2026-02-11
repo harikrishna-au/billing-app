@@ -680,14 +680,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  paytmpayments_allinonesdk:
-    dependency: "direct main"
-    description:
-      name: paytmpayments_allinonesdk
-      sha256: "8973395a8e3909d2c91b3e7cf377143308487742c05890bee4ffcae61220470e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.4"
   pdf:
     dependency: "direct main"
     description:

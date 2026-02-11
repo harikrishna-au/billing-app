@@ -40,7 +40,6 @@ dependencies:
   path_provider: ^2.1.5
 
   # Payment Gateways
-  paytmpayments_allinonesdk: ^1.0.2
 
 dev_dependencies:
   flutter_test:

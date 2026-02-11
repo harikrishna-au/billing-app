@@ -27,56 +27,6 @@ class ApiServiceRepository implements ServiceRepository {
   }
 
   @override
-  Future<List<Service>> getServicesByMachine(String machineId) async {
-    try {
-      final response = await _apiClient.get(
-        ApiConstants.machineServices(machineId),
-      );
-
-      if (response.data['success'] == true) {
-        final data = response.data['data'];
-        // Handle both array and object with services key
-        final List<dynamic> servicesJson =
-            data is List ? data : (data['services'] as List? ?? []);
-
-        final List<Service> services = [];
-        for (var json in servicesJson) {
-          try {
-            services.add(Service.fromJson(json));
-          } catch (e) {
-            print('Error parsing service item: $e');
-            // Skip invalid items
-          }
-        }
-        return services;
-      }
-      return [];
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  @override
-  Future<List<Service>> getActiveServicesByMachine(String machineId) async {
-    try {
-      final response = await _apiClient.get(
-        ApiConstants.machineServicesActive(machineId),
-      );
-
-      if (response.data['success'] == true) {
-        final data = response.data['data'];
-        // Handle both array and object with services key
-        final List<dynamic> servicesJson =
-            data is List ? data : (data['services'] as List? ?? []);
-        return servicesJson.map((json) => Service.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  @override
   Future<Service> getServiceById(String id) async {
     try {
       final response = await _apiClient.get(
@@ -96,7 +46,7 @@ class ApiServiceRepository implements ServiceRepository {
   Future<void> createService(Service service) async {
     try {
       await _apiClient.post(
-        ApiConstants.machineServices(service.machineId),
+        ApiConstants.services,
         data: {
           'name': service.name,
           'price': service.price,

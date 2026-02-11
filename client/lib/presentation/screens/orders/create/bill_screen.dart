@@ -11,11 +11,15 @@ import '../../../../core/network/providers.dart';
 class BillScreen extends ConsumerStatefulWidget {
   final String? invoiceNumber;
   final String paymentMethod;
+  final double? amount;
+  final DateTime? date;
 
   const BillScreen({
     super.key,
     this.invoiceNumber,
     required this.paymentMethod,
+    this.amount,
+    this.date,
   });
 
   @override
@@ -26,11 +30,11 @@ class _BillScreenState extends ConsumerState<BillScreen> {
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
-    final now = DateTime.now();
+    final now = widget.date ?? DateTime.now();
     final invoiceNo = widget.invoiceNumber ??
         'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
 
-    final subtotal = cartState.totalAmount;
+    final subtotal = widget.amount ?? cartState.totalAmount;
     final total = subtotal;
 
     return Scaffold(

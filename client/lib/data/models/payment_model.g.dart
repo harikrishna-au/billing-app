@@ -8,7 +8,6 @@ part of 'payment_model.dart';
 
 Payment _$PaymentFromJson(Map<String, dynamic> json) => Payment(
       id: json['id'] as String,
-      machineId: json['machine_id'] as String,
       billNumber: json['bill_number'] as String,
       amount: (json['amount'] as num).toDouble(),
       method: $enumDecode(_$PaymentMethodEnumMap, json['method']),
@@ -19,7 +18,6 @@ Payment _$PaymentFromJson(Map<String, dynamic> json) => Payment(
 
 Map<String, dynamic> _$PaymentToJson(Payment instance) => <String, dynamic>{
       'id': instance.id,
-      'machine_id': instance.machineId,
       'bill_number': instance.billNumber,
       'amount': instance.amount,
       'method': _$PaymentMethodEnumMap[instance.method]!,

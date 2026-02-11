@@ -6,7 +6,6 @@ import '../../presentation/providers/auth_provider.dart';
 
 // We will implement these screens later, import stub or relativwhene
 import '../../presentation/screens/auth/login_screen.dart';
-import '../../presentation/screens/machine/machine_selection_screen.dart';
 
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/orders/orders_screen.dart';
@@ -15,6 +14,7 @@ import '../../presentation/screens/orders/create/review_order_screen.dart';
 import '../../presentation/screens/orders/create/collect_payment_screen.dart';
 import '../../presentation/screens/orders/create/upi_payment_screen.dart';
 import '../../presentation/screens/orders/create/bill_screen.dart';
+import '../../presentation/screens/reports/day_summary_screen.dart';
 import '../../presentation/widgets/layout/app_navigation.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -31,15 +31,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.uri.path == '/login';
-      final isSelectingMachine = state.uri.path == '/select-machine';
 
       if (!isLoggedIn && !isLoggingIn) return '/login';
-
-      // For machine accounts, skip machine selection and go directly to app
       if (isLoggedIn && isLoggingIn) return '/new';
-
-      // Skip machine selection screen (not needed for machine accounts)
-      if (isLoggedIn && isSelectingMachine) return '/new';
 
       return null;
     },
@@ -47,10 +41,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/select-machine',
-        builder: (context, state) => const MachineSelectionScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -103,9 +93,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                                   state.uri.queryParameters['method'] ?? 'cash';
                               final invoice =
                                   state.uri.queryParameters['invoice'];
+                              final amount = double.tryParse(
+                                  state.uri.queryParameters['amount'] ?? '');
+                              final dateStr = state.uri.queryParameters['date'];
+                              final date = dateStr != null
+                                  ? DateTime.tryParse(dateStr)
+                                  : null;
+
                               return BillScreen(
                                 paymentMethod: paymentMethod,
                                 invoiceNumber: invoice,
+                                amount: amount,
+                                date: date,
                               );
                             },
                             parentNavigatorKey: _rootNavigatorKey,
@@ -133,7 +132,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsScreen(),
-                routes: [],
+                routes: [
+                  GoRoute(
+                    path: 'day-summary',
+                    builder: (context, state) => const DaySummaryScreen(),
+                    parentNavigatorKey: _rootNavigatorKey,
+                  ),
+                ],
               ),
             ],
           ),

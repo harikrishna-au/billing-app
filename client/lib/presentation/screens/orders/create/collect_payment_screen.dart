@@ -5,7 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/network/providers.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
@@ -139,55 +138,15 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       try {
         final cartState = ref.read(cartProvider);
         final total = cartState.totalAmount;
-        final tokenManager = ref.read(tokenManagerProvider);
-        final machineId = tokenManager.getMachineId();
-
-        if (machineId == null) {
-          throw Exception('Machine ID not found. Please log in again.');
-        }
 
         final orderId = 'ORDER_${DateTime.now().millisecondsSinceEpoch}';
 
-        // 1. Initiate Transaction (Get Token)
-        final initiationResponse =
-            await ref.read(paymentRepositoryProvider).initiatePaytmTransaction(
-                  orderId: orderId,
-                  amount: total,
-                  customerId:
-                      'CUST_${DateTime.now().millisecondsSinceEpoch}', // simplistic customer ID
-                );
-
-        final txnToken = initiationResponse['body']['txnToken'];
-        final mid = initiationResponse['body']
-            ['mid']; // Assuming backend returns MID too
-        final callbackUrl = initiationResponse['body']
-            ['callbackUrl']; // backend should provide this
-        final isStaging = initiationResponse['body']['isStaging'] ?? true;
-
-        if (txnToken == null) {
-          throw Exception('Failed to get transaction token');
-        }
-
-        // 2. Start Paytm Transaction
-        final paytmResponse = await ref
-            .read(paytmServiceProvider)
-            .startTransaction(
-              mid: mid ?? 'YOUR_TEST_MID', // Fallback or strictly from backend
-              orderId: orderId,
-              amount: total.toString(),
-              txnToken: txnToken,
-              callbackUrl: callbackUrl ?? '',
-              isStaging: isStaging,
-            );
-
-        // 3. Verify Response
-        if (paytmResponse['STATUS'] == 'TXN_SUCCESS') {
-          // Create successful payment record
-          await _createPaymentRecord(
-              context, total, PaymentMethod.upi, orderId);
-        } else {
-          throw Exception(paytmResponse['RESPMSG'] ?? 'Transaction Failed');
-        }
+        // For online payment, navigate to UPI payment screen
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        
+        // Navigate to UPI payment screen
+        context.push('/new/review/collect-payment/upi?amount=$total&invoice=$orderId');
       } catch (e) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,14 +163,6 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       final cartState = ref.read(cartProvider);
       final subtotal = cartState.totalAmount;
       final total = subtotal;
-
-      // Get machine ID from token manager
-      final tokenManager = ref.read(tokenManagerProvider);
-      final machineId = tokenManager.getMachineId();
-
-      if (machineId == null) {
-        throw Exception('Machine ID not found. Please log in again.');
-      }
 
       // Generate unique bill number
       final billNumber = 'BILL-${DateTime.now().millisecondsSinceEpoch}';
@@ -249,14 +200,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
   Future<void> _createPaymentRecord(BuildContext context, double amount,
       PaymentMethod method, String billNumber) async {
-    final tokenManager = ref.read(tokenManagerProvider);
-    final machineId = tokenManager.getMachineId();
-
-    if (machineId == null) throw Exception('Machine ID not found');
-
     final payment = Payment(
       id: '',
-      machineId: machineId,
       billNumber: billNumber,
       amount: amount,
       method: method,

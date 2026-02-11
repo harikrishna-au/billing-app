@@ -23,8 +23,6 @@ enum PaymentStatus {
 @JsonSerializable()
 class Payment {
   final String id;
-  @JsonKey(name: 'machine_id')
-  final String machineId;
   @JsonKey(name: 'bill_number')
   final String billNumber;
   final double amount;
@@ -35,7 +33,6 @@ class Payment {
 
   Payment({
     required this.id,
-    required this.machineId,
     required this.billNumber,
     required this.amount,
     required this.method,

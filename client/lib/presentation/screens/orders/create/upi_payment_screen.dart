@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../data/models/payment_model.dart';
+import '../../../providers/payment_provider.dart';
 
 class UpiPaymentScreen extends ConsumerStatefulWidget {
   final double amount;
@@ -27,6 +30,11 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
   bool _isWaitingForPayment = false;
   bool _paymentCompleted = false;
   late AnimationController _pulseController;
+  
+  // Timer related
+  int _remainingSeconds = 300; // 5 minutes = 300 seconds
+  Timer? _countdownTimer;
+  bool _showConfirmationButtons = false;
 
   // UPI ID for payment (replace with your actual UPI ID)
   final String _upiId = 'merchant@upi';
@@ -43,7 +51,32 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
   @override
   void dispose() {
     _pulseController.dispose();
+    _countdownTimer?.cancel();
     super.dispose();
+  }
+  
+  void _startCountdown() {
+    setState(() {
+      _showConfirmationButtons = true;
+      _remainingSeconds = 300;
+    });
+    
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingSeconds > 0) {
+        setState(() {
+          _remainingSeconds--;
+        });
+      } else {
+        timer.cancel();
+        _handlePaymentFailed();
+      }
+    });
+  }
+  
+  String get _formattedTime {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   String get _upiLink {
@@ -53,23 +86,54 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
   }
 
   void _initiatePayment() {
-    setState(() => _isWaitingForPayment = true);
-
-    // Simulate payment verification (replace with actual API call)
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _isWaitingForPayment = false;
-          _paymentCompleted = true;
-        });
-
-        // Show success dialog
-        _showPaymentSuccessDialog();
-      }
-    });
+    _startCountdown();
   }
+  
+  Future<void> _handlePaymentSuccess() async {
+    _countdownTimer?.cancel();
+    setState(() {
+      _isWaitingForPayment = false;
+      _paymentCompleted = true;
+    });
+    
+    try {
+      // Create payment record
+      final payment = Payment(
+        id: '',
+        billNumber: widget.invoiceNumber ?? 'BILL-${DateTime.now().millisecondsSinceEpoch}',
+        amount: widget.amount,
+        method: PaymentMethod.upi,
+        status: PaymentStatus.success,
+        createdAt: DateTime.now(),
+      );
 
-  void _showPaymentSuccessDialog() {
+      final createdPayment = await ref.read(paymentProvider.notifier).createPayment(payment);
+
+      if (createdPayment == null) {
+        throw Exception('Failed to create payment');
+      }
+
+      if (!mounted) return;
+
+      // Navigate to bill screen
+      context.push(
+        '/new/review/collect-payment/bill?method=online&invoice=${payment.billNumber}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  void _handlePaymentFailed() {
+    _countdownTimer?.cancel();
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -83,20 +147,18 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFFEF4444).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF10B981),
+                  Icons.cancel,
+                  color: Color(0xFFEF4444),
                   size: 64,
                 ),
-              )
-                  .animate()
-                  .scale(duration: 300.ms, curve: Curves.elasticOut),
+              ),
               const SizedBox(height: 24),
               Text(
-                'Payment Successful!',
+                'Payment Failed',
                 style: GoogleFonts.poppins(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -105,12 +167,12 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                CurrencyFormatter.format(widget.amount),
-                style: GoogleFonts.poppins(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF10B981),
+                'The payment was not completed',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -122,13 +184,13 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                     context.pop();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
+                    backgroundColor: const Color(0xFFEF4444),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
-                    'Done',
+                    'Try Again',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -237,115 +299,16 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
 
             const SizedBox(height: 32),
 
-            // QR Code Card
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 2,
-                      ),
-                    ),
-                    child: QrImageView(
-                      data: _upiLink,
-                      size: 200,
-                      backgroundColor: Colors.white,
-                      eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square,
-                        color: Colors.black,
-                      ),
-                      dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape: QrDataModuleShape.square,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'SCAN & PAY',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 200.ms)
-                .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1)),
-
-            const SizedBox(height: 32),
-
-            // UPI Apps Section
-            Text(
-              'SUPPORTED UPI APPS',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _UpiAppIcon(
-                  name: 'GPay',
-                  color: const Color(0xFF4285F4),
-                  icon: Icons.payment,
-                  onTap: _initiatePayment,
+            // Payment instruction text
+            if (!_showConfirmationButtons)
+              Text(
+                'Click "Confirm Payment" to start the payment timer',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(width: 20),
-                _UpiAppIcon(
-                  name: 'PhonePe',
-                  color: const Color(0xFF5F259F),
-                  icon: Icons.phone_android,
-                  onTap: _initiatePayment,
-                ),
-                const SizedBox(width: 20),
-                _UpiAppIcon(
-                  name: 'Paytm',
-                  color: const Color(0xFF00BAF2),
-                  icon: Icons.account_balance_wallet,
-                  onTap: _initiatePayment,
-                ),
-              ],
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 300.ms)
-                .slideY(begin: 0.2, end: 0),
+                textAlign: TextAlign.center,
+              ),
 
             const SizedBox(height: 32),
 
@@ -395,39 +358,147 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
 
             const SizedBox(height: 24),
 
-            // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: _paymentCompleted || _isWaitingForPayment
-                    ? null
-                    : _initiatePayment,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE0E7FF),
-                  foregroundColor: AppColors.primary,
-                  disabledBackgroundColor: const Color(0xFFE0E7FF).withOpacity(0.5),
-                  disabledForegroundColor: AppColors.primary.withOpacity(0.5),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            // Countdown Timer and Confirmation Buttons
+            if (_showConfirmationButtons) ...[
+              // Timer Display
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _remainingSeconds < 60 
+                        ? const Color(0xFFEF4444).withOpacity(0.3)
+                        : AppColors.primary.withOpacity(0.3),
+                    width: 2,
                   ),
                 ),
-                icon: Icon(
-                  _paymentCompleted
-                      ? Icons.check_circle
-                      : Icons.receipt_long_outlined,
-                  size: 22,
+                child: Column(
+                  children: [
+                    Text(
+                      'Waiting for payment confirmation',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _formattedTime,
+                      style: GoogleFonts.poppins(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w700,
+                        color: _remainingSeconds < 60 
+                            ? const Color(0xFFEF4444)
+                            : AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Time remaining',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                label: Text(
-                  _paymentCompleted ? 'Payment Received' : 'Generate Bill',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideY(begin: 0.2, end: 0),
+              
+              const SizedBox(height: 24),
+              
+              // Confirmation Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _handlePaymentFailed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFEF4444),
+                          elevation: 0,
+                          side: const BorderSide(
+                            color: Color(0xFFEF4444),
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Payment Failed',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: SizedBox(
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _handlePaymentSuccess,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Payment Success',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 200.ms)
+                  .slideY(begin: 0.2, end: 0),
+            ] else ...[
+              // Confirm Payment Button (initial state)
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _paymentCompleted
+                      ? null
+                      : _initiatePayment,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.check_circle_outline, size: 22),
+                  label: Text(
+                    'Confirm Payment',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
 
             const SizedBox(height: 16),
 

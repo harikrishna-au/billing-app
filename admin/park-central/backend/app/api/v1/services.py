@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.service import Service
-from app.models.catalog_history import CatalogHistory
+
 from app.dependencies import get_current_user
 from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse, ServiceWithMachineResponse
 from app.schemas.common import SuccessResponse, MessageResponse
@@ -174,17 +174,6 @@ async def create_service(
         db.add(service)
         db.commit()
         db.refresh(service)
-        
-        # Log service creation in catalog history
-        history = CatalogHistory(
-            machine_id=machine_id,
-            service_name=service_data.name,
-            action="created",
-            old_price=None,
-            new_price=service_data.price
-        )
-        db.add(history)
-        db.commit()
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -245,18 +234,6 @@ async def update_service(
         db.commit()
         db.refresh(service)
         
-        # Create catalog history entry if price or name changed
-        if price_changed or name_changed:
-            history = CatalogHistory(
-                machine_id=service.machine_id,
-                service_name=service.name if name_changed else old_name,
-                action="updated",
-                old_price=old_price,
-                new_price=float(service.price)
-            )
-            db.add(history)
-            db.commit()
-        
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -294,15 +271,6 @@ async def delete_service(
         )
     
     try:
-        # Log deletion in catalog history before deleting
-        history = CatalogHistory(
-            machine_id=service.machine_id,
-            service_name=service.name,
-            action="deleted",
-            old_price=float(service.price),
-            new_price=None
-        )
-        db.add(history)
         db.delete(service)
         db.commit()
     except Exception as e:

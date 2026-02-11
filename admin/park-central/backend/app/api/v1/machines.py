@@ -62,6 +62,7 @@ async def create_machine(
     
     # Create machine
     machine = Machine(
+        user_id=current_user.id,  # Auto-assign to current admin
         name=machine_data.name,
         location=machine_data.location,
         username=username,
@@ -84,6 +85,7 @@ async def create_machine(
         "success": True,
         "data": MachineResponse(
             id=str(machine.id),
+            user_id=str(machine.user_id),
             name=machine.name,
             location=machine.location,
             username=machine.username,
@@ -118,7 +120,7 @@ async def get_machines(
     Returns:
         Paginated list of machines
     """
-    query = db.query(Machine)
+    query = db.query(Machine).filter(Machine.user_id == current_user.id)  # Filter by admin
     
     # Apply filters
     if status:
@@ -171,6 +173,7 @@ async def get_machines(
     machines_data = [
         MachineResponse(
             id=str(m.id),
+            user_id=str(m.user_id),
             name=m.name,
             location=m.location,
             username=m.username,
@@ -244,6 +247,7 @@ async def get_machine(
         "success": True,
         "data": MachineResponse(
             id=str(machine.id),
+            user_id=str(machine.user_id),
             name=machine.name,
             location=machine.location,
             username=machine.username,
@@ -329,6 +333,7 @@ async def update_machine(
         "success": True,
         "data": MachineResponse(
             id=str(machine.id),
+            user_id=str(machine.user_id),
             name=machine.name,
             location=machine.location,
             username=machine.username,
@@ -364,7 +369,10 @@ async def update_machine_status(
     Returns:
         Updated machine details
     """
-    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    machine = db.query(Machine).filter(
+        Machine.id == machine_id,
+        Machine.user_id == current_user.id  # Verify ownership
+    ).first()
     
     if not machine:
         raise HTTPException(
@@ -399,6 +407,7 @@ async def update_machine_status(
         "success": True,
         "data": MachineResponse(
             id=str(machine.id),
+            user_id=str(machine.user_id),
             name=machine.name,
             location=machine.location,
             username=machine.username,
@@ -429,7 +438,10 @@ async def delete_machine(
     Returns:
         Success message
     """
-    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    machine = db.query(Machine).filter(
+        Machine.id == machine_id,
+        Machine.user_id == current_user.id  # Verify ownership
+    ).first()
     
     if not machine:
         raise HTTPException(

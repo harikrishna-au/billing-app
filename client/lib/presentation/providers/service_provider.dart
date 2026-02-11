@@ -3,7 +3,6 @@ import '../../data/models/service_model.dart';
 import '../../data/repositories/service_repository.dart';
 import '../../data/repositories/api_service_repository.dart';
 import '../../core/network/providers.dart';
-import 'machine_provider.dart';
 
 // Repository Provider
 final serviceRepositoryProvider = Provider<ServiceRepository>((ref) {
@@ -44,14 +43,7 @@ class ServiceState {
 class ServiceController extends StateNotifier<ServiceState> {
   final Ref ref;
 
-  ServiceController(this.ref) : super(ServiceState()) {
-    // Listen to machine changes and reload services
-    ref.listen(machineProvider, (previous, next) {
-      if (next.selectedMachine != null) {
-        loadServicesForMachine(next.selectedMachine!.id);
-      }
-    });
-  }
+  ServiceController(this.ref) : super(ServiceState());
 
   Future<void> loadAllServices() async {
     state = state.copyWith(isLoading: true);
@@ -70,47 +62,7 @@ class ServiceController extends StateNotifier<ServiceState> {
     }
   }
 
-  Future<void> loadServicesForMachine(String machineId) async {
-    print('Loading services for machine: $machineId');
-    state = state.copyWith(isLoading: true);
-    try {
-      final services = await ref
-          .read(serviceRepositoryProvider)
-          .getServicesByMachine(machineId);
-      print('Loaded ${services.length} services');
-      state = state.copyWith(
-        services: services,
-        filteredServices: services,
-        isLoading: false,
-      );
-    } catch (e, stack) {
-      print('Error loading services: $e');
-      print(stack);
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
-    }
-  }
 
-  Future<void> loadActiveServicesForMachine(String machineId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final services = await ref
-          .read(serviceRepositoryProvider)
-          .getActiveServicesByMachine(machineId);
-      state = state.copyWith(
-        services: services,
-        filteredServices: services,
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
-    }
-  }
 
   Future<void> toggleServiceStatus(String id) async {
     try {
@@ -164,12 +116,7 @@ class ServiceController extends StateNotifier<ServiceState> {
   }
 
   Future<void> _refreshServices() async {
-    final selectedMachine = ref.read(machineProvider).selectedMachine;
-    if (selectedMachine != null) {
-      await loadServicesForMachine(selectedMachine.id);
-    } else {
-      state = state.copyWith(isLoading: false);
-    }
+    await loadAllServices();
   }
 
   void filterServices(String query) {

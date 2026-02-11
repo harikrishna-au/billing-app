@@ -44,6 +44,14 @@ apiClient.interceptors.response.use(
         // Log error
         console.error(`🔴 API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`);
 
+        // Don't retry if this is already a refresh token request
+        if (error.config?.url?.includes('/auth/refresh')) {
+            console.warn('⚠️  Refresh token failed, redirecting to login');
+            localStorage.clear();
+            window.location.href = '/login';
+            return Promise.reject(error);
+        }
+
         // If 401 and we haven't retried yet, try to refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;

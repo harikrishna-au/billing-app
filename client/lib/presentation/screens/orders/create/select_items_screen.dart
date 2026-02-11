@@ -26,6 +26,8 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
     // Ensure we start with All items.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(catalogueProvider.notifier).setFilter(null);
+      // Load items if not already loaded
+      ref.read(catalogueProvider.notifier).fetchItems();
     });
   }
 

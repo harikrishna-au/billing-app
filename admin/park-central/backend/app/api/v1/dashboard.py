@@ -29,23 +29,24 @@ async def get_dashboard_stats(
     Returns:
         Dashboard statistics including machine counts and payment totals
     """
-    # Get machine counts by status
-    total_machines = db.query(func.count(Machine.id)).scalar() or 0
-    online_machines = db.query(func.count(Machine.id)).filter(Machine.status == 'online').scalar() or 0
-    offline_machines = db.query(func.count(Machine.id)).filter(Machine.status == 'offline').scalar() or 0
-    maintenance_machines = db.query(func.count(Machine.id)).filter(Machine.status == 'maintenance').scalar() or 0
+    # Get machine counts by status (filtered by current admin)
+    total_machines = db.query(func.count(Machine.id)).filter(Machine.user_id == current_user.id).scalar() or 0
+    online_machines = db.query(func.count(Machine.id)).filter(Machine.user_id == current_user.id, Machine.status == 'online').scalar() or 0
+    offline_machines = db.query(func.count(Machine.id)).filter(Machine.user_id == current_user.id, Machine.status == 'offline').scalar() or 0
+    maintenance_machines = db.query(func.count(Machine.id)).filter(Machine.user_id == current_user.id, Machine.status == 'maintenance').scalar() or 0
     
     # Calculate date ranges
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
-    # Get today's payment stats
+    # Get today's payment stats (filtered by admin's machines)
     today_stats = db.query(
         func.count(Payment.id).label('count'),
         func.coalesce(func.sum(Payment.amount), 0).label('total')
-    ).filter(
+    ).join(Machine, Payment.machine_id == Machine.id).filter(
         and_(
+            Machine.user_id == current_user.id,
             Payment.created_at >= today_start,
             Payment.status == 'success'
         )
@@ -54,12 +55,13 @@ async def get_dashboard_stats(
     today_collection = float(today_stats.total) if today_stats else 0.00
     total_transactions_today = today_stats.count if today_stats else 0
     
-    # Get monthly payment stats
+    # Get monthly payment stats (filtered by admin's machines)
     month_stats = db.query(
         func.count(Payment.id).label('count'),
         func.coalesce(func.sum(Payment.amount), 0).label('total')
-    ).filter(
+    ).join(Machine, Payment.machine_id == Machine.id).filter(
         and_(
+            Machine.user_id == current_user.id,
             Payment.created_at >= month_start,
             Payment.status == 'success'
         )
@@ -106,13 +108,14 @@ async def get_weekly_revenue(
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=6)
     
-    # Query payments grouped by date
+    # Query payments grouped by date (filtered by admin's machines)
     daily_stats = db.query(
         func.date(Payment.created_at).label('date'),
         func.coalesce(func.sum(Payment.amount), 0).label('revenue'),
         func.count(Payment.id).label('transaction_count')
-    ).filter(
+    ).join(Machine, Payment.machine_id == Machine.id).filter(
         and_(
+            Machine.user_id == current_user.id,
             Payment.created_at >= week_ago,
             Payment.status == 'success'
         )
@@ -173,8 +176,8 @@ async def get_system_alerts(
     alerts = []
     now = datetime.now(timezone.utc)
     
-    # Get all machines
-    machines = db.query(Machine).all()
+    # Get all machines (filtered by current admin)
+    machines = db.query(Machine).filter(Machine.user_id == current_user.id).all()
     
     for machine in machines:
         # Calculate time since last sync
@@ -268,7 +271,7 @@ async def get_machines_legacy(
     Get all machines (legacy endpoint).
     Use GET /v1/machines instead.
     """
-    machines = db.query(Machine).all()
+    machines = db.query(Machine).filter(Machine.user_id == current_user.id).all()
     
     result = [
         {
@@ -302,12 +305,13 @@ async def get_payments_chart_legacy(
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = today - timedelta(days=6)
     
-    # Query payments grouped by date
+    # Query payments grouped by date (filtered by admin's machines)
     daily_stats = db.query(
         func.date(Payment.created_at).label('date'),
         func.coalesce(func.sum(Payment.amount), 0).label('amount')
-    ).filter(
+    ).join(Machine, Payment.machine_id == Machine.id).filter(
         and_(
+            Machine.user_id == current_user.id,
             Payment.created_at >= week_ago,
             Payment.status == 'success'
         )

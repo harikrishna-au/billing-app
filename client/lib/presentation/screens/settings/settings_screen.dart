@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/machine_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -35,132 +34,68 @@ class SettingsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Machine / User Info Card
+            // User Info Card
             if (user != null)
-              Consumer(
-                builder: (context, ref, child) {
-                  final machineState = ref.watch(machineProvider);
-                  final selectedMachine = machineState.selectedMachine;
-
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF1E293B),
-                          Color(0xFF334155),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1E293B),
+                      Color(0xFF334155),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1E293B).withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_outline_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Logged in as',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            user.username,
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E293B).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.store_mall_directory_rounded,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    selectedMachine?.name ??
-                                        'No Machine Selected',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  if (selectedMachine?.location != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on_outlined,
-                                            size: 14,
-                                            color:
-                                                Colors.white.withOpacity(0.7),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            selectedMachine!.location,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 13,
-                                              color:
-                                                  Colors.white.withOpacity(0.7),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.person_outline_rounded,
-                                size: 16,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Logged in as: ',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
-                              Text(
-                                user.username,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                  ],
+                ),
               ),
 
             const SizedBox(height: 24),
@@ -170,11 +105,11 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
 
             _SettingsTile(
-              icon: Icons.inventory_2_outlined,
-              iconColor: AppColors.primary,
-              title: 'Manage Catalogue',
-              subtitle: 'Add, edit, or remove items',
-              onTap: () => context.go('/settings/catalogue'),
+              icon: Icons.summarize_outlined,
+              iconColor: Colors.green,
+              title: 'Day Summary Report',
+              subtitle: 'View and print daily sales summary',
+              onTap: () => context.push('/settings/day-summary'),
             ),
 
             const SizedBox(height: 24),

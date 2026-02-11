@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -179,7 +180,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           return PaymentCard(
                             payment: payment,
                             onTap: () {
-                              // Details if needed
+                              // Navigate to bill screen to view payment details
+                              context.push(
+                                '/new/review/collect-payment/bill?method=${payment.methodDisplay}&invoice=${payment.billNumber}&amount=${payment.amount}&date=${payment.createdAt.toIso8601String()}',
+                              );
                             },
                           )
                               .animate()

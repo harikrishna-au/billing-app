@@ -4,7 +4,6 @@ class TokenManager {
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _tokenExpiryKey = 'token_expiry';
-  static const String _machineIdKey = 'machine_id';
 
   final SharedPreferences _prefs;
 
@@ -59,35 +58,12 @@ class TokenManager {
     return DateTime.now().isAfter(expiry.subtract(const Duration(minutes: 5)));
   }
 
-  // Machine ID (for machine login)
-  Future<void> saveMachineId(String machineId) async {
-    await _prefs.setString(_machineIdKey, machineId);
-  }
-
-  String? getMachineId() {
-    return _prefs.getString(_machineIdKey);
-  }
-
-  Future<void> saveMachineData(String jsonString) async {
-    await _prefs.setString('machine_data', jsonString);
-  }
-
-  String? getMachineData() {
-    return _prefs.getString('machine_data');
-  }
-
-  Future<void> clearMachineId() async {
-    await _prefs.remove(_machineIdKey);
-    await _prefs.remove('machine_data');
-  }
-
   // Clear all tokens
   Future<void> clearAll() async {
     await Future.wait([
       clearAccessToken(),
       clearRefreshToken(),
       clearTokenExpiry(),
-      clearMachineId(),
     ]);
   }
 

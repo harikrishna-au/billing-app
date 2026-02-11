@@ -26,6 +26,7 @@ class MachineUpdate(BaseModel):
 class MachineResponse(BaseModel):
     """Schema for machine response."""
     id: str
+    user_id: str
     name: str
     location: str
     username: str

@@ -7,7 +7,11 @@ import 'auth_provider.dart';
 
 // Repository Provider
 final catalogueRepositoryProvider = Provider<CatalogueRepository>((ref) {
-  return ApiCatalogueRepository(ref.watch(apiClientProvider));
+  final user = ref.watch(authProvider).user;
+  return ApiCatalogueRepository(
+    ref.watch(apiClientProvider),
+    machineId: user?.id,
+  );
 });
 
 // State
@@ -49,12 +53,7 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
       final user = _ref.read(authProvider).user;
       if (user == null) throw Exception('User not authenticated');
 
-      // Assuming machineId is available on user or we fetch for current machine
-      // This part might need adjustment based on how machineId is stored
-      // For now, using a placeholder or fetching from user
-      final machineId = user.id; // Or logic to get machine ID
-
-      final items = await _repository.getProducts(machineId);
+      final items = await _repository.getProducts();
       _allItems = items;
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {

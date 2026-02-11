@@ -8,10 +8,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import ClientDashboard from "./pages/ClientDashboard";
+import MachineCatalog from "./pages/MachineCatalog";
 import MachinePayments from "./pages/MachinePayments";
 import MachineLogs from "./pages/MachineLogs";
-import MachineCatalog from "./pages/MachineCatalog";
-import MachineCatalogLogs from "./pages/MachineCatalogLogs";
 import Alerts from "./pages/Alerts";
 import NotFound from "./pages/NotFound";
 
@@ -30,10 +29,10 @@ const App = () => (
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/clients/:id" element={<ClientDashboard />} />
+          <Route path="/clients/:id/catalog" element={<MachineCatalog />} />
           <Route path="/clients/:id/payments" element={<MachinePayments />} />
           <Route path="/clients/:id/logs" element={<MachineLogs />} />
-          <Route path="/clients/:id/catalog" element={<MachineCatalog />} />
-          <Route path="/clients/:id/catalog-logs" element={<MachineCatalogLogs />} />
+          <Route path="/clients/:id/catalog-logs" element={<MachineLogs />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

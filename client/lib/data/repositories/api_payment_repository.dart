@@ -5,46 +5,14 @@ import 'payment_repository.dart';
 
 class ApiPaymentRepository implements PaymentRepository {
   final ApiClient _apiClient;
+  final String? machineId;
 
-  ApiPaymentRepository(this._apiClient);
+  ApiPaymentRepository(this._apiClient, {this.machineId});
 
   @override
   Future<List<Payment>> getPayments() async {
     try {
       final response = await _apiClient.get(ApiConstants.payments);
-
-      if (response.data['success'] == true) {
-        final paymentsData = response.data['data']['payments'] as List;
-        return paymentsData.map((p) => Payment.fromJson(p)).toList();
-      }
-      return [];
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  @override
-  Future<List<Payment>> getPaymentsByMachine(
-    String machineId, {
-    String? period,
-    PaymentMethod? method,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    try {
-      final queryParams = <String, dynamic>{};
-      if (period != null) queryParams['period'] = period;
-      if (method != null)
-        queryParams['method'] = method
-            .name; // Enum name usually matches API expectation (UPI, Card, Cash)
-      if (startDate != null)
-        queryParams['start_date'] = startDate.toIso8601String();
-      if (endDate != null) queryParams['end_date'] = endDate.toIso8601String();
-
-      final response = await _apiClient.get(
-        ApiConstants.paymentsByMachine(machineId),
-        queryParameters: queryParams,
-      );
 
       if (response.data['success'] == true) {
         final paymentsData = response.data['data']['payments'] as List;
@@ -97,10 +65,14 @@ class ApiPaymentRepository implements PaymentRepository {
   @override
   Future<Payment> createPayment(Payment payment) async {
     try {
+      if (machineId == null) {
+        throw Exception('Machine ID not found. Please login again.');
+      }
+
       final response = await _apiClient.post(
         ApiConstants.payments,
         data: {
-          'machine_id': payment.machineId,
+          'machine_id': machineId,
           'bill_number': payment.billNumber,
           'amount': payment.amount,
           'method': payment.method.name.toUpperCase(),
@@ -126,32 +98,6 @@ class ApiPaymentRepository implements PaymentRepository {
           'status': status.name,
         },
       );
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  @override
-  Future<Map<String, dynamic>> initiatePaytmTransaction({
-    required String orderId,
-    required double amount,
-    required String customerId,
-  }) async {
-    try {
-      final response = await _apiClient.post(
-        // Assuming a new endpoint for initiating transaction
-        '/payments/initiate',
-        data: {
-          'order_id': orderId,
-          'amount': amount,
-          'customer_id': customerId,
-        },
-      );
-
-      if (response.data['success'] == true) {
-        return response.data['data'] as Map<String, dynamic>;
-      }
-      throw Exception('Failed to initiate transaction');
     } catch (e) {
       rethrow;
     }

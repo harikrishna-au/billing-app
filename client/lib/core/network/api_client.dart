@@ -149,6 +149,15 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    // Don't retry if this is already a login or refresh request
+    if (err.requestOptions.path.contains('/auth/login') ||
+        err.requestOptions.path.contains('/auth/refresh') ||
+        err.requestOptions.path.contains('/auth/machine-login')) {
+      // Clear tokens on auth failure
+      await _tokenManager.clearAll();
+      return handler.next(err);
+    }
+
     // Handle 401 Unauthorized - try to refresh token
     if (err.response?.statusCode == 401) {
       final refreshToken = _tokenManager.getRefreshToken();
@@ -194,6 +203,9 @@ class _AuthInterceptor extends Interceptor {
           // Refresh failed, clear tokens
           await _tokenManager.clearAll();
         }
+      } else {
+        // No refresh token available, clear all tokens
+        await _tokenManager.clearAll();
       }
     }
 

@@ -5,13 +5,11 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/models/payment_model.dart';
-import '../../data/models/machine_model.dart';
 
 class ReceiptGenerator {
   /// Generate PDF receipt for a payment
   static Future<pw.Document> generateReceipt({
     required Payment payment,
-    required Machine machine,
     String businessName = 'BillKaro POS',
     String? businessAddress,
     String? businessPhone,
@@ -70,8 +68,6 @@ class ReceiptGenerator {
               // Bill Details
               _buildRow('Bill No:', payment.billNumber),
               _buildRow('Date:', _formatDateTime(payment.createdAt)),
-              _buildRow('Machine:', machine.name),
-              _buildRow('Location:', machine.location),
 
               pw.SizedBox(height: 8),
               pw.Divider(),
@@ -187,9 +183,8 @@ class ReceiptGenerator {
   /// Print receipt
   static Future<void> printReceipt({
     required Payment payment,
-    required Machine machine,
   }) async {
-    final pdf = await generateReceipt(payment: payment, machine: machine);
+    final pdf = await generateReceipt(payment: payment);
     await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
     );
@@ -198,9 +193,8 @@ class ReceiptGenerator {
   /// Share receipt as PDF
   static Future<void> shareReceipt({
     required Payment payment,
-    required Machine machine,
   }) async {
-    final pdf = await generateReceipt(payment: payment, machine: machine);
+    final pdf = await generateReceipt(payment: payment);
     final bytes = await pdf.save();
 
     // Save to temporary directory
@@ -220,9 +214,8 @@ class ReceiptGenerator {
   /// Save receipt to device
   static Future<File> saveReceipt({
     required Payment payment,
-    required Machine machine,
   }) async {
-    final pdf = await generateReceipt(payment: payment, machine: machine);
+    final pdf = await generateReceipt(payment: payment);
     final bytes = await pdf.save();
 
     final dir = await getApplicationDocumentsDirectory();

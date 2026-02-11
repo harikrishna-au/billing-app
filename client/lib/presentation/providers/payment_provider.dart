@@ -3,12 +3,15 @@ import '../../data/models/payment_model.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/api_payment_repository.dart';
 import '../../core/network/providers.dart';
-import 'machine_provider.dart';
+import 'auth_provider.dart';
 
 // Repository Provider
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return ApiPaymentRepository(apiClient);
+  final user = ref.watch(authProvider).user;
+  return ApiPaymentRepository(
+    ref.watch(apiClientProvider),
+    machineId: user?.id,
+  );
 });
 
 // State
@@ -64,14 +67,7 @@ class PaymentState {
 class PaymentController extends StateNotifier<PaymentState> {
   final Ref ref;
 
-  PaymentController(this.ref) : super(PaymentState()) {
-    // Listen to machine changes and reload payments
-    ref.listen(machineProvider, (previous, next) {
-      if (next.selectedMachine != null) {
-        loadPaymentsForMachine(next.selectedMachine!.id);
-      }
-    });
-  }
+  PaymentController(this.ref) : super(PaymentState());
 
   Future<void> loadAllPayments() async {
     state = state.copyWith(isLoading: true);
@@ -90,44 +86,18 @@ class PaymentController extends StateNotifier<PaymentState> {
     }
   }
 
-  Future<void> loadPaymentsForMachine(String machineId,
-      {String? period, DateTime? startDate, DateTime? endDate}) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final payments = await ref
-          .read(paymentRepositoryProvider)
-          .getPaymentsByMachine(machineId,
-              period: period, startDate: startDate, endDate: endDate);
-      state = state.copyWith(
-        payments: payments,
-        filteredPayments: payments,
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
-    }
-  }
+
 
   Future<void> loadTodayPayments() async {
-    final selectedMachine = ref.read(machineProvider).selectedMachine;
-    if (selectedMachine != null) {
-      await loadPaymentsForMachine(selectedMachine.id, period: 'day');
-    }
+    await loadAllPayments();
   }
 
   Future<void> loadPaymentsForDate(DateTime date) async {
-    final selectedMachine = ref.read(machineProvider).selectedMachine;
-    if (selectedMachine != null) {
-      // Calculate start and end of the day
-      final start = DateTime(date.year, date.month, date.day);
-      final end = DateTime(date.year, date.month, date.day, 23, 59, 59);
+    // Calculate start and end of the day
+    final start = DateTime(date.year, date.month, date.day);
+    final end = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
-      await loadPaymentsForMachine(selectedMachine.id,
-          startDate: start, endDate: end);
-    }
+    await loadPaymentsByDateRange(start, end);
   }
 
   Future<void> loadPaymentsByDateRange(DateTime start, DateTime end) async {
@@ -154,11 +124,8 @@ class PaymentController extends StateNotifier<PaymentState> {
       final createdPayment =
           await ref.read(paymentRepositoryProvider).createPayment(payment);
 
-      // Reload payments for current machine
-      final selectedMachine = ref.read(machineProvider).selectedMachine;
-      if (selectedMachine != null) {
-        await loadPaymentsForMachine(selectedMachine.id);
-      }
+      // Reload all payments
+      await loadAllPayments();
 
       state = state.copyWith(lastCreatedPayment: createdPayment);
       return createdPayment;
