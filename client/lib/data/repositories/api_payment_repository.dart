@@ -12,7 +12,11 @@ class ApiPaymentRepository implements PaymentRepository {
   @override
   Future<List<Payment>> getPayments() async {
     try {
-      final response = await _apiClient.get(ApiConstants.payments);
+      final queryParams = machineId != null ? {'machine_id': machineId} : null;
+      final response = await _apiClient.get(
+        ApiConstants.payments,
+        queryParameters: queryParams,
+      );
 
       if (response.data['success'] == true) {
         final paymentsData = response.data['data']['payments'] as List;
@@ -28,12 +32,16 @@ class ApiPaymentRepository implements PaymentRepository {
   Future<List<Payment>> getPaymentsByDateRange(
       DateTime start, DateTime end) async {
     try {
+      final queryParams = {
+        'start_date': start.toIso8601String(),
+        'end_date': end.toIso8601String(),
+      };
+      if (machineId != null) {
+        queryParams['machine_id'] = machineId!;
+      }
       final response = await _apiClient.get(
         ApiConstants.payments,
-        queryParameters: {
-          'start_date': start.toIso8601String(),
-          'end_date': end.toIso8601String(),
-        },
+        queryParameters: queryParams,
       );
 
       if (response.data['success'] == true) {

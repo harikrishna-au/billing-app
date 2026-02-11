@@ -10,6 +10,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../../core/utils/bill_number_generator.dart';
 
 class UpiPaymentScreen extends ConsumerStatefulWidget {
   final double amount;
@@ -29,6 +30,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
     with TickerProviderStateMixin {
   bool _isWaitingForPayment = false;
   bool _paymentCompleted = false;
+  bool _isProcessingPayment = false; // Prevent duplicate submissions
   late AnimationController _pulseController;
   
   // Timer related
@@ -90,17 +92,24 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
   }
   
   Future<void> _handlePaymentSuccess() async {
+    // Prevent duplicate submissions
+    if (_isProcessingPayment) return;
+    
     _countdownTimer?.cancel();
     setState(() {
       _isWaitingForPayment = false;
       _paymentCompleted = true;
+      _isProcessingPayment = true; // Lock to prevent duplicates
     });
     
     try {
+      // Generate sequential bill number if not provided
+      final billNumber = widget.invoiceNumber ?? await BillNumberGenerator.generate();
+      
       // Create payment record
       final payment = Payment(
         id: '',
-        billNumber: widget.invoiceNumber ?? 'BILL-${DateTime.now().millisecondsSinceEpoch}',
+        billNumber: billNumber,
         amount: widget.amount,
         method: PaymentMethod.upi,
         status: PaymentStatus.success,

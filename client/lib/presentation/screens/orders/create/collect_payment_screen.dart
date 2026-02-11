@@ -8,6 +8,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../../core/utils/bill_number_generator.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   final String paymentMethod;
@@ -134,6 +135,9 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     // If online payment, show coming soon message
     // If online payment
     if (widget.paymentMethod == 'online') {
+      // Prevent duplicate submissions
+      if (_isProcessing) return;
+      
       setState(() => _isProcessing = true);
       try {
         final cartState = ref.read(cartProvider);
@@ -157,6 +161,9 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     }
 
     // For cash payment, create payment record
+    // Prevent duplicate submissions
+    if (_isProcessing) return;
+    
     setState(() => _isProcessing = true);
 
     try {
@@ -164,8 +171,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       final subtotal = cartState.totalAmount;
       final total = subtotal;
 
-      // Generate unique bill number
-      final billNumber = 'BILL-${DateTime.now().millisecondsSinceEpoch}';
+      // Generate sequential bill number
+      final billNumber = await BillNumberGenerator.generate();
 
       // Determine payment method enum
       PaymentMethod method;

@@ -2,13 +2,8 @@ import 'dart:io';
 
 /// API Configuration for Backend
 class ApiConstants {
-  // Base URL - Backend running on localhost (10.0.2.2 for Android Emulator)
-  static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/v1';
-    }
-    return 'http://localhost:8000/v1';
-  }
+  // Base URL - Backend running on Render
+  static const String baseUrl = 'https://billing-app-xceo.onrender.com/v1';
 
   // Auth Endpoints
   static const String login = '/auth/machine-login';  // Machine login for client app

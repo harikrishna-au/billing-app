@@ -1,56 +1,61 @@
-/// Utility class for generating unique bill numbers
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Utility class for generating sequential bill numbers
+/// Format: BILL-XXXX (e.g., BILL-0001, BILL-0002, etc.)
 class BillNumberGenerator {
-  static int _counter = 0;
-  static DateTime? _lastDate;
+  static const String _counterKey = 'bill_number_counter';
+  static int? _cachedCounter;
 
-  /// Generate a unique bill number in format: BILL-YYYYMMDD-XXXX
-  /// Example: BILL-20260204-0001
-  static String generate() {
-    final now = DateTime.now();
-    final dateStr = '${now.year}${_pad(now.month)}${_pad(now.day)}';
-
-    // Reset counter if it's a new day
-    if (_lastDate == null || !_isSameDay(_lastDate!, now)) {
-      _counter = 0;
-      _lastDate = now;
-    }
-
-    _counter++;
-    final counterStr = _counter.toString().padLeft(4, '0');
-
-    return 'BILL-$dateStr-$counterStr';
+  /// Get the next bill number and increment the counter
+  static Future<String> generate() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Get current counter (default to 0 if not set)
+    int counter = _cachedCounter ?? prefs.getInt(_counterKey) ?? 0;
+    
+    // Increment counter
+    counter++;
+    
+    // Save to SharedPreferences
+    await prefs.setInt(_counterKey, counter);
+    _cachedCounter = counter;
+    
+    // Format as BILL-XXXX (4 digits with leading zeros)
+    final counterStr = counter.toString().padLeft(4, '0');
+    return 'BILL-$counterStr';
   }
 
-  /// Generate bill number with machine prefix
-  /// Example: M001-20260204-0001
-  static String generateForMachine(String machineId) {
-    final now = DateTime.now();
-    final dateStr = '${now.year}${_pad(now.month)}${_pad(now.day)}';
-
-    // Reset counter if it's a new day
-    if (_lastDate == null || !_isSameDay(_lastDate!, now)) {
-      _counter = 0;
-      _lastDate = now;
-    }
-
-    _counter++;
-    final counterStr = _counter.toString().padLeft(4, '0');
-
-    // Extract machine number from ID (e.g., mach_001 -> M001)
-    final machineNum = machineId.replaceAll('mach_', 'M');
-
-    return '$machineNum-$dateStr-$counterStr';
+  /// Set the counter to a specific value (used when syncing with backend)
+  static Future<void> setCounter(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_counterKey, value);
+    _cachedCounter = value;
   }
 
-  static String _pad(int value) => value.toString().padLeft(2, '0');
-
-  static bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+  /// Get the current counter value without incrementing
+  static Future<int> getCurrentCounter() async {
+    if (_cachedCounter != null) return _cachedCounter!;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final counter = prefs.getInt(_counterKey) ?? 0;
+    _cachedCounter = counter;
+    return counter;
   }
 
-  /// Reset counter (useful for testing)
-  static void reset() {
-    _counter = 0;
-    _lastDate = null;
+  /// Sync with backend to get the latest bill number
+  /// This should be called when the app goes online
+  static Future<void> syncWithBackend(int backendCounter) async {
+    final localCounter = await getCurrentCounter();
+    
+    // Use the higher value to avoid duplicates
+    final maxCounter = localCounter > backendCounter ? localCounter : backendCounter;
+    await setCounter(maxCounter);
+  }
+
+  /// Reset counter (useful for testing or manual reset)
+  static Future<void> reset() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_counterKey);
+    _cachedCounter = null;
   }
 }
