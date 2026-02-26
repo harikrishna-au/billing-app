@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Ticket } from "lucide-react";
+import { Zap, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
 
@@ -19,7 +19,6 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // Call backend login API
       const response = await authApi.login({ username, password });
 
       if (response.success) {
@@ -27,12 +26,11 @@ const Login = () => {
           title: "Welcome back!",
           description: `Logged in as ${response.data.user.username}`,
         });
-
-        // Redirect to dashboard
         navigate("/dashboard");
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail ||
+      const errorMessage =
+        error.response?.data?.detail ||
         error.response?.data?.message ||
         "Invalid username or password";
 
@@ -48,84 +46,72 @@ const Login = () => {
 
   return (
     <div className="login-container flex min-h-screen items-center justify-center p-4">
-      <div className="login-card w-full max-w-md p-8 animate-scale-in">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 glow-effect">
-            <Ticket className="h-8 w-8 text-primary" />
+      <div className="w-full max-w-sm animate-scale-in">
+        {/* Card */}
+        <div className="login-card px-8 py-10">
+          {/* Logo */}
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15">
+              <Zap className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-xl font-semibold text-foreground">Billing Admin</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Sign in to your control panel
+            </p>
           </div>
-          <h1 className="text-2xl font-semibold text-foreground">Billing Admin</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to manage your billing operations
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Username
+              </Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="h-10 bg-secondary/60 border-border/60 text-sm placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="h-10 bg-secondary/60 border-border/60 text-sm placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                required
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="glow"
+              className="mt-2 w-full h-10 text-sm font-semibold"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground/60">
+            Contact your administrator if you need access
           </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="username" className="text-sm text-muted-foreground">
-              Username
-            </Label>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="h-11 bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm text-muted-foreground">
-              Password
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="h-11 bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
-              required
-            />
-          </div>
-
-          <Button
-            type="submit"
-            variant="glow"
-            size="xl"
-            className="w-full mt-6"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Signing in...
-              </span>
-            ) : (
-              "Sign In"
-            )}
-          </Button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Contact your administrator if you need access
-        </p>
       </div>
     </div>
   );

@@ -27,8 +27,8 @@ const SystemAlerts = ({ alerts = [] }: SystemAlertsProps) => {
         <div className="stat-card animate-slide-up">
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-semibold text-foreground">System Alerts</h3>
-                    <p className="text-sm text-muted-foreground">Operational health & notifications</p>
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">System Alerts</h3>
+                    <p className="mt-1 text-base font-semibold text-foreground">Operational Health</p>
                 </div>
                 <Button
                     variant="ghost"

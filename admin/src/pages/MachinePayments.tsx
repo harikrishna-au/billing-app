@@ -131,7 +131,7 @@ const MachinePayments = () => {
                                         ))}
                                     </Pie>
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: "#1e293b", borderColor: "#334155", color: "#f8fafc" }}
+                                        contentStyle={{ backgroundColor: "hsl(224 14% 9%)", borderColor: "hsl(224 14% 16%)", color: "hsl(220 13% 93%)", borderRadius: "10px", fontFamily: "Outfit", fontSize: "13px" }}
                                         formatter={(value: number) => [`₹${value.toLocaleString()}`, "Amount"]}
                                     />
                                     <Legend verticalAlign="bottom" height={36} />

@@ -102,8 +102,9 @@ const Clients = () => {
       <div className="space-y-8">
         <div className="flex items-center justify-between animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Billing Machines</h1>
-            <p className="text-muted-foreground">Manage all your billing machines and their configurations</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Management</p>
+            <h1 className="text-2xl font-semibold text-foreground">Billing Machines</h1>
+            <p className="text-sm text-muted-foreground">Manage all your billing machines and their configurations</p>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -225,15 +226,15 @@ const Clients = () => {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border/50">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Machine</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Location</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Username</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Online</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Offline</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Last Sync</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Machine</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Username</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Online</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Offline</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last Sync</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -243,9 +244,9 @@ const Clients = () => {
                       className="border-b border-border/30 hover:bg-accent/50 transition-colors cursor-pointer"
                       onClick={() => navigate(`/clients/${machine.id}`)}
                     >
-                      <td className="py-3 px-4 font-medium text-foreground">{machine.name}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{machine.location}</td>
-                      <td className="py-3 px-4 text-muted-foreground font-mono text-sm">{machine.username}</td>
+                      <td className="py-3 px-4 font-medium text-foreground text-sm">{machine.name}</td>
+                      <td className="py-3 px-4 text-muted-foreground text-sm">{machine.location}</td>
+                      <td className="py-3 px-4 text-muted-foreground font-mono text-xs">{machine.username}</td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${machine.status === 'online'
                           ? 'bg-emerald-500/10 text-emerald-500'
@@ -256,9 +257,9 @@ const Clients = () => {
                           {machine.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-foreground">₹{Number(machine.online_collection).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-foreground">₹{Number(machine.offline_collection).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-muted-foreground text-sm">
+                      <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.online_collection).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.offline_collection).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-muted-foreground text-xs font-mono">
                         {new Date(machine.last_sync).toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right">

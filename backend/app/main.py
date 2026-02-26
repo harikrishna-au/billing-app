@@ -23,7 +23,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.DEBUG else settings.allowed_origins_list,
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,9 +111,12 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables on startup."""
-    # Create tables if they don't exist
-    Base.metadata.create_all(bind=engine)
-    print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
+    try:
+        Base.metadata.create_all(bind=engine)
+        print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
+    except Exception as e:
+        print(f"⚠️  Database connection failed at startup: {e}")
+        print("   Server will start but DB-dependent endpoints will fail until the database is reachable.")
     print(f"📚 API Documentation: http://{settings.HOST}:{settings.PORT}/docs")
 
 

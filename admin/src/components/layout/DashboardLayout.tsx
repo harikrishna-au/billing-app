@@ -10,7 +10,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for JWT token
     const token = localStorage.getItem("access_token");
     if (!token) {
       navigate("/login");
@@ -20,7 +19,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <main className="ml-64 min-h-screen">
+      <main className="ml-60 min-h-screen">
         <div className="p-8">{children}</div>
       </main>
     </div>
