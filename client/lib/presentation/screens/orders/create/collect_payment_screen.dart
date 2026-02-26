@@ -9,6 +9,7 @@ import '../../../../data/models/payment_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../../core/utils/bill_number_generator.dart';
+import '../../../../services/smart_pos_printer_service.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   final String paymentMethod;
@@ -137,7 +138,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     if (widget.paymentMethod == 'online') {
       // Prevent duplicate submissions
       if (_isProcessing) return;
-      
+
       setState(() => _isProcessing = true);
       try {
         final cartState = ref.read(cartProvider);
@@ -148,9 +149,10 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
         // For online payment, navigate to UPI payment screen
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        
+
         // Navigate to UPI payment screen
-        context.push('/new/review/collect-payment/upi?amount=$total&invoice=$orderId');
+        context.push(
+            '/new/review/collect-payment/upi?amount=$total&invoice=$orderId');
       } catch (e) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,7 +165,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     // For cash payment, create payment record
     // Prevent duplicate submissions
     if (_isProcessing) return;
-    
+
     setState(() => _isProcessing = true);
 
     try {
@@ -186,6 +188,37 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
       // Create payment object
       await _createPaymentRecord(context, total, method, billNumber);
+
+      // Print Receipt
+      try {
+        final printerService = SmartPosPrinterService();
+        await printerService.initSdk();
+
+        await printerService.printText(
+            text: "BILL KARO\n", size: 30, isBold: true, align: 1);
+        await printerService.printText(
+            text: "Bill No: $billNumber\n", size: 24, align: 0);
+        await printerService.printText(
+            text: "Date: ${DateTime.now().toString().substring(0, 16)}\n",
+            size: 24,
+            align: 0);
+        await printerService.printText(
+            text: "--------------------------------\n", size: 24, align: 1);
+        await printerService.printText(
+            text: "Amount: ${CurrencyFormatter.format(total)}\n",
+            size: 30,
+            isBold: true,
+            align: 1);
+        await printerService.printText(
+            text: "Method: ${method.name.toUpperCase()}\n", size: 24, align: 1);
+        await printerService.printText(
+            text: "--------------------------------\n", size: 24, align: 1);
+        await printerService.printText(
+            text: "Thank you!\n\n\n\n", size: 24, align: 1);
+      } catch (e) {
+        print("Printing failed: $e");
+        // Don't block navigation if printing fails
+      }
     } catch (e) {
       if (!mounted) return;
 
