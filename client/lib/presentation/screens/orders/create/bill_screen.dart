@@ -33,74 +33,66 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     final now = widget.date ?? DateTime.now();
     final invoiceNo = widget.invoiceNumber ??
         'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
-
-    final subtotal = widget.amount ?? cartState.totalAmount;
-    final total = subtotal;
+    final total = widget.amount ?? cartState.totalAmount;
+    final isCash = widget.paymentMethod.toLowerCase() == 'cash';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           'Invoice',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
           ),
         ),
         centerTitle: true,
         leading: IconButton(
           icon: Container(
-            padding: const EdgeInsets.all(8),
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Icon(Icons.arrow_back_ios_new, size: 16),
+            child: const Icon(Icons.arrow_back_ios_new_rounded,
+                size: 15, color: AppColors.textPrimary),
           ),
           onPressed: () {
-            // Prevent going back to payment screen. Start new order instead.
             ref.read(cartProvider.notifier).clearCart();
             context.go('/new');
           },
-          color: AppColors.textPrimary,
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined),
+            icon:
+                const Icon(Icons.share_outlined, color: AppColors.textSecondary, size: 22),
             onPressed: () {
-              // TODO: Implement share functionality
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    'Share functionality coming soon!',
-                    style: GoogleFonts.inter(),
-                  ),
+                  content: Text('Share coming soon',
+                      style: GoogleFonts.plusJakartaSans()),
                   behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.all(16),
                 ),
               );
             },
-            color: AppColors.textPrimary,
           ),
           IconButton(
-            icon: const Icon(Icons.download_outlined),
+            icon: const Icon(Icons.print_outlined,
+                color: AppColors.textSecondary, size: 22),
             onPressed: () async {
-              final cartState = ref.read(cartProvider);
-              final items = cartState.items.values.map((item) {
-                return {
-                  'name': item.product.name,
-                  'quantity': item.quantity,
-                  'price': item.product.price,
-                };
-              }).toList();
-
+              final items = cartState.items.values
+                  .map((i) => {
+                        'name': i.product.name,
+                        'quantity': i.quantity,
+                        'price': i.product.price,
+                      })
+                  .toList();
               try {
                 await ref.read(printerServiceProvider).printReceipt(
                       orderId: invoiceNo,
@@ -112,383 +104,46 @@ class _BillScreenState extends ConsumerState<BillScreen> {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Print failed: $e')),
-                  );
+                      SnackBar(content: Text('Print failed: $e')));
                 }
               }
             },
-            color: AppColors.textPrimary,
           ),
+          const SizedBox(width: 4),
         ],
         elevation: 0,
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppColors.background,
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: Column(
                 children: [
-                  // Success Badge
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF10B981),
-                          const Color(0xFF10B981).withOpacity(0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF10B981).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check_circle,
-                            size: 48,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Payment Successful!',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          CurrencyFormatter.format(total),
-                          style: GoogleFonts.poppins(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
+                  // Success banner
+                  _SuccessBanner(total: total, isCash: isCash)
+                      .animate()
+                      .fadeIn(duration: 350.ms)
+                      .scale(
+                          begin: const Offset(0.92, 0.92),
+                          duration: 500.ms,
+                          curve: Curves.easeOutBack),
+
+                  const SizedBox(height: 20),
+
+                  // Invoice card
+                  _InvoiceCard(
+                    invoiceNo: invoiceNo,
+                    now: now,
+                    total: total,
+                    cartState: cartState,
+                    paymentMethod: widget.paymentMethod,
+                    isCash: isCash,
                   )
                       .animate()
-                      .fadeIn(duration: 300.ms)
-                      .scale(begin: const Offset(0.9, 0.9)),
-
-                  const SizedBox(height: 24),
-
-                  // Invoice Card
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Invoice Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'INVOICE',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textSecondary,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  invoiceNo,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'PAID',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF10B981),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-                        const Divider(),
-                        const SizedBox(height: 20),
-
-                        // Date & Payment Method
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _InfoRow(
-                                label: 'Date',
-                                value: '${now.day}/${now.month}/${now.year}',
-                                icon: Icons.calendar_today_outlined,
-                              ),
-                            ),
-                            Expanded(
-                              child: _InfoRow(
-                                label: 'Time',
-                                value:
-                                    '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-                                icon: Icons.access_time,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        _InfoRow(
-                          label: 'Payment Method',
-                          value: widget.paymentMethod == 'cash'
-                              ? 'Cash'
-                              : 'Online/UPI',
-                          icon: widget.paymentMethod == 'cash'
-                              ? Icons.payments_outlined
-                              : Icons.qr_code_scanner,
-                        ),
-
-                        const SizedBox(height: 24),
-                        const Divider(),
-                        const SizedBox(height: 24),
-
-                        // Items Section
-                        Text(
-                          'ITEMS',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Items List
-                        ...cartState.items.values.map(
-                          (cartItem) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Quantity Badge
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${cartItem.quantity}x',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-
-                                // Item Details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        cartItem.product.name,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${CurrencyFormatter.format(cartItem.product.price)} each',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Total Price
-                                Text(
-                                  CurrencyFormatter.format(
-                                      cartItem.product.price *
-                                          cartItem.quantity),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 16),
-
-                        // Bill Summary
-                        _BillRow('Subtotal', subtotal),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Total Amount',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                CurrencyFormatter.format(total),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 300.ms, delay: 100.ms)
-                      .slideY(begin: 0.1, end: 0),
-
-                  const SizedBox(height: 24),
-
-                  // Business Info Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.store_outlined,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Your Business Name',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '123 Business Street, City, State - 123456',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Phone: +91 98765 43210',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        /*
-                        Text(
-                          'GST: 29ABCDE1234F1Z5',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        */
-                      ],
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 300.ms, delay: 200.ms)
-                      .slideY(begin: 0.1, end: 0),
+                      .fadeIn(duration: 350.ms, delay: 100.ms)
+                      .slideY(begin: 0.08, end: 0),
 
                   const SizedBox(height: 100),
                 ],
@@ -496,135 +151,113 @@ class _BillScreenState extends ConsumerState<BillScreen> {
             ),
           ),
 
-          // Action Buttons
+          // Action buttons
+          _ActionsFooter(
+            onPrint: () async {
+              final items = cartState.items.values
+                  .map((i) => {
+                        'name': i.product.name,
+                        'quantity': i.quantity,
+                        'price': i.product.price,
+                      })
+                  .toList();
+              try {
+                await ref.read(printerServiceProvider).printReceipt(
+                      orderId: invoiceNo,
+                      totalAmount: total,
+                      date: now,
+                      items: items,
+                      paymentMethod: widget.paymentMethod,
+                    );
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Print failed: $e')));
+                }
+              }
+            },
+            onNewOrder: () {
+              ref.read(cartProvider.notifier).clearCart();
+              context.go('/new');
+            },
+            onViewOrders: () {
+              ref.read(cartProvider.notifier).clearCart();
+              context.go('/orders');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuccessBanner extends StatelessWidget {
+  final double total;
+  final bool isCash;
+
+  const _SuccessBanner({required this.total, required this.isCash});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.successLight,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.success.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(30),
-                topRight: Radius.circular(30),
-              ),
+              color: AppColors.success,
+              shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, -4),
+                  color: AppColors.success.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final cartState = ref.read(cartProvider);
-                        final items = cartState.items.values.map((item) {
-                          return {
-                            'name': item.product.name,
-                            'quantity': item.quantity,
-                            'price': item.product.price,
-                          };
-                        }).toList();
-
-                        try {
-                          await ref.read(printerServiceProvider).printReceipt(
-                                orderId: invoiceNo,
-                                totalAmount: total,
-                                date: now,
-                                items: items,
-                                paymentMethod: widget.paymentMethod,
-                              );
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Print failed: $e')),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.print, size: 22),
-                      label: Text(
-                        'Print Receipt',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Clear cart and go to select items for next order
-                        ref.read(cartProvider.notifier).clearCart();
-                        context.go('/new');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add_shopping_cart, size: 22),
-                      label: Text(
-                        'New Order',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Clear cart and go to orders history
-                        ref.read(cartProvider.notifier).clearCart();
-                        context.go('/orders');
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(
-                          color: Color(0xFFE2E8F0),
-                          width: 1.5,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.history, size: 20),
-                      label: Text(
-                        'View Orders',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Payment successful',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.success,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            CurrencyFormatter.format(total),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF065F46),
+              letterSpacing: -1,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.success.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              isCash ? 'Paid via Cash' : 'Paid via UPI / Online',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.success,
               ),
             ),
           ),
@@ -634,86 +267,364 @@ class _BillScreenState extends ConsumerState<BillScreen> {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
+class _InvoiceCard extends StatelessWidget {
+  final String invoiceNo;
+  final DateTime now;
+  final double total;
+  final CartState cartState;
+  final String paymentMethod;
+  final bool isCash;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    required this.icon,
+  const _InvoiceCard({
+    required this.invoiceNo,
+    required this.now,
+    required this.total,
+    required this.cartState,
+    required this.paymentMethod,
+    required this.isCash,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: AppColors.primary,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'INVOICE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textLight,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      invoiceNo,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.successLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'PAID',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.success,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(
+
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // Date & method
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                _MetaChip(
+                  icon: Icons.calendar_today_outlined,
+                  label:
+                      '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
+                ),
+                const SizedBox(width: 10),
+                _MetaChip(
+                  icon: Icons.access_time_rounded,
+                  label:
+                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+                ),
+                const SizedBox(width: 10),
+                _MetaChip(
+                  icon: isCash
+                      ? Icons.payments_rounded
+                      : Icons.qr_code_rounded,
+                  label: isCash ? 'Cash' : 'Online',
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // Items
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+            child: Text(
+              'ITEMS',
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textLight,
+                letterSpacing: 1.5,
               ),
             ),
-            Text(
-              value,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+          ),
+          ...cartState.items.values.map(
+            (ci) => Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${ci.quantity}x',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ci.product.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${CurrencyFormatter.format(ci.product.price)} each',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.format(ci.product.price * ci.quantity),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // Total
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.format(total),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _BillRow extends StatelessWidget {
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final double amount;
 
-  const _BillRow(this.label, this.amount);
+  const _MetaChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: AppColors.textSecondary,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.textSecondary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
-        ),
-        Text(
-          CurrencyFormatter.format(amount),
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionsFooter extends StatelessWidget {
+  final VoidCallback onPrint;
+  final VoidCallback onNewOrder;
+  final VoidCallback onViewOrders;
+
+  const _ActionsFooter({
+    required this.onPrint,
+    required this.onNewOrder,
+    required this.onViewOrders,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(top: BorderSide(color: AppColors.borderLight)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Print
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: onPrint,
+                icon: const Icon(Icons.print_rounded, size: 20),
+                label: Text(
+                  'Print Receipt',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1C1917),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: onNewOrder,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        'New Order',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: onViewOrders,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        'View Orders',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

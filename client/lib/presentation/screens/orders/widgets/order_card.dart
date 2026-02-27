@@ -72,7 +72,7 @@ class OrderCard extends StatelessWidget {
                       children: [
                         Text(
                           'Order #${order.id}',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -89,7 +89,7 @@ class OrderCard extends StatelessWidget {
                             ),
                             child: Text(
                               order.paymentMethod.toUpperCase(),
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.plusJakartaSans(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: paymentText,
@@ -103,7 +103,7 @@ class OrderCard extends StatelessWidget {
                       children: [
                         Text(
                           CurrencyFormatter.format(order.totalAmount),
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -111,7 +111,7 @@ class OrderCard extends StatelessWidget {
                         ),
                         Text(
                           order.isPaid ? 'PAID' : 'UNPAID',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             color: statusText,
@@ -125,7 +125,7 @@ class OrderCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   formattedDate,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
@@ -157,7 +157,7 @@ class OrderCard extends StatelessWidget {
                         children: [
                           Text(
                             _getItemSummary(order.items),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.plusJakartaSans(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
@@ -168,7 +168,7 @@ class OrderCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Client: ${order.clientName}',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.plusJakartaSans(
                               fontSize: 13,
                               color: const Color(0xFF64748B), // Slate 500
                             ),
@@ -181,7 +181,7 @@ class OrderCard extends StatelessWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: AppColors.background,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.chevron_right_rounded,

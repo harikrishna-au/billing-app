@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-// import 'package:google_fonts/google_fonts.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../config/theme/app_colors.dart';
 
 class AppBottomNavigation extends StatelessWidget {
@@ -22,56 +22,121 @@ class AppBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _onTap,
-          backgroundColor: Colors.white,
-          indicatorColor: AppColors.primary.withOpacity(0.1),
-          height: 70,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          elevation: 0,
-          destinations: [
-            _buildDestination(
-              icon: Icons.add_shopping_cart_outlined,
-              selectedIcon: Icons.add_shopping_cart_rounded,
-              label: 'New Order',
-            ),
-            _buildDestination(
-              icon: Icons.receipt_long_outlined,
-              selectedIcon: Icons.receipt_long_rounded,
-              label: 'Orders',
-            ),
-            _buildDestination(
-              icon: Icons.settings_outlined,
-              selectedIcon: Icons.settings_rounded,
-              label: 'Settings',
-            ),
-          ],
+      bottomNavigationBar: _BottomNav(
+        currentIndex: navigationShell.currentIndex,
+        onTap: _onTap,
+      ),
+    );
+  }
+}
+
+class _BottomNav extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _BottomNav({required this.currentIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border:
+            const Border(top: BorderSide(color: AppColors.borderLight, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: [
+              _NavItem(
+                icon: Icons.add_shopping_cart_outlined,
+                activeIcon: Icons.add_shopping_cart_rounded,
+                label: 'New Order',
+                isActive: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                icon: Icons.receipt_long_outlined,
+                activeIcon: Icons.receipt_long_rounded,
+                label: 'Orders',
+                isActive: currentIndex == 1,
+                onTap: () => onTap(1),
+              ),
+              _NavItem(
+                icon: Icons.settings_outlined,
+                activeIcon: Icons.settings_rounded,
+                label: 'Settings',
+                isActive: currentIndex == 2,
+                onTap: () => onTap(2),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  NavigationDestination _buildDestination({
-    required IconData icon,
-    required IconData selectedIcon,
-    required String label,
-  }) {
-    return NavigationDestination(
-      icon: Icon(icon, color: AppColors.textSecondary),
-      selectedIcon: Icon(selectedIcon, color: AppColors.primary),
-      label: label,
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppColors.primaryLight
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isActive ? activeIcon : icon,
+                color: isActive ? AppColors.primary : AppColors.textLight,
+                size: 22,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? AppColors.primary : AppColors.textLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -18,44 +18,42 @@ class PaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine status colors
-    Color statusText;
-    Color statusBg;
+    final Color statusColor;
+    final Color statusBg;
+    final String statusLabel;
 
     switch (payment.status) {
       case PaymentStatus.success:
-        statusText = const Color(0xFF166534); // Green 800
-        statusBg = const Color(0xFFDCFCE7); // Green 100
+        statusColor = AppColors.success;
+        statusBg = AppColors.successLight;
+        statusLabel = 'Success';
         break;
       case PaymentStatus.pending:
-        statusText = const Color(0xFF9A3412); // Orange 800
-        statusBg = const Color(0xFFFFEDD5); // Orange 100
+        statusColor = AppColors.warning;
+        statusBg = AppColors.warningLight;
+        statusLabel = 'Pending';
         break;
       case PaymentStatus.failed:
-        statusText = const Color(0xFF991B1B); // Red 800
-        statusBg = const Color(0xFFFEE2E2); // Red 100
+        statusColor = AppColors.error;
+        statusBg = AppColors.error.withOpacity(0.1);
+        statusLabel = 'Failed';
         break;
     }
 
-    // Payment Badge (UPI/Cash/Card)
-    Color methodBg = const Color(0xFFDBEAFE); // Blue 100
-    Color methodText = const Color(0xFF1E40AF); // Blue 800
-    if (payment.method == PaymentMethod.cash) {
-      methodBg = const Color(0xFFF1F5F9); // Slate 100
-      methodText = const Color(0xFF334155); // Slate 700
-    }
-
+    final isCash = payment.method == PaymentMethod.cash;
+    final formattedTime = DateFormat('hh:mm a').format(payment.createdAt);
     final formattedDate =
-        DateFormat('dd MMM yyyy, hh:mm a').format(payment.createdAt);
+        DateFormat('dd MMM yyyy').format(payment.createdAt);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -69,104 +67,82 @@ class PaymentCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                // Top Row: Bill # and Amount
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            payment.billNumber,
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formattedDate,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          CurrencyFormatter.format(payment.amount),
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                // Method icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isCash
+                        ? AppColors.successLight
+                        : AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isCash
+                        ? Icons.payments_rounded
+                        : Icons.qr_code_rounded,
+                    color: isCash ? AppColors.success : AppColors.primary,
+                    size: 22,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                const Divider(
-                    height: 1, thickness: 0.5, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 12),
+                const SizedBox(width: 14),
 
-                // Bottom Row: Method and Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Method Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: methodBg,
-                        borderRadius: BorderRadius.circular(6),
+                // Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        payment.billNumber,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.1,
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            payment.method == PaymentMethod.cash
-                                ? Icons.payments_outlined
-                                : Icons.qr_code_scanner,
-                            size: 14,
-                            color: methodText,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            payment.methodDisplay.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: methodText,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 3),
+                      Text(
+                        '$formattedDate  •  $formattedTime',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: AppColors.textLight,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Amount + status
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      CurrencyFormatter.format(payment.amount),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
                       ),
                     ),
-
-                    // Status Badge
+                    const SizedBox(height: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        payment.statusDisplay.toUpperCase(),
-                        style: GoogleFonts.inter(
+                        statusLabel,
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: statusText,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
                         ),
                       ),
                     ),

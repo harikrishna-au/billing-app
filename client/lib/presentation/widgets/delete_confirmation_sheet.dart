@@ -91,7 +91,7 @@ class DeleteConfirmationSheet extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
@@ -101,7 +101,7 @@ class DeleteConfirmationSheet extends StatelessWidget {
           Text(
             description,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               height: 1.5,
               color: const Color(0xFF64748B),
@@ -130,7 +130,7 @@ class DeleteConfirmationSheet extends StatelessWidget {
                   ),
                   child: Text(
                     confirmLabel,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -151,7 +151,7 @@ class DeleteConfirmationSheet extends StatelessWidget {
                   ),
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
