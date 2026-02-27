@@ -168,7 +168,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
               const SizedBox(height: 24),
               Text(
                 'Payment Failed',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -177,7 +177,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
               const SizedBox(height: 12),
               Text(
                 'The payment was not completed',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
@@ -200,7 +200,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                   ),
                   child: Text(
                     'Try Again',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -221,7 +221,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
       appBar: AppBar(
         title: Text(
           'Payment Request',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -258,7 +258,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
             if (widget.invoiceNumber != null)
               Text(
                 'Paying for Invoice #${widget.invoiceNumber}',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
@@ -274,7 +274,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                 children: [
                   Text(
                     '₹',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 32,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
@@ -283,7 +283,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                   ),
                   Text(
                     widget.amount.toStringAsFixed(2).split('.')[0],
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 56,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -292,7 +292,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                   ),
                   Text(
                     '.${widget.amount.toStringAsFixed(2).split('.')[1]}',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 32,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
@@ -312,7 +312,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
             if (!_showConfirmationButtons)
               Text(
                 'Click "Confirm Payment" to start the payment timer',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                 ),
@@ -349,7 +349,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                     const SizedBox(width: 16),
                     Text(
                       'Waiting for payment...',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -386,7 +386,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                   children: [
                     Text(
                       'Waiting for payment confirmation',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary,
@@ -395,7 +395,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                     const SizedBox(height: 12),
                     Text(
                       _formattedTime,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 48,
                         fontWeight: FontWeight.w700,
                         color: _remainingSeconds < 60 
@@ -406,7 +406,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                     const SizedBox(height: 8),
                     Text(
                       'Time remaining',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
@@ -442,7 +442,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                         ),
                         child: Text(
                           'Payment Failed',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -466,7 +466,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                         ),
                         child: Text(
                           'Payment Success',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -500,7 +500,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                   icon: const Icon(Icons.check_circle_outline, size: 22),
                   label: Text(
                     'Confirm Payment',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -521,18 +521,18 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                     ),
                     title: Text(
                       'Cancel Transaction?',
-                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
                     ),
                     content: Text(
                       'Are you sure you want to cancel this payment request?',
-                      style: GoogleFonts.plusJakartaSans(),
+                      style: GoogleFonts.dmSans(),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: Text(
                           'No, Keep it',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             color: AppColors.textSecondary,
                           ),
                         ),
@@ -550,7 +550,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
                         ),
                         child: Text(
                           'Yes, Cancel',
-                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+                          style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -563,7 +563,7 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
               ),
               child: Text(
                 'Cancel Transaction',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -619,7 +619,7 @@ class _UpiAppIcon extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             name,
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,

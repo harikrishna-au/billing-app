@@ -69,7 +69,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       appBar: AppBar(
         title: Text(
           'Orders',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
             fontSize: 22,
             letterSpacing: -0.5,
@@ -109,7 +109,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               children: [
                 Text(
                   isToday ? "Today's transactions" : 'Transactions',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
@@ -140,7 +140,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         const SizedBox(width: 7),
                         Text(
                           DateFormat('dd MMM yyyy').format(_selectedDate),
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
@@ -223,7 +223,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   'Total received',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -245,7 +245,7 @@ class _SummaryCard extends StatelessWidget {
                             color: Colors.white.withOpacity(0.4))
                     : Text(
                         CurrencyFormatter.format(total),
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
@@ -266,7 +266,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   isLoading ? '—' : '$count',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -276,7 +276,7 @@ class _SummaryCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   'txns',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: Colors.white.withOpacity(0.8),
                     fontWeight: FontWeight.w500,
@@ -314,7 +314,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No transactions',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -323,7 +323,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             'for ${DateFormat('dd MMM yyyy').format(date)}',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               color: AppColors.textLight,
               fontSize: 13,
             ),

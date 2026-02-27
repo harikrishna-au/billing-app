@@ -50,7 +50,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
       appBar: AppBar(
         title: Text(
           'New Order',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
             fontSize: 17,
             letterSpacing: -0.3,
@@ -98,14 +98,14 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
                   ref.read(catalogueProvider.notifier).search(val);
                   setState(() {});
                 },
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search products & services...',
-                  hintStyle: GoogleFonts.plusJakartaSans(
+                  hintStyle: GoogleFonts.dmSans(
                     color: AppColors.textLight,
                     fontSize: 14,
                   ),
@@ -204,7 +204,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             hasQuery ? 'No items match your search' : 'No items in catalogue',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
               fontSize: 15,
@@ -215,7 +215,7 @@ class _EmptyState extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Try a different keyword',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   color: AppColors.textLight,
                   fontSize: 13,
                 ),
@@ -250,7 +250,7 @@ class _ErrorState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Failed to load items',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
               fontSize: 15,
@@ -262,7 +262,7 @@ class _ErrorState extends StatelessWidget {
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: Text(
               'Try again',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w600),
             ),
             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
           ),

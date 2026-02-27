@@ -20,7 +20,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           'Settings',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
             fontSize: 22,
             letterSpacing: -0.5,
@@ -99,23 +99,23 @@ class SettingsScreen extends ConsumerWidget {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20)),
                       title: Text('Sign out?',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                               fontWeight: FontWeight.w700, fontSize: 17)),
                       content: Text('You will need to sign in again.',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                               color: AppColors.textSecondary, fontSize: 14)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
                           child: Text('Cancel',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: GoogleFonts.dmSans(
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w600)),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           child: Text('Sign out',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: GoogleFonts.dmSans(
                                   color: AppColors.error,
                                   fontWeight: FontWeight.w700)),
                         ),
@@ -129,7 +129,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
                 label: Text(
                   'Sign Out',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontWeight: FontWeight.w600,
                     color: AppColors.error,
                   ),
@@ -175,7 +175,7 @@ void _showProfileSheet(BuildContext context, String username, String machineId) 
           const SizedBox(height: 20),
           Text(
             'Profile',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
@@ -218,7 +218,7 @@ class _ProfileRow extends StatelessWidget {
           width: 100,
           child: Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 13,
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w500,
@@ -228,7 +228,7 @@ class _ProfileRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 13,
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
@@ -294,7 +294,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
           const SizedBox(height: 20),
           Text(
             'Notifications',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
@@ -357,7 +357,7 @@ class _NotifTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -366,7 +366,7 @@ class _NotifTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
@@ -424,7 +424,7 @@ class _UserCard extends StatelessWidget {
               children: [
                 Text(
                   'Logged in as',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 11,
                     color: Colors.white.withOpacity(0.7),
                     fontWeight: FontWeight.w500,
@@ -433,7 +433,7 @@ class _UserCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   username,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -451,7 +451,7 @@ class _UserCard extends StatelessWidget {
             ),
             child: Text(
               'Active',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
@@ -472,7 +472,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: GoogleFonts.plusJakartaSans(
+      style: GoogleFonts.dmSans(
         fontSize: 11,
         fontWeight: FontWeight.w700,
         color: AppColors.textLight,
@@ -531,7 +531,7 @@ class _Tile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
@@ -540,7 +540,7 @@ class _Tile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),

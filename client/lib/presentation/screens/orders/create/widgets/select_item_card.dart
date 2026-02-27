@@ -26,58 +26,35 @@ class SelectItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      margin: const EdgeInsets.only(bottom: 10),
+      duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primaryLight : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? AppColors.primaryMid : AppColors.border,
+          color: isSelected ? AppColors.primary : AppColors.border,
           width: isSelected ? 1.5 : 1,
         ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 3),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
       ),
       child: InkWell(
         onTap: isSelected ? null : onAdd,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              // Icon container
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 42,
-                height: 42,
+              // Type indicator — thin colored left accent
+              Container(
+                width: 3,
+                height: 36,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary.withOpacity(0.12)
-                      : AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  item.type == ItemType.SERVICE
-                      ? Icons.design_services_outlined
-                      : Icons.inventory_2_outlined,
-                  color: isSelected ? AppColors.primary : AppColors.textLight,
-                  size: 20,
+                      ? AppColors.primary
+                      : AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
 
               // Name & price
               Expanded(
@@ -86,21 +63,20 @@ class SelectItemCard extends StatelessWidget {
                   children: [
                     Text(
                       item.name,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
-                        letterSpacing: -0.1,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       CurrencyFormatter.format(item.price),
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: isSelected
                             ? AppColors.primary
                             : AppColors.textSecondary,
@@ -110,11 +86,11 @@ class SelectItemCard extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Add / counter
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 150),
                 transitionBuilder: (child, anim) =>
                     ScaleTransition(scale: anim, child: child),
                 child: isSelected
@@ -146,14 +122,28 @@ class _AddButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 34,
-        height: 34,
+        width: 72,
+        height: 36,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.primary, width: 1.5),
+          color: AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.primaryMid),
         ),
-        child: const Icon(Icons.add_rounded,
-            color: AppColors.primary, size: 18),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_rounded, color: AppColors.primary, size: 16),
+            const SizedBox(width: 4),
+            Text(
+              'Add',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -174,22 +164,22 @@ class _QuantityCounter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 34,
+      height: 36,
       decoration: BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _Btn(icon: Icons.remove_rounded, onTap: onDecrement, isLeft: true),
           SizedBox(
-            width: 28,
+            width: 32,
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
+              style: GoogleFonts.dmSans(
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
@@ -206,22 +196,21 @@ class _Btn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool isLeft;
-  const _Btn(
-      {required this.icon, required this.onTap, required this.isLeft});
+  const _Btn({required this.icon, required this.onTap, required this.isLeft});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 34,
-        height: 34,
+        width: 40,
+        height: 36,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.horizontal(
-            left: isLeft ? const Radius.circular(20) : Radius.zero,
-            right: isLeft ? Radius.zero : const Radius.circular(20),
+            left: isLeft ? const Radius.circular(8) : Radius.zero,
+            right: isLeft ? Radius.zero : const Radius.circular(8),
           ),
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.12),
         ),
         child: Icon(icon, size: 16, color: Colors.white),
       ),

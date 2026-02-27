@@ -50,7 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SnackBar(
             content: Text(
               next.error!,
-              style: GoogleFonts.plusJakartaSans(color: Colors.white),
+              style: GoogleFonts.dmSans(color: Colors.white),
             ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
@@ -105,7 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'Welcome back',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -117,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'Sign in to your POS terminal',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: AppColors.textSecondary,
@@ -192,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.plusJakartaSans(
+      style: GoogleFonts.dmSans(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
@@ -263,7 +263,7 @@ class _AnimatedFieldState extends State<_AnimatedField> {
         keyboardType: widget.keyboardType,
         obscureText: widget.obscureText,
         validator: widget.validator,
-        style: GoogleFonts.plusJakartaSans(
+        style: GoogleFonts.dmSans(
           fontSize: 15,
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w500,
@@ -345,7 +345,7 @@ class _LoginButton extends StatelessWidget {
                   children: [
                     Text(
                       'Sign In',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,

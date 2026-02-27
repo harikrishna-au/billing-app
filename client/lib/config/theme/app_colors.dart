@@ -1,37 +1,38 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Brand Colors
-  static const Color primary = Color(0xFF4F46E5); // Warm indigo
-  static const Color primaryLight = Color(0xFFEEF2FF);
-  static const Color primaryMid = Color(0xFFC7D2FE);
+  // Primary brand — clear, confident blue
+  static const Color primary = Color(0xFF2563EB);
+  static const Color primaryLight = Color(0xFFEFF6FF);
+  static const Color primaryMid = Color(0xFFBFDBFE);
 
-  static const Color success = Color(0xFF059669);
-  static const Color successLight = Color(0xFFD1FAE5);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color warningLight = Color(0xFFFEF3C7);
-  static const Color error = Color(0xFFEF4444);
+  // Semantic
+  static const Color success = Color(0xFF16A34A);
+  static const Color successLight = Color(0xFFF0FDF4);
+  static const Color warning = Color(0xFFCA8A04);
+  static const Color warningLight = Color(0xFFFEFCE8);
+  static const Color error = Color(0xFFDC2626);
 
-  // Neutral Colors
-  static const Color background = Color(0xFFF9F7F5); // Warm off-white
+  // Neutral surfaces — clean, no warm tint
+  static const Color background = Color(0xFFF9FAFB);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceWarm = Color(0xFFFFFDFB);
+  static const Color surfaceWarm = Color(0xFFFFFFFF);
 
-  // Text Colors
-  static const Color textPrimary = Color(0xFF1C1917); // Warm near-black
-  static const Color textSecondary = Color(0xFF78716C); // Warm brown-gray
-  static const Color textLight = Color(0xFFA8A29E); // Light warm gray
+  // Text — neutral gray scale
+  static const Color textPrimary = Color(0xFF111827);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textLight = Color(0xFF9CA3AF);
 
-  // UI Elements
-  static const Color border = Color(0xFFE7E0D8); // Warm border
-  static const Color borderLight = Color(0xFFF0EBE4);
-  static const Color inputBackground = Color(0xFFFAF8F6);
-  static const Color shimmerBase = Color(0xFFEFEAE5);
-  static const Color shimmerHighlight = Color(0xFFFAF7F4);
+  // UI elements
+  static const Color border = Color(0xFFE5E7EB);
+  static const Color borderLight = Color(0xFFF3F4F6);
+  static const Color inputBackground = Color(0xFFF9FAFB);
+  static const Color shimmerBase = Color(0xFFE5E7EB);
+  static const Color shimmerHighlight = Color(0xFFF9FAFB);
 
-  // Payment method colors
-  static const Color cash = Color(0xFF059669);
-  static const Color cashLight = Color(0xFFD1FAE5);
-  static const Color online = Color(0xFF4F46E5);
-  static const Color onlineLight = Color(0xFFEEF2FF);
+  // Payment methods
+  static const Color cash = Color(0xFF16A34A);
+  static const Color cashLight = Color(0xFFF0FDF4);
+  static const Color online = Color(0xFF2563EB);
+  static const Color onlineLight = Color(0xFFEFF6FF);
 }

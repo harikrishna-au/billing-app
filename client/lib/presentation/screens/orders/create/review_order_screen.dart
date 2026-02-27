@@ -27,7 +27,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
       appBar: AppBar(
         title: Text(
           'Review Order',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
@@ -51,7 +51,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
                     children: [
                       Text(
                         'Order items',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
@@ -61,7 +61,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
                       const Spacer(),
                       Text(
                         '${cartState.totalItems} item${cartState.totalItems > 1 ? 's' : ''}',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 13,
                           color: AppColors.textLight,
                         ),
@@ -81,7 +81,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
                   // Payment method
                   Text(
                     'Payment method',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
@@ -182,7 +182,7 @@ class _OrderItemsCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       'Add more items',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
@@ -231,7 +231,7 @@ class _ItemRow extends StatelessWidget {
                 child: Center(
                   child: Text(
                     '${quantity}x',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
@@ -243,7 +243,7 @@ class _ItemRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   name,
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -255,7 +255,7 @@ class _ItemRow extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 CurrencyFormatter.format(price),
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -373,7 +373,7 @@ class _MethodTile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: isSelected ? color : AppColors.textSecondary,
@@ -426,7 +426,7 @@ class _BillSummaryCard extends StatelessWidget {
             children: [
               Text(
                 'Total payable',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
@@ -435,7 +435,7 @@ class _BillSummaryCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 CurrencyFormatter.format(total),
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   color: AppColors.primary,
@@ -458,7 +458,7 @@ class _BillSummaryCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   'Ready to bill',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.success,
@@ -526,7 +526,7 @@ class _CheckoutFooter extends StatelessWidget {
                   children: [
                     Text(
                       'Proceed to Collect',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.1,

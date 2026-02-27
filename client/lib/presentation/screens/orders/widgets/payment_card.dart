@@ -96,7 +96,7 @@ class PaymentCard extends StatelessWidget {
                     children: [
                       Text(
                         payment.billNumber,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -106,7 +106,7 @@ class PaymentCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         '$formattedDate  •  $formattedTime',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: AppColors.textLight,
                           fontWeight: FontWeight.w400,
@@ -122,7 +122,7 @@ class PaymentCard extends StatelessWidget {
                   children: [
                     Text(
                       CurrencyFormatter.format(payment.amount),
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -139,7 +139,7 @@ class PaymentCard extends StatelessWidget {
                       ),
                       child: Text(
                         statusLabel,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: statusColor,

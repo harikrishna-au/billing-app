@@ -41,7 +41,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
       appBar: AppBar(
         title: Text(
           'Invoice',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
@@ -73,7 +73,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Share coming soon',
-                      style: GoogleFonts.plusJakartaSans()),
+                      style: GoogleFonts.dmSans()),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -124,13 +124,13 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                   // Success banner
                   _SuccessBanner(total: total, isCash: isCash)
                       .animate()
-                      .fadeIn(duration: 350.ms)
+                      .fadeIn(duration: 200.ms)
                       .scale(
-                          begin: const Offset(0.92, 0.92),
-                          duration: 500.ms,
-                          curve: Curves.easeOutBack),
+                          begin: const Offset(0.96, 0.96),
+                          duration: 250.ms,
+                          curve: Curves.easeOut),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Invoice card
                   _InvoiceCard(
@@ -142,8 +142,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                     isCash: isCash,
                   )
                       .animate()
-                      .fadeIn(duration: 350.ms, delay: 100.ms)
-                      .slideY(begin: 0.08, end: 0),
+                      .fadeIn(duration: 200.ms, delay: 80.ms),
 
                   const SizedBox(height: 100),
                 ],
@@ -227,7 +226,7 @@ class _SuccessBanner extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'Payment successful',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.success,
@@ -237,7 +236,7 @@ class _SuccessBanner extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             CurrencyFormatter.format(total),
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 32,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF065F46),
@@ -254,7 +253,7 @@ class _SuccessBanner extends StatelessWidget {
             ),
             child: Text(
               isCash ? 'Paid via Cash' : 'Paid via UPI / Online',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.success,
@@ -313,7 +312,7 @@ class _InvoiceCard extends StatelessWidget {
                   children: [
                     Text(
                       'INVOICE',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textLight,
@@ -323,7 +322,7 @@ class _InvoiceCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       invoiceNo,
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppColors.primary,
@@ -341,7 +340,7 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                   child: Text(
                     'PAID',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: AppColors.success,
@@ -389,7 +388,7 @@ class _InvoiceCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
             child: Text(
               'ITEMS',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textLight,
@@ -412,7 +411,7 @@ class _InvoiceCard extends StatelessWidget {
                     child: Center(
                       child: Text(
                         '${ci.quantity}x',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.dmSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -427,7 +426,7 @@ class _InvoiceCard extends StatelessWidget {
                       children: [
                         Text(
                           ci.product.name,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
@@ -435,7 +434,7 @@ class _InvoiceCard extends StatelessWidget {
                         ),
                         Text(
                           '${CurrencyFormatter.format(ci.product.price)} each',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.dmSans(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
@@ -445,7 +444,7 @@ class _InvoiceCard extends StatelessWidget {
                   ),
                   Text(
                     CurrencyFormatter.format(ci.product.price * ci.quantity),
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -467,7 +466,7 @@ class _InvoiceCard extends StatelessWidget {
               children: [
                 Text(
                   'Total',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -475,7 +474,7 @@ class _InvoiceCard extends StatelessWidget {
                 ),
                 Text(
                   CurrencyFormatter.format(total),
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -513,7 +512,7 @@ class _MetaChip extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
@@ -540,62 +539,55 @@ class _ActionsFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: const Border(top: BorderSide(color: AppColors.borderLight)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Print
+            // Primary: New Order — biggest CTA on this screen
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: onPrint,
-                icon: const Icon(Icons.print_rounded, size: 20),
+                onPressed: onNewOrder,
+                icon: const Icon(Icons.add_rounded, size: 20),
                 label: Text(
-                  'Print Receipt',
-                  style: GoogleFonts.plusJakartaSans(
+                  'New Order',
+                  style: GoogleFonts.dmSans(
                       fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1C1917),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: onNewOrder,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: onPrint,
+                      icon: const Icon(Icons.print_outlined, size: 17),
+                      label: Text(
+                        'Print',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 13, fontWeight: FontWeight.w600),
                       ),
-                      child: Text(
-                        'New Order',
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14, fontWeight: FontWeight.w700),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ),
@@ -603,19 +595,19 @@ class _ActionsFooter extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: SizedBox(
-                    height: 48,
+                    height: 44,
                     child: OutlinedButton(
                       onPressed: onViewOrders,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.border),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text(
-                        'View Orders',
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14, fontWeight: FontWeight.w600),
+                        'Orders',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),

@@ -39,7 +39,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       appBar: AppBar(
         title: Text(
           'Collect Payment',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
@@ -64,28 +64,22 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                     isCash: _isCash,
                   )
                       .animate()
-                      .fadeIn(duration: 300.ms)
-                      .scale(
-                          begin: const Offset(0.95, 0.95),
-                          duration: 400.ms,
-                          curve: Curves.easeOutBack),
+                      .fadeIn(duration: 180.ms),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Items summary
                   _ItemsSummary(cartState: cartState, total: total)
                       .animate()
-                      .fadeIn(duration: 300.ms, delay: 100.ms)
-                      .slideY(begin: 0.06, end: 0),
+                      .fadeIn(duration: 180.ms, delay: 60.ms),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Cash note
                   if (_isCash)
                     _CashNote(amount: total)
                         .animate()
-                        .fadeIn(duration: 300.ms, delay: 180.ms)
-                        .slideY(begin: 0.06, end: 0),
+                        .fadeIn(duration: 180.ms, delay: 100.ms),
 
                   const SizedBox(height: 100),
                 ],
@@ -196,19 +190,19 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Cancel transaction?',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
               fontWeight: FontWeight.w700, fontSize: 17),
         ),
         content: Text(
           'This will discard the current payment.',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.dmSans(
               color: AppColors.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Keep it',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600)),
           ),
@@ -218,7 +212,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
               context.pop();
             },
             child: Text('Cancel',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                     color: AppColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -230,7 +224,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Error: $message',
-            style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+            style: GoogleFonts.dmSans(color: Colors.white)),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -254,14 +248,7 @@ class _AmountCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
@@ -283,7 +270,7 @@ class _AmountCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   isCash ? 'CASH PAYMENT' : 'UPI / ONLINE',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: Colors.white.withOpacity(0.95),
@@ -296,7 +283,7 @@ class _AmountCard extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             'Amount to collect',
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 13,
               color: Colors.white.withOpacity(0.8),
               fontWeight: FontWeight.w500,
@@ -305,7 +292,7 @@ class _AmountCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             CurrencyFormatter.format(total),
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.dmSans(
               fontSize: 44,
               fontWeight: FontWeight.w800,
               color: Colors.white,
@@ -349,7 +336,7 @@ class _ItemsSummary extends StatelessWidget {
               children: [
                 Text(
                   'Order summary',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -359,7 +346,7 @@ class _ItemsSummary extends StatelessWidget {
                   onPressed: () => context.pop(),
                   icon: const Icon(Icons.edit_outlined, size: 15),
                   label: Text('Edit',
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.dmSans(
                           fontSize: 13, fontWeight: FontWeight.w600)),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
@@ -384,13 +371,13 @@ class _ItemsSummary extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total',
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
                 Text(
                   CurrencyFormatter.format(total),
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -427,7 +414,7 @@ class _Row extends StatelessWidget {
             ),
             child: Center(
               child: Text('${qty}x',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.dmSans(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary)),
@@ -436,7 +423,7 @@ class _Row extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(name,
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary),
@@ -444,7 +431,7 @@ class _Row extends StatelessWidget {
                 overflow: TextOverflow.ellipsis),
           ),
           Text(CurrencyFormatter.format(price),
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textSecondary)),
@@ -476,7 +463,7 @@ class _CashNote extends StatelessWidget {
           Expanded(
             child: Text(
               'By confirming, you acknowledge that you have received ${CurrencyFormatter.format(amount)} in cash.',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: const Color(0xFF92400E),
                 height: 1.5,
@@ -509,16 +496,9 @@ class _ActionFooter extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: const Border(top: BorderSide(color: AppColors.borderLight)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
@@ -526,13 +506,13 @@ class _ActionFooter extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              height: 54,
+              height: 52,
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: isProcessing ? null : onConfirm,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: color,
-                  disabledBackgroundColor: color.withOpacity(0.5),
+                  disabledBackgroundColor: color.withValues(alpha: 0.5),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -566,7 +546,7 @@ class _ActionFooter extends StatelessWidget {
                               isCash
                                   ? 'Confirm Cash Received'
                                   : 'Proceed to Pay',
-                              style: GoogleFonts.plusJakartaSans(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.1,
@@ -580,13 +560,13 @@ class _ActionFooter extends StatelessWidget {
             TextButton(
               onPressed: onCancel,
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.error.withOpacity(0.8),
+                foregroundColor: AppColors.error,
                 padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
               ),
               child: Text(
                 'Cancel transaction',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),

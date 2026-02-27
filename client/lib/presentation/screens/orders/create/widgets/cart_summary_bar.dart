@@ -22,10 +22,10 @@ class CartSummaryBar extends StatelessWidget {
     if (totalItems == 0) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.borderLight)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -38,17 +38,17 @@ class CartSummaryBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${totalItems} item${totalItems == 1 ? '' : 's'} added',
-                    style: GoogleFonts.plusJakartaSans(
+                    '$totalItems item${totalItems == 1 ? '' : 's'}',
+                    style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     CurrencyFormatter.format(totalAmount),
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.dmSans(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
@@ -59,39 +59,31 @@ class CartSummaryBar extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            // Right: button
+            const SizedBox(width: 14),
+            // Right: CTA — full height, clean rectangle
             GestureDetector(
               onTap: onNext,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 22, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.35),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Review',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
-                        letterSpacing: 0.1,
                       ),
                     ),
                     const SizedBox(width: 6),
                     const Icon(Icons.arrow_forward_rounded,
-                        size: 17, color: Colors.white),
+                        size: 16, color: Colors.white),
                   ],
                 ),
               ),
@@ -104,8 +96,8 @@ class CartSummaryBar extends StatelessWidget {
         .slideY(
             begin: 1.0,
             end: 0.0,
-            duration: 280.ms,
+            duration: 200.ms,
             curve: Curves.easeOutCubic)
-        .fadeIn(duration: 200.ms);
+        .fadeIn(duration: 150.ms);
   }
 }
