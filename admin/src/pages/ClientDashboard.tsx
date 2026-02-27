@@ -19,11 +19,12 @@ const ClientDashboard = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Fetch machine data
+  // Fetch machine data — poll every 30 s so status changes appear automatically
   const { data: machine, isLoading: machineLoading } = useQuery({
     queryKey: ['machine', id],
     queryFn: () => machinesApi.getById(id!),
     enabled: !!id,
+    refetchInterval: 30_000,
   });
 
   // Fetch services

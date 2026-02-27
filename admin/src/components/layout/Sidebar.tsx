@@ -1,5 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Monitor, AlertTriangle, LogOut, Zap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { dashboardApi } from "@/lib/api";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -10,10 +12,19 @@ const Sidebar = () => {
     navigate("/");
   };
 
+  // Poll unresolved alert count every 60 s for the badge
+  const { data: unresolvedCount = 0 } = useQuery({
+    queryKey: ['unresolved-count'],
+    queryFn: dashboardApi.getUnresolvedCount,
+    refetchInterval: 60_000,
+    // Don't throw if the user isn't logged in yet
+    retry: false,
+  });
+
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Monitor, label: "Billing Machines", path: "/clients" },
-    { icon: AlertTriangle, label: "System Alerts", path: "/alerts" },
+    { icon: AlertTriangle, label: "System Alerts", path: "/alerts", badge: unresolvedCount },
   ];
 
   return (
@@ -60,8 +71,13 @@ const Sidebar = () => {
                     isActive ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
                   }`}
                 />
-                <span className="truncate">{item.label}</span>
-                {isActive && (
+                <span className="truncate flex-1">{item.label}</span>
+                {item.badge != null && item.badge > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                )}
+                {isActive && !item.badge && (
                   <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
                 )}
               </Link>

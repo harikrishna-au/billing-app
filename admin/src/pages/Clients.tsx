@@ -37,10 +37,11 @@ const Clients = () => {
   });
   const { toast } = useToast();
 
-  // Fetch all machines
+  // Fetch all machines — poll every 30 s so status changes appear automatically
   const { data: machinesData, isLoading } = useQuery({
     queryKey: ['machines'],
     queryFn: () => machinesApi.getAll(),
+    refetchInterval: 30_000,
   });
 
   const machines = machinesData?.machines || [];

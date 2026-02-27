@@ -142,34 +142,86 @@ export const dashboardApi = {
     },
 
     /**
-     * Get alerts with filtering
+     * Get alerts with filtering (from DB via /v1/alerts)
      */
     async getAlerts(params?: {
         start_date?: string;
         end_date?: string;
         severity?: 'critical' | 'warning' | 'info';
-    }): Promise<Array<{
-        id: string;
-        machine_id: string | null;
-        machine_name: string;
-        title: string;
-        message: string;
-        severity: 'critical' | 'warning' | 'info';
-        created_at: string;
-    }>> {
-        console.log('🚨 Fetching filtered alerts...');
+        resolved?: boolean;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        alerts: Array<{
+            id: string;
+            machine_id: string | null;
+            machine_name: string | null;
+            title: string;
+            message: string;
+            severity: 'critical' | 'warning' | 'info';
+            resolved: boolean;
+            resolved_at: string | null;
+            created_at: string;
+        }>;
+        unresolved_count: number;
+        pagination: {
+            current_page: number;
+            total_pages: number;
+            total_items: number;
+            items_per_page: number;
+        };
+    }> {
+        // First trigger the dashboard scan to auto-create any new alerts
+        await apiClient.get('/v1/dashboard/alerts?limit=1').catch(() => {});
+
         const response = await apiClient.get<{
-            success: boolean; data: Array<{
-                id: string;
-                machine_id: string | null;
-                machine_name: string;
-                title: string;
-                message: string;
-                severity: 'critical' | 'warning' | 'info';
-                created_at: string;
-            }>
-        }>('/v1/dashboard/alerts', { params });
+            success: boolean;
+            data: {
+                alerts: Array<{
+                    id: string;
+                    machine_id: string | null;
+                    machine_name: string | null;
+                    title: string;
+                    message: string;
+                    severity: 'critical' | 'warning' | 'info';
+                    resolved: boolean;
+                    resolved_at: string | null;
+                    created_at: string;
+                }>;
+                unresolved_count: number;
+                pagination: {
+                    current_page: number;
+                    total_pages: number;
+                    total_items: number;
+                    items_per_page: number;
+                };
+            };
+        }>('/v1/alerts', { params });
         return response.data.data;
+    },
+
+    /**
+     * Resolve a specific alert
+     */
+    async resolveAlert(alertId: string): Promise<void> {
+        await apiClient.patch(`/v1/alerts/${alertId}/resolve`);
+    },
+
+    /**
+     * Delete a specific alert
+     */
+    async deleteAlert(alertId: string): Promise<void> {
+        await apiClient.delete(`/v1/alerts/${alertId}`);
+    },
+
+    /**
+     * Get count of unresolved alerts (for sidebar badge)
+     */
+    async getUnresolvedCount(): Promise<number> {
+        const response = await apiClient.get<{ success: boolean; data: { count: number } }>(
+            '/v1/alerts/unresolved-count'
+        );
+        return response.data.data.count;
     },
 
     /**

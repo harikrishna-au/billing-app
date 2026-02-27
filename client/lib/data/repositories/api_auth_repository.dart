@@ -40,6 +40,12 @@ class ApiAuthRepository implements AuthRepository {
       await _tokenManager.saveAccessToken(token);
       await _tokenManager.saveRefreshToken(refreshToken);
 
+      // Save token expiry so the session persists across app restarts
+      final expiresIn = authData['expires_in'] as int? ?? 3600;
+      await _tokenManager.saveTokenExpiry(
+        DateTime.now().add(Duration(seconds: expiresIn)),
+      );
+
       // Parse User from response - machine login returns 'machine', user login returns 'user'
       final userOrMachineData = authData['machine'] ?? authData['user'];
       if (userOrMachineData == null) {

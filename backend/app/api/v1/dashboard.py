@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, case
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -8,8 +8,10 @@ from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
+from app.models.alert import SystemAlert, AlertSeverity
 from app.dependencies import get_current_user
 from app.schemas.common import SuccessResponse
+from app.utils.alert_service import create_alert_if_not_exists, resolve_machine_alerts
 
 router = APIRouter()
 
@@ -160,105 +162,106 @@ async def get_weekly_revenue(
 async def get_system_alerts(
     limit: int = Query(5, ge=1, le=50),
     severity: Optional[str] = Query(None, pattern="^(critical|warning|info)$"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get system alerts and notifications.
-    
-    Query Parameters:
-        limit: Number of alerts to return (default: 5, max: 50)
-        severity: Filter by severity (critical | warning | info)
-    
-    Returns:
-        List of system alerts based on machine status
+    Get system alerts for the dashboard widget.
+
+    Scans machine statuses, auto-creates persistent DB alerts for any issues
+    found, and returns a filtered list of unresolved alerts.
     """
-    alerts = []
     now = datetime.now(timezone.utc)
-    
-    # Get all machines (filtered by current admin)
     machines = db.query(Machine).filter(Machine.user_id == current_user.id).all()
-    
+
+    # Auto-create DB alerts for machines in a bad state
     for machine in machines:
-        # Calculate time since last sync
-        if machine.last_sync:
-            time_diff = now - machine.last_sync
-            hours_since_sync = time_diff.total_seconds() / 3600
-        else:
-            hours_since_sync = None
-        
-        # Critical: Machine offline for > 2 hours or never synced
-        if machine.status == 'offline' and (hours_since_sync is None or hours_since_sync > 2):
-            alert_severity = 'critical'
-            if severity is None or severity == alert_severity:
-                if hours_since_sync is None:
-                    message = "Machine has never synced"
-                else:
-                    message = f"Machine Offline for > {int(hours_since_sync)} hours"
-                
-                alerts.append({
-                    "id": f"offline-{machine.id}",
-                    "machine_id": str(machine.id),
-                    "machine_name": machine.name,
-                    "title": "Machine Offline",
-                    "message": message,
-                    "severity": alert_severity,
-                    "created_at": machine.last_sync.isoformat() if machine.last_sync else now.isoformat(),
-                    "resolved": False
-                })
-        
-        # Warning: Machine in maintenance
+        last_sync = machine.last_sync
+        if last_sync and last_sync.tzinfo is None:
+            last_sync = last_sync.replace(tzinfo=timezone.utc)
+
+        hours_since_sync = (
+            (now - last_sync).total_seconds() / 3600 if last_sync else None
+        )
+
+        if machine.status == 'offline':
+            if hours_since_sync is None:
+                msg = "Machine has never synced"
+            else:
+                msg = f"Machine offline for {int(hours_since_sync)}h"
+            create_alert_if_not_exists(
+                db, str(machine.id), AlertSeverity.CRITICAL, "Machine Offline", msg
+            )
         elif machine.status == 'maintenance':
-            alert_severity = 'warning'
-            if severity is None or severity == alert_severity:
-                alerts.append({
-                    "id": f"maintenance-{machine.id}",
-                    "machine_id": str(machine.id),
-                    "machine_name": machine.name,
-                    "title": "Maintenance Mode",
-                    "message": "Machine in maintenance mode",
-                    "severity": alert_severity,
-                    "created_at": machine.updated_at.isoformat() if machine.updated_at else now.isoformat(),
-                    "resolved": False
-                })
-        
-        # Warning: Sync delayed (> 30 minutes for online machines)
+            create_alert_if_not_exists(
+                db, str(machine.id), AlertSeverity.WARNING, "Maintenance Mode",
+                "Machine is in maintenance mode"
+            )
         elif machine.status == 'online' and hours_since_sync is not None and hours_since_sync > 0.5:
-            alert_severity = 'warning'
-            if severity is None or severity == alert_severity:
-                minutes_since_sync = int(hours_since_sync * 60)
-                alerts.append({
-                    "id": f"sync-{machine.id}",
-                    "machine_id": str(machine.id),
-                    "machine_name": machine.name,
-                    "title": "Sync Delayed",
-                    "message": f"Sync delayed (Last sync: {minutes_since_sync}m ago)",
-                    "severity": alert_severity,
-                    "created_at": machine.last_sync.isoformat() if machine.last_sync else now.isoformat(),
-                    "resolved": False
-                })
-    
-    # Sort by severity (critical first, then warning, then info)
+            mins = int(hours_since_sync * 60)
+            create_alert_if_not_exists(
+                db, str(machine.id), AlertSeverity.WARNING, "Sync Delayed",
+                f"Last sync was {mins}m ago"
+            )
+
+    # Query unresolved alerts for this admin's machines
+    admin_machine_ids = [m.id for m in machines]
+    query = db.query(SystemAlert).options(
+        joinedload(SystemAlert.machine)
+    ).filter(
+        SystemAlert.machine_id.in_(admin_machine_ids),
+        SystemAlert.resolved == False,
+    )
+
+    if severity:
+        query = query.filter(SystemAlert.severity == severity)
+    if start_date:
+        try:
+            query = query.filter(SystemAlert.created_at >= datetime.fromisoformat(start_date))
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+            query = query.filter(SystemAlert.created_at <= end_dt)
+        except ValueError:
+            pass
+
     severity_order = {'critical': 0, 'warning': 1, 'info': 2}
-    alerts.sort(key=lambda x: severity_order[x['severity']])
-    
-    # Add info alert if no critical/warning alerts
-    if len(alerts) == 0 and (severity is None or severity == 'info'):
-        alerts.append({
+    alerts = query.order_by(SystemAlert.created_at.desc()).limit(limit).all()
+    alerts.sort(key=lambda a: severity_order.get(
+        a.severity.value if hasattr(a.severity, 'value') else a.severity, 2
+    ))
+
+    result = [
+        {
+            "id": str(a.id),
+            "machine_id": str(a.machine_id) if a.machine_id else None,
+            "machine_name": a.machine.name if a.machine else None,
+            "title": a.title,
+            "message": a.message,
+            "severity": a.severity.value if hasattr(a.severity, 'value') else a.severity,
+            "resolved": a.resolved,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in alerts
+    ]
+
+    if not result and (severity is None or severity == 'info'):
+        result.append({
             "id": "info-all-ok",
             "machine_id": None,
             "machine_name": "System",
-            "message": "All systems operational",
+            "title": "All Systems Operational",
+            "message": "No active alerts",
             "severity": "info",
+            "resolved": False,
             "created_at": now.isoformat(),
-            "resolved": False
         })
-    
-    # Return limited results
-    return {
-        "success": True,
-        "data": alerts[:limit]
-    }
+
+    return {"success": True, "data": result}
 
 
 # Legacy endpoints for backward compatibility (will be deprecated)

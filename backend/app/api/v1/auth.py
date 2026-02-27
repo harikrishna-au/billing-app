@@ -1,13 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime
+from typing import Union
 
 from app.database import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token, get_password_hash
 from app.core.config import settings
 from app.core.logger import log_auth_success, log_auth_failure, log_token_refresh, log_logout
 from app.models.user import User
+from app.models.machine import Machine
 from app.schemas.auth import LoginRequest, TokenResponse, TokenRefreshRequest, TokenRefreshResponse
+from app.utils.alert_service import resolve_machine_alerts, create_alert_if_not_exists
+from app.models.alert import AlertSeverity
 from app.schemas.user import UserResponse
 from app.schemas.common import SuccessResponse, ErrorResponse, ErrorDetail, MessageResponse
 from app.dependencies import get_current_user
@@ -153,16 +157,16 @@ async def machine_login(
     )
     
     # Update machine status to online and last_sync
-    from datetime import datetime
     machine.status = "online"
     machine.last_sync = datetime.utcnow()
-    
+
     try:
         db.commit()
     except Exception:
         db.rollback()
-        # Don't fail login if status update fails
-        pass
+
+    # Resolve any existing offline/maintenance alerts now that machine is online
+    resolve_machine_alerts(db, str(machine.id))
     
     # Log successful authentication
     log_auth_success(machine.username, client_ip)
@@ -285,19 +289,38 @@ async def logout(
     }
 
 
-@router.get("/me", response_model=SuccessResponse[UserResponse])
+@router.get("/me", response_model=SuccessResponse[dict])
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: Union[User, Machine] = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Get current authenticated user information.
-    
-    Args:
-        current_user: Current authenticated user
-        
-    Returns:
-        User information
+    Get current authenticated user or machine information.
+    For machine tokens, also marks the machine as online.
     """
+    if isinstance(current_user, Machine):
+        # Update machine status to online whenever the app calls /me
+        current_user.status = "online"
+        current_user.last_sync = datetime.utcnow()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+        # Resolve any existing offline/maintenance alerts
+        resolve_machine_alerts(db, str(current_user.id))
+
+        return {
+            "success": True,
+            "data": {
+                "id": str(current_user.id),
+                "username": current_user.username,
+                "is_active": "true",
+                "status": current_user.status,
+                "last_sync": current_user.last_sync.isoformat() if current_user.last_sync else None,
+            }
+        }
+
     return {
         "success": True,
         "data": {

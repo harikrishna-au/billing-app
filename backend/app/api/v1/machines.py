@@ -12,6 +12,8 @@ from app.dependencies import get_current_user
 from app.core.security import get_password_hash
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse, MachineStatusUpdate
 from app.schemas.common import SuccessResponse, MessageResponse
+from app.utils.alert_service import create_alert_if_not_exists, resolve_machine_alerts
+from app.models.alert import AlertSeverity
 
 router = APIRouter()
 
@@ -316,9 +318,10 @@ async def update_machine(
     if machine_data.password is not None:
         machine.hashed_password = get_password_hash(machine_data.password)
     
-    if machine_data.status is not None:
-        machine.status = machine_data.status
-    
+    new_status = machine_data.status
+    if new_status is not None:
+        machine.status = new_status
+
     try:
         db.commit()
         db.refresh(machine)
@@ -328,7 +331,21 @@ async def update_machine(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update machine: {str(e)}"
         )
-    
+
+    # Handle alerts based on new status
+    if new_status == 'offline':
+        create_alert_if_not_exists(
+            db, str(machine.id), AlertSeverity.CRITICAL,
+            "Machine Offline", "Machine was manually set to offline"
+        )
+    elif new_status == 'maintenance':
+        create_alert_if_not_exists(
+            db, str(machine.id), AlertSeverity.WARNING,
+            "Maintenance Mode", "Machine is in maintenance mode"
+        )
+    elif new_status == 'online':
+        resolve_machine_alerts(db, str(machine.id))
+
     return {
         "success": True,
         "data": MachineResponse(
