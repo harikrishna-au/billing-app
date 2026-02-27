@@ -14,6 +14,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
+from app.models.log import Log
 from app.schemas.common import SuccessResponse
 from app.schemas.analytics import (
     RevenueAnalyticsResponse,
@@ -169,8 +170,31 @@ async def get_machine_performance(
         transaction_count = len(payments)
         average_transaction = revenue / transaction_count if transaction_count > 0 else 0
         
-        # Calculate uptime (simplified - assuming online means 100% uptime)
-        uptime_percentage = 99.5 if machine.status == 'online' else 85.0
+        # Calculate uptime from payment and log activity days in the period
+        payment_day_set = {
+            p.created_at.date()
+            for p in db.query(Payment).filter(
+                Payment.machine_id == machine.id,
+                Payment.created_at >= start,
+                Payment.created_at <= end
+            ).all()
+        }
+        log_day_set = {
+            l.created_at.date()
+            for l in db.query(Log).filter(
+                Log.machine_id == machine.id,
+                Log.created_at >= start,
+                Log.created_at <= end
+            ).all()
+        }
+        active_days = len(payment_day_set | log_day_set)
+        total_days = max((end - start).days, 1)
+        if active_days > 0:
+            uptime_percentage = min(round((active_days / total_days) * 100, 1), 99.9)
+        elif machine.status == 'online':
+            uptime_percentage = 99.5  # online but no data yet in this period
+        else:
+            uptime_percentage = 0.0
         
         performance_data.append(MachinePerformance(
             machine_id=str(machine.id),
@@ -284,6 +308,39 @@ async def export_data(
             headers={"Content-Disposition": f"attachment; filename=machines_export.csv"}
         )
     
+    elif export_type == "logs":
+        query = db.query(Log)
+        if start:
+            query = query.filter(Log.created_at >= start)
+        if end:
+            query = query.filter(Log.created_at <= end)
+        if machine_id:
+            query = query.filter(Log.machine_id == machine_id)
+
+        logs = query.all()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Machine ID', 'Action', 'Details', 'Type', 'Created At'])
+
+        for log in logs:
+            writer.writerow([
+                str(log.id),
+                str(log.machine_id),
+                log.action,
+                log.details or '',
+                log.type,
+                log.created_at.isoformat()
+            ])
+
+        from fastapi.responses import StreamingResponse
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=logs_export.csv"}
+        )
+
     else:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

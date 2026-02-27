@@ -30,6 +30,10 @@ class ApiConstants {
   static const String logs = '/logs';
   static const String catalogHistory = '/catalog-history';
 
+  // Sync Endpoints
+  static const String syncPush = '/sync/push';
+  static const String syncStatus = '/sync/status';
+
   // Headers
   static const String authHeader = 'Authorization';
   static const String contentType = 'Content-Type';

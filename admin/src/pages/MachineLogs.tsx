@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Download, Filter, Building2, LogIn, Settings, Shield, User, Loader2 } from "lucide-react";
-import { logsApi, machinesApi } from "@/lib/api";
+import { logsApi, machinesApi, analyticsApi } from "@/lib/api";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -41,6 +41,31 @@ const MachineLogs = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const [dateFilter, setDateFilter] = useState("");
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            const params: Record<string, string> = { machine_id: id! };
+            if (dateFilter) {
+                params.start_date = new Date(dateFilter).toISOString();
+                params.end_date = new Date(dateFilter + 'T23:59:59').toISOString();
+            }
+            const blob = await analyticsApi.exportData('logs', params);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `logs_${id}${dateFilter ? '_' + dateFilter : ''}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Export failed', e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Fetch machine data
     const { data: machine } = useQuery({
@@ -117,8 +142,10 @@ const MachineLogs = () => {
                                 />
                                 <Filter className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             </div>
-                            <Button variant="outline" size="sm">
-                                <Download className="h-4 w-4 mr-2" />
+                            <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
+                                {isExporting
+                                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    : <Download className="h-4 w-4 mr-2" />}
                                 Export
                             </Button>
                         </div>

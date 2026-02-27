@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, CreditCard, DollarSign, Download, Filter, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { paymentsApi, machinesApi } from "@/lib/api";
+import { paymentsApi, machinesApi, analyticsApi } from "@/lib/api";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -19,6 +19,26 @@ const MachinePayments = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const [activeTab, setActiveTab] = useState<"day" | "week" | "month">("day");
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            const blob = await analyticsApi.exportData('payments', { machine_id: id });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `payments_${id}_${activeTab}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Export failed', e);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Fetch machine data
     const { data: machine } = useQuery({
@@ -174,8 +194,10 @@ const MachinePayments = () => {
                             <h3 className="text-lg font-semibold text-foreground">Transaction Log</h3>
                             <p className="text-sm text-muted-foreground">Detailed history for {activeTab}</p>
                         </div>
-                        <Button variant="outline" size="sm">
-                            <Download className="h-4 w-4 mr-2" />
+                        <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
+                            {isExporting
+                                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                : <Download className="h-4 w-4 mr-2" />}
                             Export
                         </Button>
                     </div>
