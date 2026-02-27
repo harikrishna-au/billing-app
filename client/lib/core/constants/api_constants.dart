@@ -30,6 +30,9 @@ class ApiConstants {
   static const String logs = '/logs';
   static const String catalogHistory = '/catalog-history';
 
+  // Bill Config Endpoints
+  static String billConfig(String machineId) => '/config/machine/$machineId';
+
   // Sync Endpoints
   static const String syncPush = '/sync/push';
   static const String syncStatus = '/sync/status';

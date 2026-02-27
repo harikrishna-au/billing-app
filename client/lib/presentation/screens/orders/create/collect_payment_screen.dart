@@ -10,6 +10,7 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../../core/utils/bill_number_generator.dart';
 import '../../../../services/smart_pos_printer_service.dart';
+import '../../../providers/bill_config_provider.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   final String paymentMethod;
@@ -128,29 +129,102 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
       // Print receipt
       try {
+        final config = ref.read(billConfigProvider);
+        final cgstRate = config.cgstPercent / 100;
+        final sgstRate = config.sgstPercent / 100;
+        final taxRate = cgstRate + sgstRate;
+        final base = taxRate > 0 ? total / (1 + taxRate) : total;
+        final cgstAmt = base * cgstRate;
+        final sgstAmt = base * sgstRate;
+
         final printer = SmartPosPrinterService();
         await printer.initSdk();
-        await printer.printText(
-            text: "BILL KARO\n", size: 30, isBold: true, align: 1);
-        await printer.printText(
-            text: "Bill No: $billNumber\n", size: 24, align: 0);
+
+        // Header
+        final orgName = config.orgName.isNotEmpty ? config.orgName : 'BillKaro';
+        await printer.printText(text: "$orgName\n", size: 30, isBold: true, align: 1);
+        if (config.tagline != null && config.tagline!.isNotEmpty) {
+          await printer.printText(text: "${config.tagline}\n", size: 22, align: 1);
+        }
+        await printer.printText(text: "--------------------------------\n", size: 22, align: 1);
+
+        // Unit details
+        if (config.unitName != null) {
+          await printer.printText(text: "${config.unitName}\n", size: 22, align: 0);
+        }
+        if (config.territory != null) {
+          await printer.printText(text: "${config.territory}\n", size: 22, align: 0);
+        }
+        if (config.gstNumber != null) {
+          await printer.printText(text: "GSTIN: ${config.gstNumber}\n", size: 22, align: 0);
+        }
+        if (config.posId != null) {
+          await printer.printText(text: "POS ID: ${config.posId}\n", size: 22, align: 0);
+        }
+        await printer.printText(text: "Ticket: $billNumber\n", size: 22, align: 0);
         await printer.printText(
             text: "Date: ${DateTime.now().toString().substring(0, 16)}\n",
-            size: 24,
+            size: 22,
             align: 0);
+        await printer.printText(text: "--------------------------------\n", size: 22, align: 1);
+
+        // Items header
         await printer.printText(
-            text: "--------------------------------\n", size: 24, align: 1);
+            text: "Item            Rate  Qty   Amt\n", size: 20, isBold: true, align: 0);
+        await printer.printText(text: "--------------------------------\n", size: 20, align: 0);
+
+        // Items
+        for (final ci in ref.read(cartProvider).items.values) {
+          final qty = ci.quantity;
+          final rate = ci.product.price;
+          final amt = rate * qty;
+          final name = ci.product.name.length > 14
+              ? ci.product.name.substring(0, 14)
+              : ci.product.name.padRight(14);
+          final rateFmt = rate.toStringAsFixed(0).padLeft(5);
+          final qtyFmt = qty.toString().padLeft(4);
+          final amtFmt = amt.toStringAsFixed(0).padLeft(5);
+          await printer.printText(
+              text: "$name$rateFmt$qtyFmt$amtFmt\n", size: 20, align: 0);
+        }
+
+        await printer.printText(text: "--------------------------------\n", size: 22, align: 1);
+
+        // Tax breakdown
+        if (taxRate > 0) {
+          await printer.printText(
+              text: "CGST @${config.cgstPercent}%: ${cgstAmt.toStringAsFixed(2)}\n",
+              size: 22,
+              align: 0);
+          await printer.printText(
+              text: "SGST @${config.sgstPercent}%: ${sgstAmt.toStringAsFixed(2)}\n",
+              size: 22,
+              align: 0);
+          await printer.printText(text: "--------------------------------\n", size: 22, align: 1);
+        }
+
+        // Total
         await printer.printText(
-            text: "Amount: ${CurrencyFormatter.format(total)}\n",
-            size: 30,
+            text: "TOTAL: ${CurrencyFormatter.format(total)}\n",
+            size: 28,
             isBold: true,
-            align: 1);
-        await printer.printText(
-            text: "Method: CASH\n", size: 24, align: 1);
-        await printer.printText(
-            text: "--------------------------------\n", size: 24, align: 1);
-        await printer.printText(
-            text: "Thank you!\n\n\n\n", size: 24, align: 1);
+            align: 0);
+        await printer.printText(text: "Mode: CASH\n", size: 22, align: 0);
+        if (taxRate > 0) {
+          await printer.printText(text: "Inclusive of all taxes\n", size: 20, align: 0);
+        }
+        await printer.printText(text: "--------------------------------\n", size: 22, align: 1);
+
+        // Footer
+        final footer = config.footerMessage ?? "Thank you. Visit again";
+        await printer.printText(text: "$footer\n", size: 22, align: 1);
+        if (config.website != null) {
+          await printer.printText(text: "${config.website}\n", size: 20, align: 1);
+        }
+        if (config.tollFree != null) {
+          await printer.printText(text: "Toll Free: ${config.tollFree}\n", size: 20, align: 1);
+        }
+        await printer.printText(text: "\n\n\n\n", size: 22, align: 1);
       } catch (e) {
         debugPrint("Printing failed: $e");
       }

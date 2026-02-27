@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, dashboard, machines, services, payments, logs, analytics, sync, alerts
+from app.api.v1 import auth, dashboard, machines, services, payments, logs, analytics, sync, alerts, config
 
 router = APIRouter()
 
@@ -14,6 +14,7 @@ router.include_router(logs.router, tags=["Logs"])
 router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 router.include_router(sync.router, prefix="/sync", tags=["Sync"])
 router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
+router.include_router(config.router, prefix="/config", tags=["Config"])
 
 api_router = router
 __all__ = ["api_router"]

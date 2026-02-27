@@ -8,3 +8,5 @@ export { machinesApi } from './machines';
 export { default as apiClient } from './client';
 export { paymentsApi } from './payments';
 export { analyticsApi } from './analytics';
+export { configApi } from './config';
+export type { BillConfig, BillConfigUpdate } from './config';

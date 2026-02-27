@@ -7,6 +7,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../../core/network/providers.dart';
+import '../../../providers/bill_config_provider.dart';
 
 class BillScreen extends ConsumerStatefulWidget {
   final String? invoiceNumber;
@@ -100,6 +101,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                       date: now,
                       items: items,
                       paymentMethod: widget.paymentMethod,
+                      config: ref.read(billConfigProvider),
                     );
               } catch (e) {
                 if (context.mounted) {
@@ -167,6 +169,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                       date: now,
                       items: items,
                       paymentMethod: widget.paymentMethod,
+                      config: ref.read(billConfigProvider),
                     );
               } catch (e) {
                 if (context.mounted) {

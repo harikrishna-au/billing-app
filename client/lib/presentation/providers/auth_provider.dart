@@ -3,6 +3,7 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/api_auth_repository.dart';
 import '../../core/network/providers.dart';
+import 'bill_config_provider.dart';
 
 // Repository Provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -51,6 +52,9 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       final user = await ref.read(authRepositoryProvider).getCurrentUser();
       state = state.copyWith(user: user, isLoading: false);
+      if (user != null) {
+        ref.read(billConfigProvider.notifier).refresh(user.id);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -64,6 +68,7 @@ class AuthController extends StateNotifier<AuthState> {
       final user = await authRepo.login(email, password);
       print('Login successful: ${user.username}');
       state = state.copyWith(user: user, isLoading: false);
+      ref.read(billConfigProvider.notifier).refresh(user.id);
     } catch (e) {
       print('Login error: $e');
       state = state.copyWith(isLoading: false, error: e.toString());

@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import ActivityLog, { LogEntry } from "@/components/dashboard/ActivityLog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, DollarSign, Users, TrendingUp, Building2, Edit, Trash2, History, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, DollarSign, Users, TrendingUp, Building2, Edit, Trash2, History, Loader2, Receipt } from "lucide-react";
 import { machinesApi, servicesApi, logsApi } from "@/lib/api";
 import {
   Breadcrumb,
@@ -214,7 +214,7 @@ const ClientDashboard = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="grid gap-4 md:grid-cols-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+        <div className="grid gap-4 md:grid-cols-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
           <Button
             variant="outline"
             className="h-auto py-4 flex flex-col items-center gap-2"
@@ -238,6 +238,14 @@ const ClientDashboard = () => {
           >
             <History className="h-5 w-5" />
             <span>Catalog History</span>
+          </Button>
+          <Button
+            variant="outline"
+            className="h-auto py-4 flex flex-col items-center gap-2"
+            onClick={() => navigate(`/clients/${id}/bill-settings`)}
+          >
+            <Receipt className="h-5 w-5" />
+            <span>Bill Settings</span>
           </Button>
         </div>
       </div>
