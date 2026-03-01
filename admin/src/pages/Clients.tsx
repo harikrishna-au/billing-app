@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Search, MoreHorizontal, Monitor, UserCheck, AlertTriangle, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Search, MoreHorizontal, Monitor, UserCheck, AlertTriangle, Loader2, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { machinesApi } from "@/lib/api";
+import { machinesApi, type Machine as MachineType } from "@/lib/api";
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -35,6 +36,8 @@ const Clients = () => {
     username_prefix: "admin",
     password: ""
   });
+  const [editingMachine, setEditingMachine] = useState<MachineType | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", location: "", password: "", upi_id: "" });
   const { toast } = useToast();
 
   // Fetch all machines — poll every 30 s so status changes appear automatically
@@ -72,6 +75,20 @@ const Clients = () => {
     },
   });
 
+  // Update machine mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof machinesApi.update>[1] }) =>
+      machinesApi.update(id, data),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['machines'] });
+      toast({ title: "Machine Updated", description: `${result.name} has been updated successfully.` });
+      setEditingMachine(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update machine", variant: "destructive" });
+    },
+  });
+
   const filteredMachines = machines.filter(
     (m) =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -96,6 +113,29 @@ const Clients = () => {
     if (confirm("Are you sure you want to delete this machine?")) {
       deleteMutation.mutate(id);
     }
+  };
+
+  const handleOpenEdit = (machine: MachineType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditForm({
+      name: machine.name,
+      location: machine.location,
+      password: "",
+      upi_id: machine.upi_id ?? "",
+    });
+    setEditingMachine(machine);
+  };
+
+  const handleUpdateMachine = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMachine) return;
+    const data: Parameters<typeof machinesApi.update>[1] = {
+      name: editForm.name || undefined,
+      location: editForm.location || undefined,
+      upi_id: editForm.upi_id,
+    };
+    if (editForm.password) data.password = editForm.password;
+    updateMutation.mutate({ id: editingMachine.id, data });
   };
 
   return (
@@ -182,6 +222,72 @@ const Clients = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Edit Machine Dialog */}
+        <Dialog open={!!editingMachine} onOpenChange={(open) => !open && setEditingMachine(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Edit Machine</DialogTitle>
+              <DialogDescription>Update machine details for {editingMachine?.name}</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateMachine} className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Machine Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="e.g. Main Entrance POS"
+                  className="bg-secondary/50"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-location">Location</Label>
+                <Input
+                  id="edit-location"
+                  value={editForm.location}
+                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                  placeholder="e.g. Lobby A"
+                  className="bg-secondary/50"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-upi">UPI ID</Label>
+                <Input
+                  id="edit-upi"
+                  value={editForm.upi_id}
+                  onChange={(e) => setEditForm({ ...editForm, upi_id: e.target.value })}
+                  placeholder="merchant@upi"
+                  className="bg-secondary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">UPI ID used for QR payments on this machine</p>
+              </div>
+              <Separator />
+              <div>
+                <Label htmlFor="edit-password">New Password</Label>
+                <Input
+                  id="edit-password"
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  placeholder="Leave blank to keep current password"
+                  className="bg-secondary/50"
+                  minLength={4}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setEditingMachine(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="glow" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid gap-6 md:grid-cols-3 animate-slide-up">
           <StatCard
@@ -271,6 +377,10 @@ const Clients = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => handleOpenEdit(machine, e)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Machine
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/clients/${machine.id}`);

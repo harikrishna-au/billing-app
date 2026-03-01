@@ -19,6 +19,7 @@ class Machine(Base):
     username = Column(String(100), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     status = Column(String(50), nullable=False, default="offline")  # online, offline, maintenance
+    upi_id = Column(String(255), nullable=True)
     last_sync = Column(DateTime(timezone=True), nullable=True)
     online_collection = Column(Numeric(10, 2), default=0.00)
     offline_collection = Column(Numeric(10, 2), default=0.00)

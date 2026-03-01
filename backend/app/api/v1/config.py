@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin_user
 from app.models.bill_config import BillConfig
+from app.models.machine import Machine
 from app.schemas.bill_config import BillConfigUpdate, BillConfigResponse
 
 router = APIRouter()
@@ -23,12 +24,15 @@ async def get_bill_config(
 ):
     """Return the bill configuration for a machine. Returns null data if not set yet."""
     config = db.query(BillConfig).filter(BillConfig.machine_id == machine_id).first()
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    upi_id = machine.upi_id if machine else None
+
     if not config:
-        return {"success": True, "data": None}
-    return {
-        "success": True,
-        "data": BillConfigResponse.model_validate(config).model_dump(),
-    }
+        return {"success": True, "data": {"upi_id": upi_id} if upi_id else None}
+
+    data = BillConfigResponse.model_validate(config).model_dump()
+    data["upi_id"] = upi_id
+    return {"success": True, "data": data}
 
 
 @router.put("/machine/{machine_id}", tags=["Config"])

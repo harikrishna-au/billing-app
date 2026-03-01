@@ -10,7 +10,6 @@ import '../../../../data/models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/bill_config_provider.dart';
-import '../../../providers/upi_settings_provider.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 
@@ -77,13 +76,13 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  String _buildUpiUrl(UpiSettings upi) {
+  String _buildUpiUrl(String upiId, String merchantName) {
     final invoice =
         widget.invoiceNumber ?? 'INV-${DateTime.now().millisecondsSinceEpoch}';
-    final merchantName =
-        Uri.encodeComponent(upi.merchantName.isNotEmpty ? upi.merchantName : 'Merchant');
+    final name =
+        Uri.encodeComponent(merchantName.isNotEmpty ? merchantName : 'Merchant');
     final note = Uri.encodeComponent('Payment for $invoice');
-    return 'upi://pay?pa=${upi.upiId}&pn=$merchantName&am=${widget.amount.toStringAsFixed(2)}&tn=$note&cu=INR';
+    return 'upi://pay?pa=$upiId&pn=$name&am=${widget.amount.toStringAsFixed(2)}&tn=$note&cu=INR';
   }
 
   Future<void> _printReceipt(String billNumber) async {
@@ -255,7 +254,10 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
 
   @override
   Widget build(BuildContext context) {
-    final upiSettings = ref.watch(upiSettingsProvider);
+    final billConfig = ref.watch(billConfigProvider);
+    final upiId = billConfig.upiId ?? '';
+    final merchantName = billConfig.orgName;
+    final isConfigured = upiId.trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -343,10 +345,14 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
             const SizedBox(height: 24),
 
             // QR Code section
-            if (!upiSettings.isConfigured)
-              _UpiNotConfiguredBanner()
+            if (!isConfigured)
+              const _UpiNotConfiguredBanner()
             else
-              _QrCard(upiUrl: _buildUpiUrl(upiSettings), upi: upiSettings),
+              _QrCard(
+                upiUrl: _buildUpiUrl(upiId, merchantName),
+                upiId: upiId,
+                merchantName: merchantName,
+              ),
 
             const SizedBox(height: 28),
 
@@ -537,9 +543,10 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
 
 class _QrCard extends StatelessWidget {
   final String upiUrl;
-  final UpiSettings upi;
+  final String upiId;
+  final String merchantName;
 
-  const _QrCard({required this.upiUrl, required this.upi});
+  const _QrCard({required this.upiUrl, required this.upiId, required this.merchantName});
 
   @override
   Widget build(BuildContext context) {
@@ -591,10 +598,10 @@ class _QrCard extends StatelessWidget {
             ],
           ),
 
-          if (upi.merchantName.isNotEmpty) ...[
+          if (merchantName.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              upi.merchantName,
+              merchantName,
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
@@ -605,7 +612,7 @@ class _QrCard extends StatelessWidget {
 
           const SizedBox(height: 4),
           Text(
-            upi.upiId,
+            upiId,
             style: GoogleFonts.dmSans(
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -721,7 +728,7 @@ class _UpiNotConfiguredBanner extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Go to Settings \u2192 UPI Settings and add your UPI ID to generate a payment QR.',
+            'UPI ID has not been set for this machine. Contact your administrator to configure it.',
             style: GoogleFonts.dmSans(
               fontSize: 13,
               color: const Color(0xFF9A3412),

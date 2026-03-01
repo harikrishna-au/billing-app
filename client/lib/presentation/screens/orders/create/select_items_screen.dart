@@ -7,6 +7,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../providers/catalogue_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../widgets/shimmer_loader.dart';
+import '../../../widgets/offline_banner.dart';
 import 'widgets/select_item_card.dart';
 import 'widgets/cart_summary_bar.dart';
 
@@ -73,6 +74,9 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
       ),
       body: Column(
         children: [
+          // Offline indicator
+          if (catalogueState.isOffline) const OfflineBanner(),
+
           // Search bar
           Container(
             color: AppColors.background,

@@ -10,6 +10,7 @@ final catalogueRepositoryProvider = Provider<CatalogueRepository>((ref) {
   final user = ref.watch(authProvider).user;
   return ApiCatalogueRepository(
     ref.watch(apiClientProvider),
+    ref.watch(cacheServiceProvider),
     machineId: user?.id,
   );
 });
@@ -19,22 +20,27 @@ class CatalogueState {
   final bool isLoading;
   final List<Product> items;
   final String? error;
+  /// True when items are served from cache because the network is unavailable.
+  final bool isOffline;
 
   CatalogueState({
     this.isLoading = false,
     this.items = const [],
     this.error,
+    this.isOffline = false,
   });
 
   CatalogueState copyWith({
     bool? isLoading,
     List<Product>? items,
     String? error,
+    bool? isOffline,
   }) {
     return CatalogueState(
       isLoading: isLoading ?? this.isLoading,
       items: items ?? this.items,
       error: error,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }
@@ -45,19 +51,38 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
   final Ref _ref;
   List<Product> _allItems = [];
 
-  CatalogueNotifier(this._repository, this._ref) : super(CatalogueState());
+  CatalogueNotifier(this._repository, this._ref) : super(CatalogueState()) {
+    // Pre-populate from cache synchronously so the UI has data before the
+    // first network response arrives.
+    final cached = _repository.loadCached();
+    if (cached.isNotEmpty) {
+      _allItems = cached;
+      state = CatalogueState(items: cached, isLoading: false, isOffline: false);
+    }
+  }
 
   Future<void> fetchItems() async {
-    state = state.copyWith(isLoading: true, error: null);
+    final hasCached = state.items.isNotEmpty;
+
+    // Show spinner only when there's nothing to display yet.
+    if (!hasCached) state = state.copyWith(isLoading: true, error: null);
+
     try {
       final user = _ref.read(authProvider).user;
       if (user == null) throw Exception('User not authenticated');
 
       final items = await _repository.getProducts();
       _allItems = items;
-      state = state.copyWith(items: items, isLoading: false);
+      state = state.copyWith(
+          items: items, isLoading: false, isOffline: false, error: null);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (hasCached) {
+        // Already showing cached data — just mark as offline, no error text.
+        state = state.copyWith(isLoading: false, isOffline: true);
+      } else {
+        state = state.copyWith(
+            isLoading: false, error: e.toString(), isOffline: true);
+      }
     }
   }
 
@@ -65,9 +90,10 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
     if (query.isEmpty) {
       state = state.copyWith(items: _allItems);
     } else {
-      final filtered = _allItems.where((item) {
-        return item.name.toLowerCase().contains(query.toLowerCase());
-      }).toList();
+      final filtered = _allItems
+          .where((item) =>
+              item.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
       state = state.copyWith(items: filtered);
     }
   }
@@ -75,8 +101,6 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
   void setFilter(String? category) {
     if (category == null) {
       state = state.copyWith(items: _allItems);
-    } else {
-      // Implement category filter if needed
     }
   }
 }

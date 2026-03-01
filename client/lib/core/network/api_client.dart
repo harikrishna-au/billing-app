@@ -11,8 +11,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(seconds: 60),
-        receiveTimeout: const Duration(seconds: 60),
+        // Tighter timeouts for low-connectivity environments.
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(seconds: 10),
         headers: {
           ApiConstants.contentType: ApiConstants.applicationJson,
         },
@@ -20,6 +22,7 @@ class ApiClient {
     );
 
     _dio.interceptors.add(_AuthInterceptor(_tokenManager, _dio));
+    _dio.interceptors.add(_RetryInterceptor(_dio));
     _dio.interceptors.add(_ErrorInterceptor());
     _dio.interceptors.add(LogInterceptor(
       requestBody: true,
@@ -120,6 +123,41 @@ class ApiClient {
       );
     } catch (e) {
       rethrow;
+    }
+  }
+}
+
+/// Retry Interceptor — retries idempotent GET requests on transient failures.
+/// POST/PUT/PATCH/DELETE are never retried to avoid duplicate side-effects.
+class _RetryInterceptor extends Interceptor {
+  final Dio _dio;
+  static const _maxRetries = 2;
+
+  _RetryInterceptor(this._dio);
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final method = err.requestOptions.method.toUpperCase();
+    final isGet = method == 'GET';
+    final isTransient = err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.unknown;
+
+    if (!isGet || !isTransient) return handler.next(err);
+
+    final retries = (err.requestOptions.extra['_retries'] as int? ?? 0);
+    if (retries >= _maxRetries) return handler.next(err);
+
+    // Exponential backoff: 1s, 2s
+    await Future.delayed(Duration(seconds: retries + 1));
+    err.requestOptions.extra['_retries'] = retries + 1;
+
+    try {
+      final response = await _dio.fetch(err.requestOptions);
+      handler.resolve(response);
+    } catch (_) {
+      handler.next(err);
     }
   }
 }

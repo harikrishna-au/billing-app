@@ -14,6 +14,7 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
   final user = ref.watch(authProvider).user;
   return ApiPaymentRepository(
     ref.watch(apiClientProvider),
+    ref.watch(cacheServiceProvider),
     machineId: user?.id,
   );
 });
@@ -26,6 +27,8 @@ class PaymentState {
   final String? error;
   final Payment? lastCreatedPayment;
   final int pendingCount;
+  /// True when the list is being served from local cache (network unavailable).
+  final bool isOffline;
 
   PaymentState({
     this.payments = const [],
@@ -34,6 +37,7 @@ class PaymentState {
     this.error,
     this.lastCreatedPayment,
     this.pendingCount = 0,
+    this.isOffline = false,
   });
 
   PaymentState copyWith({
@@ -43,6 +47,7 @@ class PaymentState {
     String? error,
     Payment? lastCreatedPayment,
     int? pendingCount,
+    bool? isOffline,
   }) {
     return PaymentState(
       payments: payments ?? this.payments,
@@ -51,6 +56,7 @@ class PaymentState {
       error: error,
       lastCreatedPayment: lastCreatedPayment ?? this.lastCreatedPayment,
       pendingCount: pendingCount ?? this.pendingCount,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 
@@ -90,11 +96,19 @@ class PaymentController extends StateNotifier<PaymentState> {
         filteredPayments: payments,
         isLoading: false,
         pendingCount: pending,
+        isOffline: false,
       );
-    } catch (e) {
+    } catch (_) {
+      // Network failed — serve from local cache so the screen is not empty.
+      final cached = ref.read(paymentRepositoryProvider).loadCachedPayments();
+      final pending = await ref.read(syncQueueServiceProvider).pendingCount;
       state = state.copyWith(
+        payments: cached,
+        filteredPayments: cached,
         isLoading: false,
-        error: e.toString(),
+        isOffline: true,
+        pendingCount: pending,
+        error: cached.isEmpty ? 'Unable to load payments. Check connection.' : null,
       );
     }
   }
@@ -160,11 +174,21 @@ class PaymentController extends StateNotifier<PaymentState> {
         payments: payments,
         filteredPayments: payments,
         isLoading: false,
+        isOffline: false,
       );
-    } catch (e) {
+    } catch (_) {
+      // Fall back to filtering the cached all-payments list.
+      final cached = ref.read(paymentRepositoryProvider).loadCachedPayments();
+      final filtered = cached
+          .where((p) =>
+              !p.createdAt.isBefore(start) && !p.createdAt.isAfter(end))
+          .toList();
       state = state.copyWith(
+        payments: filtered,
+        filteredPayments: filtered,
         isLoading: false,
-        error: e.toString(),
+        isOffline: true,
+        error: filtered.isEmpty ? 'Unable to load orders. Check connection.' : null,
       );
     }
   }

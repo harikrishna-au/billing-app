@@ -9,6 +9,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../providers/payment_provider.dart';
 import '../../widgets/shimmer_loader.dart';
+import '../../widgets/offline_banner.dart';
 import 'widgets/payment_card.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
@@ -91,6 +92,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (state.isOffline) const OfflineBanner(),
+
           // Summary card
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
@@ -127,7 +130,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                       border: Border.all(color: AppColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha:0.03),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -209,7 +212,7 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.22),
+            color: AppColors.primary.withValues(alpha:0.22),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -224,7 +227,7 @@ class _SummaryCard extends StatelessWidget {
                 Text(
                   'Total received',
                   style: GoogleFonts.dmSans(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha:0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -235,14 +238,14 @@ class _SummaryCard extends StatelessWidget {
                         width: 120,
                         height: 24,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha:0.2),
                           borderRadius: BorderRadius.circular(6),
                         ),
                       )
                         .animate(onPlay: (c) => c.repeat())
                         .shimmer(
                             duration: 1200.ms,
-                            color: Colors.white.withOpacity(0.4))
+                            color: Colors.white.withValues(alpha:0.4))
                     : Text(
                         CurrencyFormatter.format(total),
                         style: GoogleFonts.dmSans(
@@ -259,7 +262,7 @@ class _SummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha:0.15),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
@@ -278,7 +281,7 @@ class _SummaryCard extends StatelessWidget {
                   'txns',
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha:0.8),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

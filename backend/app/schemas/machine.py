@@ -21,6 +21,7 @@ class MachineUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=1, max_length=100)
     password: Optional[str] = Field(None, min_length=4, description="Leave empty to keep current password")
     status: Optional[str] = Field(None, pattern="^(online|offline|maintenance)$")
+    upi_id: Optional[str] = Field(None, max_length=255, description="UPI ID for QR payment (e.g. merchant@upi)")
 
 
 class MachineResponse(BaseModel):
@@ -31,6 +32,7 @@ class MachineResponse(BaseModel):
     location: str
     username: str
     status: str
+    upi_id: Optional[str] = None
     last_sync: Optional[datetime]
     online_collection: float
     offline_collection: float

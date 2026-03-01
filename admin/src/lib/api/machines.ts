@@ -16,6 +16,7 @@ export interface MachineUpdate {
     username?: string;
     password?: string;
     status?: 'online' | 'offline' | 'maintenance';
+    upi_id?: string;
 }
 
 export interface Machine {
@@ -24,6 +25,7 @@ export interface Machine {
     location: string;
     username: string;
     status: 'online' | 'offline' | 'maintenance';
+    upi_id?: string | null;
     last_sync: string | null;
     online_collection: number;
     offline_collection: number;

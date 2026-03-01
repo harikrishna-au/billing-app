@@ -113,6 +113,17 @@ async def startup_event():
     """Initialize database tables on startup."""
     try:
         Base.metadata.create_all(bind=engine)
+
+        # Inline migrations — add new columns that may not exist in older databases.
+        with engine.connect() as conn:
+            from sqlalchemy import text, inspect as sa_inspect
+            inspector = sa_inspect(engine)
+            machine_cols = {c["name"] for c in inspector.get_columns("machines")}
+            if "upi_id" not in machine_cols:
+                conn.execute(text("ALTER TABLE machines ADD COLUMN upi_id VARCHAR(255)"))
+                conn.commit()
+                print("✅ Migration: added upi_id column to machines table")
+
         print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
     except Exception as e:
         print(f"⚠️  Database connection failed at startup: {e}")

@@ -13,6 +13,7 @@ class BillConfig {
   final String? footerMessage;
   final String? website;
   final String? tollFree;
+  final String? upiId;
 
   const BillConfig({
     required this.machineId,
@@ -28,6 +29,7 @@ class BillConfig {
     this.footerMessage,
     this.website,
     this.tollFree,
+    this.upiId,
   });
 
   static const BillConfig empty = BillConfig(machineId: '', orgName: '');
@@ -47,6 +49,7 @@ class BillConfig {
       footerMessage: json['footer_message']?.toString(),
       website: json['website']?.toString(),
       tollFree: json['toll_free']?.toString(),
+      upiId: json['upi_id']?.toString(),
     );
   }
 
@@ -64,6 +67,7 @@ class BillConfig {
         'footer_message': footerMessage,
         'website': website,
         'toll_free': tollFree,
+        'upi_id': upiId,
       };
 
   static double _toDouble(dynamic v) {

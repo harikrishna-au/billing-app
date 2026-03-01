@@ -39,6 +39,7 @@ class BillConfigResponse(BaseModel):
     footer_message: Optional[str]
     website: Optional[str]
     toll_free: Optional[str]
+    upi_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

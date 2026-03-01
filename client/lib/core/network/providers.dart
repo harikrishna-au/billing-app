@@ -4,6 +4,7 @@ import 'token_manager.dart';
 import 'api_client.dart';
 import '../services/printer_service.dart';
 import '../services/sync_queue_service.dart';
+import '../services/cache_service.dart';
 import '../utils/bill_number_generator.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -28,6 +29,11 @@ final printerServiceProvider = Provider<PrinterService>((ref) {
 
 final syncQueueServiceProvider = Provider<SyncQueueService>((ref) {
   return SyncQueueService();
+});
+
+final cacheServiceProvider = Provider<CacheService>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return CacheService(prefs);
 });
 
 final billNumberServiceProvider = Provider<BillNumberGenerator>((ref) {

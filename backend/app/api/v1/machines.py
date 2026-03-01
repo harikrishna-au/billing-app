@@ -92,6 +92,7 @@ async def create_machine(
             location=machine.location,
             username=machine.username,
             status=machine.status,
+            upi_id=machine.upi_id,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
@@ -180,6 +181,7 @@ async def get_machines(
             location=m.location,
             username=m.username,
             status=m.status,
+            upi_id=m.upi_id,
             last_sync=m.last_sync,
             online_collection=online_map.get(str(m.id), 0.0),
             offline_collection=offline_map.get(str(m.id), 0.0),
@@ -317,7 +319,10 @@ async def update_machine(
     
     if machine_data.password is not None:
         machine.hashed_password = get_password_hash(machine_data.password)
-    
+
+    if machine_data.upi_id is not None:
+        machine.upi_id = machine_data.upi_id.strip() or None
+
     new_status = machine_data.status
     if new_status is not None:
         machine.status = new_status
@@ -355,6 +360,7 @@ async def update_machine(
             location=machine.location,
             username=machine.username,
             status=machine.status,
+            upi_id=machine.upi_id,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
@@ -429,6 +435,7 @@ async def update_machine_status(
             location=machine.location,
             username=machine.username,
             status=machine.status,
+            upi_id=machine.upi_id,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
