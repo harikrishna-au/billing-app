@@ -8,7 +8,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
-import '../../../../core/utils/bill_number_generator.dart';
+import '../../../../core/network/providers.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import '../../../providers/bill_config_provider.dart';
 
@@ -106,11 +106,13 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       setState(() => _isProcessing = true);
       try {
         final total = ref.read(cartProvider).totalAmount;
-        final orderId = 'ORDER_${DateTime.now().millisecondsSinceEpoch}';
+        // Generate the bill number here so cash and UPI share the same sequence.
+        final billNumber =
+            await ref.read(billNumberServiceProvider).generate();
         if (!mounted) return;
         setState(() => _isProcessing = false);
         context.push(
-            '/new/review/collect-payment/upi?amount=$total&invoice=$orderId');
+            '/new/review/collect-payment/upi?amount=$total&invoice=$billNumber');
       } catch (e) {
         setState(() => _isProcessing = false);
         _showError(context, e.toString());
@@ -123,7 +125,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     try {
       final cartState = ref.read(cartProvider);
       final total = cartState.totalAmount;
-      final billNumber = await BillNumberGenerator.generate();
+      final billNumber = await ref.read(billNumberServiceProvider).generate();
 
       await _createPaymentRecord(context, total, PaymentMethod.cash, billNumber);
 

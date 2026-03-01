@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/network/providers.dart';
 import '../../data/models/payment_model.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/api_payment_repository.dart';
-import '../../core/network/providers.dart';
 import 'auth_provider.dart';
 
 // Repository Provider
@@ -121,6 +121,15 @@ class PaymentController extends StateNotifier<PaymentState> {
       if (response.data['success'] == true) {
         await queue.clear();
         state = state.copyWith(pendingCount: 0);
+
+        // If the backend echoes back the latest bill counter, sync so the
+        // local sequence never dips below what the server has seen.
+        final backendCounter = response.data['latest_bill_counter'];
+        if (backendCounter is int) {
+          await ref
+              .read(billNumberServiceProvider)
+              .syncWithBackend(backendCounter);
+        }
       }
     } catch (_) {
       // Still offline — leave items in the queue.

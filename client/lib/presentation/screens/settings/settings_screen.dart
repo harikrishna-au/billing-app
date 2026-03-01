@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/upi_settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -51,6 +53,22 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Day Summary',
               subtitle: 'View and print daily sales report',
               onTap: () => context.push('/settings/day-summary'),
+            ),
+            const SizedBox(height: 8),
+            Consumer(
+              builder: (context, ref, _) {
+                final upi = ref.watch(upiSettingsProvider);
+                return _Tile(
+                  icon: Icons.qr_code_rounded,
+                  iconBg: const Color(0xFFEDE9FE),
+                  iconColor: const Color(0xFF7C3AED),
+                  title: 'UPI Settings',
+                  subtitle: upi.isConfigured
+                      ? upi.upiId
+                      : 'Tap to add your UPI ID for QR payments',
+                  onTap: () => _showUpiSettingsSheet(context, ref),
+                );
+              },
             ),
 
             const SizedBox(height: 28),
@@ -203,6 +221,275 @@ void _showNotificationsSheet(BuildContext context) {
     ),
     builder: (_) => const _NotificationsSheet(),
   );
+}
+
+void _showUpiSettingsSheet(BuildContext context, WidgetRef ref) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.surface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => _UpiSettingsSheet(ref: ref),
+  );
+}
+
+class _UpiSettingsSheet extends StatefulWidget {
+  final WidgetRef ref;
+  const _UpiSettingsSheet({required this.ref});
+
+  @override
+  State<_UpiSettingsSheet> createState() => _UpiSettingsSheetState();
+}
+
+class _UpiSettingsSheetState extends State<_UpiSettingsSheet> {
+  late final TextEditingController _upiIdCtrl;
+  late final TextEditingController _merchantCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final current = widget.ref.read(upiSettingsProvider);
+    _upiIdCtrl = TextEditingController(text: current.upiId);
+    _merchantCtrl = TextEditingController(text: current.merchantName);
+  }
+
+  @override
+  void dispose() {
+    _upiIdCtrl.dispose();
+    _merchantCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _previewUrl {
+    final id = _upiIdCtrl.text.trim();
+    if (id.isEmpty) return '';
+    final name = Uri.encodeComponent(_merchantCtrl.text.trim().isNotEmpty
+        ? _merchantCtrl.text.trim()
+        : 'Merchant');
+    return 'upi://pay?pa=$id&pn=$name&cu=INR';
+  }
+
+  Future<void> _save() async {
+    final upiId = _upiIdCtrl.text.trim();
+    if (upiId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Enter a valid UPI ID', style: GoogleFonts.dmSans()),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    await widget.ref.read(upiSettingsProvider.notifier).save(
+          upiId: upiId,
+          merchantName: _merchantCtrl.text.trim(),
+        );
+    setState(() => _saving = false);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          Text(
+            'UPI Settings',
+            style: GoogleFonts.dmSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Customers will scan this QR to pay you via UPI.',
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // UPI ID field
+          Text(
+            'UPI ID',
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _upiIdCtrl,
+            onChanged: (_) => setState(() {}),
+            keyboardType: TextInputType.emailAddress,
+            style: GoogleFonts.dmSans(fontSize: 15),
+            decoration: InputDecoration(
+              hintText: 'yourname@upi',
+              hintStyle: GoogleFonts.dmSans(color: AppColors.textLight),
+              filled: true,
+              fillColor: AppColors.background,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Merchant name field
+          Text(
+            'Merchant / Business Name',
+            style: GoogleFonts.dmSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _merchantCtrl,
+            onChanged: (_) => setState(() {}),
+            style: GoogleFonts.dmSans(fontSize: 15),
+            decoration: InputDecoration(
+              hintText: 'My Shop',
+              hintStyle: GoogleFonts.dmSans(color: AppColors.textLight),
+              filled: true,
+              fillColor: AppColors.background,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+
+          // Live QR preview
+          if (_previewUrl.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    'QR Preview',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.borderLight),
+                    ),
+                    child: QrImageView(
+                      data: _previewUrl,
+                      version: QrVersions.auto,
+                      size: 140,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF7C3AED),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF1E1B2E),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Amount will be added per transaction',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: AppColors.textLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _saving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(
+                      'Save UPI Settings',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProfileRow extends StatelessWidget {

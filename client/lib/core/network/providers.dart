@@ -4,6 +4,7 @@ import 'token_manager.dart';
 import 'api_client.dart';
 import '../services/printer_service.dart';
 import '../services/sync_queue_service.dart';
+import '../utils/bill_number_generator.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -27,4 +28,9 @@ final printerServiceProvider = Provider<PrinterService>((ref) {
 
 final syncQueueServiceProvider = Provider<SyncQueueService>((ref) {
   return SyncQueueService();
+});
+
+final billNumberServiceProvider = Provider<BillNumberGenerator>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return BillNumberGenerator(prefs);
 });
