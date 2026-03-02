@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models.user import User
@@ -52,7 +52,7 @@ async def get_payments_by_machine(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(200, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -67,10 +67,10 @@ async def get_payments_by_machine(
     
     # Build query
     query = db.query(Payment).filter(Payment.machine_id == machine_id)
-    
+
     # Apply period filter
     if period:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if period == "day":
             start_dt = now - timedelta(days=1)
         elif period == "week":
@@ -80,7 +80,7 @@ async def get_payments_by_machine(
         else:  # year
             start_dt = now - timedelta(days=365)
         query = query.filter(Payment.created_at >= start_dt)
-    
+
     # Apply date range filters
     if start_date:
         try:
@@ -91,7 +91,7 @@ async def get_payments_by_machine(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid start_date format"
             )
-    
+
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
@@ -101,7 +101,7 @@ async def get_payments_by_machine(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid end_date format"
             )
-    
+
     # Apply method filter
     if method:
         query = query.filter(Payment.method == method)
@@ -169,7 +169,7 @@ async def get_all_payments(
     
     # Apply period filter
     if period:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if period == "day":
             start_dt = now - timedelta(days=1)
         elif period == "week":
@@ -179,7 +179,7 @@ async def get_all_payments(
         else:  # year
             start_dt = now - timedelta(days=365)
         query = query.filter(Payment.created_at >= start_dt)
-    
+
     # Apply date range filters
     if start_date:
         try:
@@ -190,7 +190,7 @@ async def get_all_payments(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid start_date format"
             )
-    
+
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
@@ -200,25 +200,25 @@ async def get_all_payments(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid end_date format"
             )
-    
+
     # Apply method filter
     if method:
         query = query.filter(Payment.method == method)
-    
+
     # Apply status filter
     if status_filter:
         query = query.filter(Payment.status == status_filter)
-    
+
     # Get total count
     total = query.count()
-    
+
     # Get all payments for summary (before pagination)
     all_payments = query.all()
     summary = calculate_payment_summary(all_payments)
-    
+
     # Apply pagination
     payments = query.order_by(Payment.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
-    
+
     # Get machine names
     machine_ids = list(set(str(p.machine_id) for p in payments))
     machines = db.query(Machine).filter(Machine.id.in_(machine_ids)).all()
