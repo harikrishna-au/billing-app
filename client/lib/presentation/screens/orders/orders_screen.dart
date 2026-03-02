@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../data/models/payment_model.dart';
 import '../../providers/payment_provider.dart';
 import '../../widgets/shimmer_loader.dart';
 import '../../widgets/offline_banner.dart';
@@ -100,6 +101,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
             child: _SummaryCard(
               total: totalAmount,
               count: payments.length,
+              cashAmount: payments
+                  .where((p) => p.method == PaymentMethod.cash && p.isSuccess)
+                  .fold(0.0, (s, p) => s + p.amount),
+              cashCount: payments
+                  .where((p) => p.method == PaymentMethod.cash && p.isSuccess)
+                  .length,
+              upiAmount: payments
+                  .where((p) => p.method == PaymentMethod.upi && p.isSuccess)
+                  .fold(0.0, (s, p) => s + p.amount),
+              upiCount: payments
+                  .where((p) => p.method == PaymentMethod.upi && p.isSuccess)
+                  .length,
               isLoading: state.isLoading,
             ),
           ),
@@ -195,11 +208,19 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 class _SummaryCard extends StatelessWidget {
   final double total;
   final int count;
+  final double cashAmount;
+  final int cashCount;
+  final double upiAmount;
+  final int upiCount;
   final bool isLoading;
 
   const _SummaryCard({
     required this.total,
     required this.count,
+    required this.cashAmount,
+    required this.cashCount,
+    required this.upiAmount,
+    required this.upiCount,
     required this.isLoading,
   });
 
@@ -212,77 +233,177 @@ class _SummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha:0.22),
+            color: AppColors.primary.withValues(alpha: 0.22),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row — total + count
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total collected',
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    isLoading
+                        ? Container(
+                            width: 120,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          )
+                            .animate(onPlay: (c) => c.repeat())
+                            .shimmer(
+                                duration: 1200.ms,
+                                color: Colors.white.withValues(alpha: 0.4))
+                        : Text(
+                            CurrencyFormatter.format(total),
+                            style: GoogleFonts.dmSans(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.7,
+                              height: 1.1,
+                            ),
+                          ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      isLoading ? '—' : '$count',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'bills',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          if (!isLoading && count > 0) ...[
+            const SizedBox(height: 16),
+            Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.15),
+            ),
+            const SizedBox(height: 14),
+            // Breakdown row — cash | UPI
+            Row(
+              children: [
+                Expanded(
+                  child: _BreakdownChip(
+                    icon: Icons.money_rounded,
+                    label: 'Cash',
+                    amount: CurrencyFormatter.format(cashAmount),
+                    count: cashCount,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _BreakdownChip(
+                    icon: Icons.qr_code_rounded,
+                    label: 'UPI',
+                    amount: CurrencyFormatter.format(upiAmount),
+                    count: upiCount,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String amount;
+  final int count;
+
+  const _BreakdownChip({
+    required this.icon,
+    required this.label,
+    required this.amount,
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
+          Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.85)),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Total received',
+                  label,
                   style: GoogleFonts.dmSans(
-                    color: Colors.white.withValues(alpha:0.8),
-                    fontSize: 12,
+                    fontSize: 10,
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
-                isLoading
-                    ? Container(
-                        width: 120,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha:0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      )
-                        .animate(onPlay: (c) => c.repeat())
-                        .shimmer(
-                            duration: 1200.ms,
-                            color: Colors.white.withValues(alpha:0.4))
-                    : Text(
-                        CurrencyFormatter.format(total),
-                        style: GoogleFonts.dmSans(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.7,
-                          height: 1.1,
-                        ),
-                      ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha:0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              children: [
                 Text(
-                  isLoading ? '—' : '$count',
+                  amount,
                   style: GoogleFonts.dmSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    height: 1,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 3),
                 Text(
-                  'txns',
+                  '$count bill${count == 1 ? '' : 's'}',
                   style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha:0.8),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                    color: Colors.white.withValues(alpha: 0.65),
                   ),
                 ),
               ],
