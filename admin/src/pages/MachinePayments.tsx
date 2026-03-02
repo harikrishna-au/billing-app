@@ -18,7 +18,8 @@ import {
 const MachinePayments = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const [activeTab, setActiveTab] = useState<"day" | "week" | "month">("day");
+    const [activeTab, setActiveTab] = useState<"day" | "week" | "month" | "date">("day");
+    const [selectedDate, setSelectedDate] = useState<string>('');
     const [isExporting, setIsExporting] = useState(false);
 
     const handleExport = async () => {
@@ -49,9 +50,12 @@ const MachinePayments = () => {
 
     // Fetch payment stats
     const { data: response, isLoading } = useQuery({
-        queryKey: ['payments', id, activeTab],
-        queryFn: () => paymentsApi.getByMachine(id!, { period: activeTab }),
-        enabled: !!id,
+        queryKey: ['payments', id, activeTab, selectedDate],
+        queryFn: () =>
+            activeTab === 'date' && selectedDate
+                ? paymentsApi.getByMachine(id!, { start_date: selectedDate, end_date: selectedDate })
+                : paymentsApi.getByMachine(id!, { period: activeTab as 'day' | 'week' | 'month' }),
+        enabled: !!id && (activeTab !== 'date' || !!selectedDate),
     });
 
     const summary = response?.summary;
@@ -112,19 +116,51 @@ const MachinePayments = () => {
                             <p className="text-muted-foreground">Machine ID: {id}</p>
                         </div>
 
-                        <div className="flex items-center bg-secondary/50 p-1 rounded-lg border border-border/50">
-                            {(["day", "week", "month"] as const).map((tab) => (
+                        <div className="flex items-center gap-2">
+                            {/* Period tabs */}
+                            <div className="flex items-center bg-secondary/50 p-1 rounded-lg border border-border/50">
+                                {(["day", "week", "month"] as const).map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => { setActiveTab(tab); setSelectedDate(''); }}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab
+                                            ? "bg-primary text-primary-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                            }`}
+                                    >
+                                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Date picker */}
+                            <div className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all cursor-pointer
+                                ${activeTab === 'date'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-secondary/50 border-border/50 text-muted-foreground hover:text-foreground'}`}>
+                                <Calendar className="h-4 w-4 shrink-0" />
+                                <span className="whitespace-nowrap">
+                                    {activeTab === 'date' && selectedDate
+                                        ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                                        : 'Pick date'}
+                                </span>
+                                <input
+                                    type="date"
+                                    max={new Date().toISOString().split('T')[0]}
+                                    value={selectedDate}
+                                    onChange={(e) => { setSelectedDate(e.target.value); setActiveTab('date'); }}
+                                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                    tabIndex={-1}
+                                />
                                 <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab
-                                        ? "bg-primary text-primary-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                                </button>
-                            ))}
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                        input?.showPicker?.();
+                                    }}
+                                    className="absolute inset-0 w-full h-full"
+                                    aria-label="Pick date"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -163,7 +199,11 @@ const MachinePayments = () => {
                     {/* Summary Stats */}
                     <div className="grid gap-4">
                         <div className="stat-card flex flex-col justify-center">
-                            <span className="text-sm text-muted-foreground">Total Collections ({activeTab})</span>
+                            <span className="text-sm text-muted-foreground">
+                                Total Collections ({activeTab === 'date' && selectedDate
+                                    ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    : activeTab})
+                            </span>
                             <span className="text-4xl font-bold text-foreground mt-2">₹{summary?.total_amount.toLocaleString() || 0}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -192,7 +232,11 @@ const MachinePayments = () => {
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h3 className="text-lg font-semibold text-foreground">Transaction Log</h3>
-                            <p className="text-sm text-muted-foreground">Detailed history for {activeTab}</p>
+                            <p className="text-sm text-muted-foreground">
+                                Detailed history for {activeTab === 'date' && selectedDate
+                                    ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    : activeTab}
+                            </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
                             {isExporting
