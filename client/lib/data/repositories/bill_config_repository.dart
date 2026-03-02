@@ -17,10 +17,44 @@ class BillConfigRepository {
   Future<BillConfig> fetchAndCache(String machineId) async {
     final response = await _apiClient.dio.get(ApiConstants.billConfig(machineId));
     final data = response.data['data'];
+    assert(() {
+      // ignore: avoid_print
+      print('╔══ BillConfig Raw Response ══════════════════════════');
+      // ignore: avoid_print
+      print('║  machine_id : $machineId');
+      // ignore: avoid_print
+      print('║  raw data   : $data');
+      // ignore: avoid_print
+      print('╚═════════════════════════════════════════════════════');
+      return true;
+    }());
     if (data == null) return BillConfig.empty;
 
     final config = BillConfig.fromJson(data as Map<String, dynamic>);
     await _prefs.setString(_kPrefsKey, jsonEncode(config.toJson()));
+
+    assert(() {
+      // ignore: avoid_print
+      print('╔══ BillConfig Fetched ═══════════════════════════════');
+      // ignore: avoid_print
+      print('║  Org Name     : ${config.orgName}');
+      // ignore: avoid_print
+      print('║  UPI ID       : ${config.upiId ?? "NOT SET"}');
+      // ignore: avoid_print
+      print('║  Tagline      : ${config.tagline ?? "-"}');
+      // ignore: avoid_print
+      print('║  GST No       : ${config.gstNumber ?? "-"}');
+      // ignore: avoid_print
+      print('║  CGST %       : ${config.cgstPercent}');
+      // ignore: avoid_print
+      print('║  SGST %       : ${config.sgstPercent}');
+      // ignore: avoid_print
+      print('║  Footer Msg   : ${config.footerMessage ?? "-"}');
+      // ignore: avoid_print
+      print('╚═════════════════════════════════════════════════════');
+      return true;
+    }());
+
     return config;
   }
 

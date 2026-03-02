@@ -98,6 +98,43 @@ class PaymentController extends StateNotifier<PaymentState> {
         pendingCount: pending,
         isOffline: false,
       );
+
+      assert(() {
+        final total = payments
+            .where((p) => p.isSuccess)
+            .fold(0.0, (s, p) => s + p.amount);
+        final byMethod = <String, double>{};
+        for (final p in payments.where((p) => p.isSuccess)) {
+          byMethod[p.method.name] = (byMethod[p.method.name] ?? 0) + p.amount;
+        }
+        // ignore: avoid_print
+        print('╔══ Orders Fetched ════════════════════════════════════');
+        // ignore: avoid_print
+        print('║  Total orders     : ${payments.length}');
+        // ignore: avoid_print
+        print('║  Successful       : ${payments.where((p) => p.isSuccess).length}');
+        // ignore: avoid_print
+        print('║  Pending (queue)  : $pending');
+        // ignore: avoid_print
+        print('║  Total collected  : ₹${total.toStringAsFixed(2)}');
+        for (final entry in byMethod.entries) {
+          // ignore: avoid_print
+          print('║  ${entry.key.padRight(16)}: ₹${entry.value.toStringAsFixed(2)}');
+        }
+        // ignore: avoid_print
+        print('╠══ Order Details ═════════════════════════════════════');
+        for (final p in payments.take(10)) {
+          // ignore: avoid_print
+          print('║  #${p.billNumber} | ${p.method.name.padRight(5)} | ₹${p.amount.toStringAsFixed(2)} | ${p.status.name} | ${p.createdAt.toLocal()}');
+        }
+        if (payments.length > 10) {
+          // ignore: avoid_print
+          print('║  ... and ${payments.length - 10} more');
+        }
+        // ignore: avoid_print
+        print('╚═════════════════════════════════════════════════════');
+        return true;
+      }());
     } catch (_) {
       // Network failed — serve from local cache so the screen is not empty.
       final cached = ref.read(paymentRepositoryProvider).loadCachedPayments();

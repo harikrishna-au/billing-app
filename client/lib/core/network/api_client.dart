@@ -11,10 +11,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        // Tighter timeouts for low-connectivity environments.
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 15),
-        sendTimeout: const Duration(seconds: 10),
+        // Generous connect timeout to handle Render cold-starts (30–60s).
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 15),
         headers: {
           ApiConstants.contentType: ApiConstants.applicationJson,
         },
@@ -24,11 +24,15 @@ class ApiClient {
     _dio.interceptors.add(_AuthInterceptor(_tokenManager, _dio));
     _dio.interceptors.add(_RetryInterceptor(_dio));
     _dio.interceptors.add(_ErrorInterceptor());
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      error: true,
-    ));
+    // Only log in debug builds — avoids sensitive data in production logs.
+    assert(() {
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ));
+      return true;
+    }());
   }
 
   Dio get dio => _dio;

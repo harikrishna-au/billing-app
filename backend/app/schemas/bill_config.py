@@ -1,5 +1,5 @@
 """Pydantic schemas for Bill Configuration endpoints."""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -42,6 +42,11 @@ class BillConfigResponse(BaseModel):
     upi_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('id', 'machine_id', mode='before')
+    @classmethod
+    def coerce_uuid_to_str(cls, v):
+        return str(v) if v is not None else v
 
     class Config:
         from_attributes = True

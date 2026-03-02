@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     text: const bool.fromEnvironment('dart.vm.product') ? '' : 'admin',
   );
   bool _isPasswordVisible = false;
+  bool _showWarmupHint = false;
 
   @override
   void dispose() {
@@ -33,10 +34,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       FocusManager.instance.primaryFocus?.unfocus();
+      setState(() => _showWarmupHint = false);
+      // Show a hint after 8s in case the server is cold-starting on Render.
+      final hintTimer = Future.delayed(const Duration(seconds: 8), () {
+        if (mounted) setState(() => _showWarmupHint = true);
+      });
       await ref.read(authProvider.notifier).login(
             _usernameController.text.trim(),
             _passwordController.text,
           );
+      if (mounted) setState(() => _showWarmupHint = false);
+      hintTimer.ignore();
     }
   }
 
@@ -178,6 +186,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           .animate()
                           .fadeIn(duration: 400.ms, delay: 440.ms)
                           .slideY(begin: 0.2, end: 0),
+
+                      if (_showWarmupHint) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Server is warming up, please wait…',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ).animate().fadeIn(duration: 300.ms),
+                      ],
                     ],
                   ),
                 ),

@@ -8,12 +8,62 @@ import '../../../config/theme/app_colors.dart';
 import '../../../data/models/bill_config_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bill_config_provider.dart';
+import '../../providers/catalogue_provider.dart';
+import '../../providers/service_provider.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isReloading = false;
+
+  Future<void> _reloadAll() async {
+    final user = ref.read(authProvider).user;
+    if (user == null) return;
+    setState(() => _isReloading = true);
+    try {
+      await Future.wait([
+        ref.read(billConfigProvider.notifier).refresh(user.id),
+        ref.read(catalogueProvider.notifier).fetchItems(),
+        ref.read(serviceProvider.notifier).loadAllServices(),
+      ]);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('App data refreshed',
+                style: GoogleFonts.dmSans(color: Colors.white)),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Some data failed to refresh',
+                style: GoogleFonts.dmSans(color: Colors.white)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isReloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
 
@@ -70,6 +120,14 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => _showUpiInfoSheet(context, config),
                 );
               },
+            ),
+
+            const SizedBox(height: 28),
+            _SectionLabel('Data'),
+            const SizedBox(height: 10),
+            _ReloadTile(
+              isReloading: _isReloading,
+              onTap: _isReloading ? null : _reloadAll,
             ),
 
             const SizedBox(height: 28),
@@ -162,6 +220,85 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReloadTile extends StatelessWidget {
+  final bool isReloading;
+  final VoidCallback? onTap;
+
+  const _ReloadTile({required this.isReloading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: isReloading
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : const Icon(Icons.sync_rounded,
+                        color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reload App Data',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isReloading
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isReloading
+                          ? 'Fetching latest data…'
+                          : 'Sync products, UPI details & services',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isReloading)
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textLight, size: 20),
+            ],
+          ),
         ),
       ),
     );

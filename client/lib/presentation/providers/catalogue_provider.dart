@@ -75,6 +75,20 @@ class CatalogueNotifier extends StateNotifier<CatalogueState> {
       _allItems = items;
       state = state.copyWith(
           items: items, isLoading: false, isOffline: false, error: null);
+
+      assert(() {
+        // ignore: avoid_print
+        print('╔══ Products Fetched ══════════════════════════════════');
+        // ignore: avoid_print
+        print('║  Total products : ${items.length}');
+        for (final item in items) {
+          // ignore: avoid_print
+          print('║  ${item.name.padRight(20)} ₹${item.price.toStringAsFixed(2)}  [${item.isActive ? "active" : "inactive"}]');
+        }
+        // ignore: avoid_print
+        print('╚═════════════════════════════════════════════════════');
+        return true;
+      }());
     } catch (e) {
       if (hasCached) {
         // Already showing cached data — just mark as offline, no error text.
