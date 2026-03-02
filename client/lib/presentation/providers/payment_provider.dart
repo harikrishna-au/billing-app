@@ -216,9 +216,12 @@ class PaymentController extends StateNotifier<PaymentState> {
     } catch (_) {
       // Fall back to filtering the cached all-payments list.
       final cached = ref.read(paymentRepositoryProvider).loadCachedPayments();
+      final startUtc = start.toUtc();
+      final endUtc = end.toUtc();
       final filtered = cached
           .where((p) =>
-              !p.createdAt.isBefore(start) && !p.createdAt.isAfter(end))
+              !p.createdAt.toUtc().isBefore(startUtc) &&
+              !p.createdAt.toUtc().isAfter(endUtc))
           .toList();
       state = state.copyWith(
         payments: filtered,

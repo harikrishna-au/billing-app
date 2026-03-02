@@ -65,8 +65,8 @@ class ApiPaymentRepository implements PaymentRepository {
       DateTime start, DateTime end) async {
     try {
       final queryParams = {
-        'start_date': start.toIso8601String(),
-        'end_date': end.toIso8601String(),
+        'start_date': start.toUtc().toIso8601String(),
+        'end_date': end.toUtc().toIso8601String(),
         if (machineId != null) 'machine_id': machineId!,
       };
       final response = await _apiClient.get(
@@ -88,9 +88,12 @@ class ApiPaymentRepository implements PaymentRepository {
   }
 
   List<Payment> _filterCachedByRange(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     return loadCachedPayments()
         .where((p) =>
-            !p.createdAt.isBefore(start) && !p.createdAt.isAfter(end))
+            !p.createdAt.toUtc().isBefore(startUtc) &&
+            !p.createdAt.toUtc().isAfter(endUtc))
         .toList();
   }
 
