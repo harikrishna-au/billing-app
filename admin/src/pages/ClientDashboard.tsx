@@ -123,7 +123,7 @@ const ClientDashboard = () => {
                 {machine.status.toUpperCase()}
               </span>
               <span className="text-sm text-muted-foreground">
-                Last sync: {new Date(machine.last_sync).toLocaleString()}
+                Last sync: {machine.last_sync ? new Date(machine.last_sync).toLocaleString() : 'Never'}
               </span>
             </div>
           </div>

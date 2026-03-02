@@ -84,8 +84,9 @@ const Clients = () => {
       toast({ title: "Machine Updated", description: `${result.name} has been updated successfully.` });
       setEditingMachine(null);
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update machine", variant: "destructive" });
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail || error?.message || "Failed to update machine";
+      toast({ title: "Error", description: detail, variant: "destructive" });
     },
   });
 
@@ -367,7 +368,7 @@ const Clients = () => {
                       <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.online_collection).toLocaleString()}</td>
                       <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.offline_collection).toLocaleString()}</td>
                       <td className="py-3 px-4 text-muted-foreground text-xs font-mono">
-                        {new Date(machine.last_sync).toLocaleString()}
+                        {machine.last_sync ? new Date(machine.last_sync).toLocaleString() : '—'}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <DropdownMenu>

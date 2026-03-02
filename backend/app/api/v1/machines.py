@@ -256,6 +256,7 @@ async def get_machine(
             location=machine.location,
             username=machine.username,
             status=machine.status,
+            upi_id=machine.upi_id,
             last_sync=machine.last_sync,
             online_collection=float(online_total),
             offline_collection=float(offline_total),
@@ -287,14 +288,17 @@ async def update_machine(
     Returns:
         Updated machine details
     """
-    machine = db.query(Machine).filter(Machine.id == machine_id).first()
-    
+    machine = db.query(Machine).filter(
+        Machine.id == machine_id,
+        Machine.user_id == current_user.id
+    ).first()
+
     if not machine:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
     # Update fields if provided
     if machine_data.name is not None:
         machine.name = machine_data.name
