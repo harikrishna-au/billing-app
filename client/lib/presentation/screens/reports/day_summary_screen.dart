@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/payment_model.dart';
 import '../../providers/payment_provider.dart';
-import '../../../core/utils/day_summary_generator.dart';
+import '../../providers/bill_config_provider.dart';
+import '../../../services/smart_pos_printer_service.dart';
 
 class DaySummaryScreen extends ConsumerStatefulWidget {
   const DaySummaryScreen({super.key});
@@ -59,67 +60,263 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
     }
   }
 
-  Future<void> _generatePDF() async {
-    setState(() {
-      _isGenerating = true;
-    });
-
+  Future<void> _printOnPos() async {
+    setState(() => _isGenerating = true);
     try {
       final payments = ref.read(paymentProvider).payments;
+      final config = ref.read(billConfigProvider);
 
-      final pdf = await DaySummaryGenerator.generateDaySummary(
-        payments: payments,
-        date: _selectedDate,
-        businessName: 'BillKaro POS',
-        businessAddress: 'Your Business Address',
-        businessPhone: '+91 1234567890',
-      );
+      final successList = payments.where((p) => p.isSuccess).toList();
+      final failedList = payments.where((p) => p.isFailed).toList();
 
-      await DaySummaryGenerator.printDaySummary(pdf);
+      double _sum(Iterable<Payment> list) =>
+          list.fold(0.0, (s, p) => s + p.amount);
+
+      final successTotal = _sum(successList);
+      final failedTotal = _sum(failedList);
+      final successCash = _sum(successList.where((p) => p.method == PaymentMethod.cash));
+      final successUpi = _sum(successList.where((p) => p.method == PaymentMethod.upi));
+      final successCard = _sum(successList.where((p) => p.method == PaymentMethod.card));
+      final failedCash = _sum(failedList.where((p) => p.method == PaymentMethod.cash));
+      final failedUpi = _sum(failedList.where((p) => p.method == PaymentMethod.upi));
+      final failedCard = _sum(failedList.where((p) => p.method == PaymentMethod.card));
+
+      final dateStr = DateFormat('dd-MM-yyyy').format(_selectedDate);
+      final printedStr = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+      final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
+          ? config.unitName!
+          : config.orgName;
+
+      String fmt(double v) => v.toStringAsFixed(2);
+
+      final printer = SmartPosPrinterService();
+      await printer.initSdk();
+
+      // ── Header ─────────────────────────────────────────────────────────
+      if (config.orgName.isNotEmpty) {
+        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
+      }
+      await printer.printText(text: 'TRANSACTION SUMMARY', size: 22, isBold: true, align: 1);
+      if (config.unitName != null && config.unitName!.isNotEmpty) {
+        await printer.printText(text: config.unitName!, size: 20, align: 1);
+      }
+      await printer.printText(text: 'Sale Date : $dateStr', size: 20, align: 0);
+      await printer.printText(text: 'Terminal  : $terminal', size: 20, align: 0);
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+
+      // ── Receipt list ───────────────────────────────────────────────────
+      await printer.printText(
+          text: 'RECEIPT          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+
+      for (final p in payments) {
+        await printer.printText(text: p.billNumber, size: 20, align: 0);
+        final method = p.method == PaymentMethod.cash
+            ? 'Cash'
+            : p.method == PaymentMethod.upi
+                ? 'UPI'
+                : 'Card';
+        final amtPadded = fmt(p.amount).padLeft(10);
+        await printer.printText(
+            text: '${method.padRight(20)}1$amtPadded', size: 20, align: 0);
+      }
+
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+
+      // ── Success totals ─────────────────────────────────────────────────
+      await printer.printText(
+          text: 'SUCCESS TOTAL TRANSACTIONS :${successList.length.toString().padLeft(3)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS TOTAL TICKETS      :${successList.length.toString().padLeft(3)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS TOTAL AMOUNT       : ${fmt(successTotal)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS-CASH AMOUNT        : ${fmt(successCash)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS-UPI  AMOUNT        : ${fmt(successUpi)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS-CARD AMOUNT        : ${fmt(successCard)}',
+          size: 20, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+
+      // ── Failed totals ──────────────────────────────────────────────────
+      await printer.printText(
+          text: 'FAILED TOTAL TRANSACTIONS  :${failedList.length.toString().padLeft(3)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED TOTAL AMOUNT        : ${fmt(failedTotal)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED-CASH AMOUNT         : ${fmt(failedCash)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED-UPI  AMOUNT         : ${fmt(failedUpi)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED-CARD AMOUNT         : ${fmt(failedCard)}',
+          size: 20, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
+      await printer.printText(text: '\n\n', size: 20, align: 1);
+      await printer.cutPaper();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating PDF: $e')),
+          SnackBar(content: Text('Print failed: $e')),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-        });
-      }
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
-  Future<void> _sharePDF() async {
-    setState(() {
-      _isGenerating = true;
-    });
-
+  Future<void> _printSalesSummary() async {
+    setState(() => _isGenerating = true);
     try {
       final payments = ref.read(paymentProvider).payments;
+      final config = ref.read(billConfigProvider);
 
-      final pdf = await DaySummaryGenerator.generateDaySummary(
-        payments: payments,
-        date: _selectedDate,
-        businessName: 'BillKaro POS',
-        businessAddress: 'Your Business Address',
-        businessPhone: '+91 1234567890',
-      );
+      if (payments.isEmpty) return;
 
-      await DaySummaryGenerator.shareDaySummary(pdf, _selectedDate);
+      // Sort by date to get date range and ticket range
+      final sorted = [...payments]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final firstTicket = sorted.first.billNumber;
+      final lastTicket = sorted.last.billNumber;
+      final startingDate = sorted.first.createdAt;
+      final endingDate = sorted.last.createdAt;
+
+      final successList = payments.where((p) => p.isSuccess).toList();
+      final failedList = payments.where((p) => p.isFailed).toList();
+
+      double _sum(Iterable<Payment> list) =>
+          list.fold(0.0, (s, p) => s + p.amount);
+
+      // Per-method groups
+      final cashSuccess = successList.where((p) => p.method == PaymentMethod.cash).toList();
+      final upiSuccess  = successList.where((p) => p.method == PaymentMethod.upi).toList();
+      final cardSuccess = successList.where((p) => p.method == PaymentMethod.card).toList();
+      final upiFailedList  = failedList.where((p) => p.method == PaymentMethod.upi).toList();
+      final cardFailedList = failedList.where((p) => p.method == PaymentMethod.card).toList();
+
+      final transTotal  = _sum(successList);
+      final cashAmt     = _sum(cashSuccess);
+      final upiAmt      = _sum(upiSuccess);
+      final cardAmt     = _sum(cardSuccess);
+      final failedUpiAmt  = _sum(upiFailedList);
+      final failedCardAmt = _sum(cardFailedList);
+
+      final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
+      final printedStr   = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+      final startDateStr = DateFormat('dd-MM-yyyy HH:mm:ss').format(startingDate);
+      final endDateStr   = DateFormat('dd-MM-yyyy HH:mm:ss').format(endingDate);
+      final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
+          ? config.unitName!
+          : config.orgName;
+
+      String fmt(double v) => v.toStringAsFixed(2);
+      String cnt(int n, double v) =>
+          n > 0 ? '${n.toString().padLeft(2)}  ${fmt(v)}' : '';
+
+      final printer = SmartPosPrinterService();
+      await printer.initSdk();
+
+      // ── Header ─────────────────────────────────────────────────────────
+      if (config.orgName.isNotEmpty) {
+        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
+      }
+      await printer.printText(text: 'SALES SUMMARY', size: 22, isBold: true, align: 1);
+      if (config.unitName != null && config.unitName!.isNotEmpty) {
+        await printer.printText(text: config.unitName!, size: 20, align: 1);
+      }
+      await printer.printText(text: 'Sale Date  : $dateStr', size: 20, align: 0);
+      await printer.printText(text: 'Terminal   : $terminal', size: 20, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+      await printer.printText(text: 'Starting Date      : $startDateStr', size: 20, align: 0);
+      await printer.printText(text: 'Ending Date        : $endDateStr', size: 20, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+      await printer.printText(text: 'Starting Ticket No : $firstTicket', size: 20, align: 0);
+      await printer.printText(text: 'Ending Ticket No   : $lastTicket', size: 20, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+
+      // ── Item/method section ────────────────────────────────────────────
+      await printer.printText(
+          text: 'ITEM          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+
+      // Helper to print one method-group block
+      Future<void> printMethodBlock(
+          String label, List<Payment> successGroup, List<Payment> failedGroup) async {
+        final total = _sum(successGroup) + _sum(failedGroup);
+        final tickets = successGroup.length + failedGroup.length;
+        if (tickets == 0) return;
+        await printer.printText(
+            text: '${label.padRight(14)}${tickets.toString().padLeft(4)}  ${fmt(total)}',
+            size: 20, align: 0);
+        await printer.printText(
+            text: 'Cash :       ${label == "CASH" ? cnt(cashSuccess.length, cashAmt) : ""}',
+            size: 20, align: 0);
+        await printer.printText(
+            text: 'Success-Upi :${label == "UPI" ? cnt(upiSuccess.length, upiAmt) : ""}',
+            size: 20, align: 0);
+        await printer.printText(
+            text: 'Success-Card :${label == "CARD" ? cnt(cardSuccess.length, cardAmt) : ""}',
+            size: 20, align: 0);
+        await printer.printText(
+            text: 'Failed-Upi : ${label == "UPI" && upiFailedList.isNotEmpty ? cnt(upiFailedList.length, failedUpiAmt) : ""}',
+            size: 20, align: 0);
+        await printer.printText(
+            text: 'Failed-Card :${label == "CARD" && cardFailedList.isNotEmpty ? cnt(cardFailedList.length, failedCardAmt) : ""}',
+            size: 20, align: 0);
+        await printer.printText(text: '', size: 20, align: 0);
+      }
+
+      await printMethodBlock('CASH', cashSuccess, []);
+      await printMethodBlock('UPI',  upiSuccess,  upiFailedList);
+      await printMethodBlock('CARD', cardSuccess, cardFailedList);
+
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+
+      // ── Totals footer ──────────────────────────────────────────────────
+      await printer.printText(
+          text: 'TRANS. AMOUNT :  ${fmt(transTotal).padLeft(16)}',
+          size: 22, isBold: true, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+      await printer.printText(
+          text: 'CASH :         ${cashSuccess.length.toString().padLeft(3)}    ${fmt(cashAmt).padLeft(10)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS - UPI :${upiSuccess.length.toString().padLeft(3)}    ${fmt(upiAmt).padLeft(10)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'SUCCESS - CARD :${cardSuccess.length.toString().padLeft(2)}    ${fmt(cardAmt).padLeft(10)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED - UPI : ${upiFailedList.length.toString().padLeft(3)}    ${fmt(failedUpiAmt).padLeft(10)}',
+          size: 20, align: 0);
+      await printer.printText(
+          text: 'FAILED - CARD :${cardFailedList.length.toString().padLeft(3)}    ${fmt(failedCardAmt).padLeft(10)}',
+          size: 20, align: 0);
+      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      await printer.printText(
+          text: 'FINAL RECEIVED AMOUNT : ${fmt(transTotal).padLeft(10)}',
+          size: 22, isBold: true, align: 0);
+      await printer.printText(text: '', size: 20, align: 0);
+      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
+      await printer.printText(text: '\n\n', size: 20, align: 1);
+      await printer.cutPaper();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sharing PDF: $e')),
+          SnackBar(content: Text('Print failed: $e')),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-        });
-      }
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
@@ -265,7 +462,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, -2),
                         ),
@@ -275,7 +472,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: _isGenerating ? null : _generatePDF,
+                            onPressed: _isGenerating ? null : _printOnPos,
                             icon: _isGenerating
                                 ? const SizedBox(
                                     width: 20,
@@ -285,21 +482,30 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Icon(Icons.print),
-                            label: const Text('Print PDF'),
+                                : const Icon(Icons.receipt_long),
+                            label: const Text('Transaction\nSummary', textAlign: TextAlign.center),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _isGenerating ? null : _sharePDF,
-                            icon: const Icon(Icons.share),
-                            label: const Text('Share PDF'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: ElevatedButton.icon(
+                            onPressed: _isGenerating ? null : _printSalesSummary,
+                            icon: _isGenerating
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.summarize),
+                            label: const Text('Sales\nSummary', textAlign: TextAlign.center),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
                         ),

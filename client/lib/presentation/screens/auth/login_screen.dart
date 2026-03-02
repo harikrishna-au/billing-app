@@ -80,32 +80,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo
-                Center(
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                          color: AppColors.primaryMid.withOpacity(0.5)),
+                // Brand
+                Column(
+                  children: [
+                    Text(
+                      'MIT',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 56,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                        letterSpacing: -2,
+                        height: 1,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.receipt_long_rounded,
-                      size: 36,
-                      color: AppColors.primary,
+                    const SizedBox(height: 4),
+                    Text(
+                      'HaDaoom Technologies',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 1.0,
+                      ),
                     ),
-                  ),
+                  ],
                 )
                     .animate()
                     .fadeIn(duration: 500.ms)
                     .scale(
-                        begin: const Offset(0.8, 0.8),
+                        begin: const Offset(0.85, 0.85),
                         duration: 600.ms,
                         curve: Curves.easeOutBack),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 36),
 
                 // Heading
                 Column(

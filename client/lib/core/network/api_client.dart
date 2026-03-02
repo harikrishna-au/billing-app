@@ -11,10 +11,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        // Generous connect timeout to handle Render cold-starts (30–60s).
-        connectTimeout: const Duration(seconds: 60),
-        receiveTimeout: const Duration(seconds: 30),
-        sendTimeout: const Duration(seconds: 15),
+        // Generous timeouts to handle Render cold-starts (30–60s).
+        connectTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 90),
+        sendTimeout: const Duration(seconds: 30),
         headers: {
           ApiConstants.contentType: ApiConstants.applicationJson,
         },

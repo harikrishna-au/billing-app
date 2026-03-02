@@ -6,6 +6,7 @@ import '../../presentation/providers/auth_provider.dart';
 
 // We will implement these screens later, import stub or relativwhene
 import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/screens/splash/splash_screen.dart';
 
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/orders/orders_screen.dart';
@@ -25,19 +26,27 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/new',
+    initialLocation: '/splash',
     refreshListenable:
         GoRouterRefreshStream(ref.watch(authProvider.notifier).stream),
     redirect: (context, state) {
       final isLoggedIn = authState.isAuthenticated;
-      final isLoggingIn = state.uri.path == '/login';
+      final path = state.uri.path;
 
+      // Let splash handle its own navigation
+      if (path == '/splash') return null;
+
+      final isLoggingIn = path == '/login';
       if (!isLoggedIn && !isLoggingIn) return '/login';
       if (isLoggedIn && isLoggingIn) return '/new';
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),

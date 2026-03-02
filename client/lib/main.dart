@@ -16,20 +16,20 @@ void main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
       ],
-      child: const BillKaroApp(),
+      child: const MitApp(),
     ),
   );
 }
 
-class BillKaroApp extends ConsumerWidget {
-  const BillKaroApp({super.key});
+class MitApp extends ConsumerWidget {
+  const MitApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'BillKaro',
+      title: 'MIT',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,

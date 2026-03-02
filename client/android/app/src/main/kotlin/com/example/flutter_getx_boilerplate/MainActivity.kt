@@ -92,14 +92,14 @@ class MainActivity: FlutterActivity() {
         mDriverManager = DriverManager.getInstance()
         mSys = mDriverManager.baseSysDevice
 
+        // Power on the printer hardware first, then wait for UART to become ready.
+        mSys.sysPowerOn()
+        try { Thread.sleep(2000) } catch (e: InterruptedException) { e.printStackTrace() }
+
         var status = mSys.sdkInit()
         if (status != SdkResult.SDK_OK) {
-            mSys.sysPowerOn()
-            try {
-                Thread.sleep(1000)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
+            // One more retry after an additional wait.
+            try { Thread.sleep(1500) } catch (e: InterruptedException) { e.printStackTrace() }
             status = mSys.sdkInit()
         }
 
