@@ -53,7 +53,7 @@ const MachinePayments = () => {
         queryKey: ['payments', id, activeTab, selectedDate],
         queryFn: () =>
             activeTab === 'date' && selectedDate
-                ? paymentsApi.getByMachine(id!, { start_date: selectedDate, end_date: selectedDate })
+                ? paymentsApi.getByMachine(id!, { start_date: `${selectedDate}T00:00:00Z`, end_date: `${selectedDate}T23:59:59Z` })
                 : paymentsApi.getByMachine(id!, { period: activeTab as 'day' | 'week' | 'month' }),
         enabled: !!id && (activeTab !== 'date' || !!selectedDate),
     });
