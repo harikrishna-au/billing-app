@@ -10,3 +10,5 @@ export { paymentsApi } from './payments';
 export { analyticsApi } from './analytics';
 export { configApi } from './config';
 export type { BillConfig, BillConfigUpdate } from './config';
+export { locationsApi } from './locations';
+export type { Location as LocationType, LocationCreate, LocationUpdate } from './locations';

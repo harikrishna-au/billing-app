@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Search, MoreHorizontal, Monitor, UserCheck, AlertTriangle, Loader2, Pencil } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Monitor, UserCheck, AlertTriangle, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { machinesApi, type Machine as MachineType } from "@/lib/api";
+import { machinesApi, locationsApi, type Machine as MachineType, type LocationType } from "@/lib/api";
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -33,11 +33,18 @@ const Clients = () => {
   const [newMachine, setNewMachine] = useState({
     name: "",
     location: "",
+    location_id: "",
     username_prefix: "admin",
     password: ""
   });
   const [editingMachine, setEditingMachine] = useState<MachineType | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", location: "", password: "", upi_id: "" });
+  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", password: "" });
+
+  // Location management state
+  const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<LocationType | null>(null);
+  const [locationForm, setLocationForm] = useState({ name: "", upi_id: "" });
+
   const { toast } = useToast();
 
   // Fetch all machines — poll every 30 s so status changes appear automatically
@@ -45,6 +52,12 @@ const Clients = () => {
     queryKey: ['machines'],
     queryFn: () => machinesApi.getAll(),
     refetchInterval: 30_000,
+  });
+
+  // Fetch locations
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations'],
+    queryFn: () => locationsApi.getAll(),
   });
 
   const machines = machinesData?.machines || [];
@@ -56,7 +69,7 @@ const Clients = () => {
       queryClient.invalidateQueries({ queryKey: ['machines'] });
       toast({ title: "Machine Added", description: `${newMachine.name} has been added successfully with username ${result.username}.` });
       setIsDialogOpen(false);
-      setNewMachine({ name: "", location: "", username_prefix: "admin", password: "" });
+      setNewMachine({ name: "", location: "", location_id: "", username_prefix: "admin", password: "" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add machine", variant: "destructive" });
@@ -90,6 +103,44 @@ const Clients = () => {
     },
   });
 
+  // Location mutations
+  const createLocationMutation = useMutation({
+    mutationFn: locationsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      toast({ title: "Location Added", description: `${locationForm.name} has been added.` });
+      setIsAddLocationOpen(false);
+      setLocationForm({ name: "", upi_id: "" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add location", variant: "destructive" });
+    },
+  });
+
+  const updateLocationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; upi_id?: string } }) =>
+      locationsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      toast({ title: "Location Updated" });
+      setEditingLocation(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update location", variant: "destructive" });
+    },
+  });
+
+  const deleteLocationMutation = useMutation({
+    mutationFn: locationsApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      toast({ title: "Location Deleted" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete location", variant: "destructive" });
+    },
+  });
+
   const filteredMachines = machines.filter(
     (m) =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -97,7 +148,6 @@ const Clients = () => {
   );
 
   const activeMachines = machines.filter(m => m.status === "online").length;
-  const inactiveMachines = machines.filter(m => m.status !== "online").length;
   const totalCollection = machines.reduce((sum, m) => sum + Number(m.online_collection) + Number(m.offline_collection), 0);
 
   const handleCreateMachine = (e: React.FormEvent) => {
@@ -107,6 +157,7 @@ const Clients = () => {
       location: newMachine.location,
       username_prefix: newMachine.username_prefix,
       password: newMachine.password,
+      location_id: newMachine.location_id || undefined,
     });
   };
 
@@ -121,8 +172,8 @@ const Clients = () => {
     setEditForm({
       name: machine.name,
       location: machine.location,
+      location_id: (machine as any).location_id ?? "",
       password: "",
-      upi_id: machine.upi_id ?? "",
     });
     setEditingMachine(machine);
   };
@@ -133,10 +184,29 @@ const Clients = () => {
     const data: Parameters<typeof machinesApi.update>[1] = {
       name: editForm.name || undefined,
       location: editForm.location || undefined,
-      upi_id: editForm.upi_id,
+      location_id: editForm.location_id || undefined,
     };
     if (editForm.password) data.password = editForm.password;
     updateMutation.mutate({ id: editingMachine.id, data });
+  };
+
+  const handleLocationSelect = (locationId: string, setter: (v: any) => void, current: any) => {
+    const loc = locations.find(l => l.id === locationId);
+    setter({ ...current, location_id: locationId, location: loc?.name ?? current.location });
+  };
+
+  const handleOpenEditLocation = (loc: LocationType) => {
+    setLocationForm({ name: loc.name, upi_id: loc.upi_id ?? "" });
+    setEditingLocation(loc);
+  };
+
+  const handleSaveLocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingLocation) {
+      updateLocationMutation.mutate({ id: editingLocation.id, data: { name: locationForm.name, upi_id: locationForm.upi_id } });
+    } else {
+      createLocationMutation.mutate({ name: locationForm.name, upi_id: locationForm.upi_id || undefined });
+    }
   };
 
   return (
@@ -174,15 +244,37 @@ const Clients = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={newMachine.location}
-                    onChange={(e) => setNewMachine({ ...newMachine, location: e.target.value })}
-                    placeholder="e.g. Lobby A"
-                    className="bg-secondary/50"
-                    required
-                  />
+                  <Label htmlFor="location_id">Location</Label>
+                  {locations.length > 0 ? (
+                    <select
+                      id="location_id"
+                      value={newMachine.location_id}
+                      onChange={(e) => handleLocationSelect(e.target.value, setNewMachine, newMachine)}
+                      className="w-full rounded-md border border-input bg-secondary/50 px-3 py-2 text-sm"
+                    >
+                      <option value="">— Select a location —</option>
+                      {locations.map(loc => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      id="location"
+                      value={newMachine.location}
+                      onChange={(e) => setNewMachine({ ...newMachine, location: e.target.value })}
+                      placeholder="e.g. Lobby A"
+                      className="bg-secondary/50"
+                      required
+                    />
+                  )}
+                  {locations.length > 0 && !newMachine.location_id && (
+                    <Input
+                      value={newMachine.location}
+                      onChange={(e) => setNewMachine({ ...newMachine, location: e.target.value })}
+                      placeholder="Or type a custom location name"
+                      className="bg-secondary/50 mt-2"
+                    />
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="username_prefix">Username Prefix</Label>
@@ -244,26 +336,37 @@ const Clients = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-location">Location</Label>
-                <Input
-                  id="edit-location"
-                  value={editForm.location}
-                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                  placeholder="e.g. Lobby A"
-                  className="bg-secondary/50"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-upi">UPI ID</Label>
-                <Input
-                  id="edit-upi"
-                  value={editForm.upi_id}
-                  onChange={(e) => setEditForm({ ...editForm, upi_id: e.target.value })}
-                  placeholder="merchant@upi"
-                  className="bg-secondary/50"
-                />
-                <p className="text-xs text-muted-foreground mt-1">UPI ID used for QR payments on this machine</p>
+                <Label htmlFor="edit-location-id">Location</Label>
+                {locations.length > 0 ? (
+                  <select
+                    id="edit-location-id"
+                    value={editForm.location_id}
+                    onChange={(e) => handleLocationSelect(e.target.value, setEditForm, editForm)}
+                    className="w-full rounded-md border border-input bg-secondary/50 px-3 py-2 text-sm"
+                  >
+                    <option value="">— Select a location —</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id="edit-location"
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    placeholder="e.g. Lobby A"
+                    className="bg-secondary/50"
+                    required
+                  />
+                )}
+                {locations.length > 0 && !editForm.location_id && (
+                  <Input
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    placeholder="Or type a custom location name"
+                    className="bg-secondary/50 mt-2"
+                  />
+                )}
               </div>
               <Separator />
               <div>
@@ -290,6 +393,53 @@ const Clients = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Add/Edit Location Dialog */}
+        <Dialog
+          open={isAddLocationOpen || !!editingLocation}
+          onOpenChange={(open) => { if (!open) { setIsAddLocationOpen(false); setEditingLocation(null); setLocationForm({ name: "", upi_id: "" }); } }}
+        >
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>{editingLocation ? "Edit Location" : "Add Location"}</DialogTitle>
+              <DialogDescription>
+                {editingLocation ? `Update details for ${editingLocation.name}` : "Create a new location with a UPI ID"}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveLocation} className="space-y-4">
+              <div>
+                <Label htmlFor="loc-name">Location Name</Label>
+                <Input
+                  id="loc-name"
+                  value={locationForm.name}
+                  onChange={(e) => setLocationForm({ ...locationForm, name: e.target.value })}
+                  placeholder="e.g. Gate A"
+                  className="bg-secondary/50"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="loc-upi">UPI ID</Label>
+                <Input
+                  id="loc-upi"
+                  value={locationForm.upi_id}
+                  onChange={(e) => setLocationForm({ ...locationForm, upi_id: e.target.value })}
+                  placeholder="merchant@upi"
+                  className="bg-secondary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">All machines at this location will use this UPI ID</p>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => { setIsAddLocationOpen(false); setEditingLocation(null); }}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="glow" disabled={createLocationMutation.isPending || updateLocationMutation.isPending}>
+                  {editingLocation ? "Save Changes" : "Add Location"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <div className="grid gap-6 md:grid-cols-3 animate-slide-up">
           <StatCard
             title="Total Machines"
@@ -306,6 +456,61 @@ const Clients = () => {
             value={`₹${totalCollection.toLocaleString()}`}
             icon={AlertTriangle}
           />
+        </div>
+
+        {/* Locations Section */}
+        <div className="stat-card animate-slide-up" style={{ animationDelay: "0.05s" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-xl font-semibold text-foreground">Locations</h2>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => { setLocationForm({ name: "", upi_id: "" }); setIsAddLocationOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Location
+            </Button>
+          </div>
+
+          {locations.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No locations yet. Add a location to manage UPI IDs centrally.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">UPI ID</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {locations.map((loc) => (
+                    <tr key={loc.id} className="border-b border-border/30">
+                      <td className="py-2 px-3 text-sm font-medium text-foreground">{loc.name}</td>
+                      <td className="py-2 px-3 text-sm text-muted-foreground font-mono">{loc.upi_id || <span className="text-muted-foreground/50 italic">not set</span>}</td>
+                      <td className="py-2 px-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEditLocation(loc)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              if (confirm(`Delete location "${loc.name}"?`)) deleteLocationMutation.mutate(loc.id);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="stat-card animate-slide-up" style={{ animationDelay: "0.1s" }}>

@@ -69,7 +69,8 @@ async def create_machine(
         location=machine_data.location,
         username=username,
         hashed_password=hashed_password,
-        status="offline"
+        status="offline",
+        location_id=machine_data.location_id or None,
     )
     
     try:
@@ -93,6 +94,7 @@ async def create_machine(
             username=machine.username,
             status=machine.status,
             upi_id=machine.upi_id,
+            location_id=str(machine.location_id) if machine.location_id else None,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
@@ -182,6 +184,7 @@ async def get_machines(
             username=m.username,
             status=m.status,
             upi_id=m.upi_id,
+            location_id=str(m.location_id) if m.location_id else None,
             last_sync=m.last_sync,
             online_collection=online_map.get(str(m.id), 0.0),
             offline_collection=offline_map.get(str(m.id), 0.0),
@@ -327,6 +330,9 @@ async def update_machine(
     if machine_data.upi_id is not None:
         machine.upi_id = machine_data.upi_id.strip() or None
 
+    if machine_data.location_id is not None:
+        machine.location_id = machine_data.location_id or None
+
     new_status = machine_data.status
     if new_status is not None:
         machine.status = new_status
@@ -365,6 +371,7 @@ async def update_machine(
             username=machine.username,
             status=machine.status,
             upi_id=machine.upi_id,
+            location_id=str(machine.location_id) if machine.location_id else None,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
@@ -440,6 +447,7 @@ async def update_machine_status(
             username=machine.username,
             status=machine.status,
             upi_id=machine.upi_id,
+            location_id=str(machine.location_id) if machine.location_id else None,
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),

@@ -12,6 +12,7 @@ class MachineCreate(BaseModel):
     location: str = Field(..., min_length=1, max_length=255, description="Physical location")
     username_prefix: str = Field(default="admin", min_length=1, max_length=50, description="Username prefix for auto-generation")
     password: str = Field(..., min_length=4, description="Machine login password")
+    location_id: Optional[str] = Field(None, description="Location UUID to associate with")
 
 
 class MachineUpdate(BaseModel):
@@ -22,6 +23,7 @@ class MachineUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=4, description="Leave empty to keep current password")
     status: Optional[str] = Field(None, pattern="^(online|offline|maintenance)$")
     upi_id: Optional[str] = Field(None, max_length=255, description="UPI ID for QR payment (e.g. merchant@upi)")
+    location_id: Optional[str] = Field(None, description="Location UUID to associate with")
 
 
 class MachineResponse(BaseModel):
@@ -33,6 +35,7 @@ class MachineResponse(BaseModel):
     username: str
     status: str
     upi_id: Optional[str] = None
+    location_id: Optional[str] = None
     last_sync: Optional[datetime]
     online_collection: float
     offline_collection: float

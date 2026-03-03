@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin_user
 from app.models.bill_config import BillConfig
 from app.models.machine import Machine
+from app.models.location import Location
 from app.schemas.bill_config import BillConfigUpdate, BillConfigResponse
 
 router = APIRouter()
@@ -25,7 +26,13 @@ async def get_bill_config(
     """Return the bill configuration for a machine. Returns null data if not set yet."""
     config = db.query(BillConfig).filter(BillConfig.machine_id == machine_id).first()
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
+
+    # Use location's UPI ID if machine is linked to a location, else fall back to machine's own upi_id
     upi_id = machine.upi_id if machine else None
+    if machine and machine.location_id:
+        location = db.query(Location).filter(Location.id == machine.location_id).first()
+        if location and location.upi_id:
+            upi_id = location.upi_id
 
     if not config:
         return {"success": True, "data": {"upi_id": upi_id} if upi_id else None}

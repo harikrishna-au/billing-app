@@ -8,6 +8,7 @@ export interface MachineCreate {
     location: string;
     username_prefix: string;
     password: string;
+    location_id?: string;
 }
 
 export interface MachineUpdate {
@@ -17,6 +18,7 @@ export interface MachineUpdate {
     password?: string;
     status?: 'online' | 'offline' | 'maintenance';
     upi_id?: string;
+    location_id?: string;
 }
 
 export interface Machine {

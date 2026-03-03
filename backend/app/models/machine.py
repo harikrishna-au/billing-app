@@ -20,6 +20,7 @@ class Machine(Base):
     hashed_password = Column(String(255), nullable=False)
     status = Column(String(50), nullable=False, default="offline")  # online, offline, maintenance
     upi_id = Column(String(255), nullable=True)
+    location_id = Column(UUID(as_uuid=True), ForeignKey('locations.id'), nullable=True)
     bill_counter = Column(Integer, default=0, nullable=False)
     last_sync = Column(DateTime(timezone=True), nullable=True)
     online_collection = Column(Numeric(10, 2), default=0.00)

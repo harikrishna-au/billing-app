@@ -118,6 +118,23 @@ async def startup_event():
         with engine.connect() as conn:
             from sqlalchemy import text, inspect as sa_inspect
             inspector = sa_inspect(engine)
+
+            # Locations table
+            existing_tables = inspector.get_table_names()
+            if "locations" not in existing_tables:
+                conn.execute(text("""
+                    CREATE TABLE locations (
+                        id VARCHAR(36) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        upi_id VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: created locations table")
+
             machine_cols = {c["name"] for c in inspector.get_columns("machines")}
             if "upi_id" not in machine_cols:
                 conn.execute(text("ALTER TABLE machines ADD COLUMN upi_id VARCHAR(255)"))
@@ -127,6 +144,10 @@ async def startup_event():
                 conn.execute(text("ALTER TABLE machines ADD COLUMN bill_counter INTEGER NOT NULL DEFAULT 0"))
                 conn.commit()
                 print("✅ Migration: added bill_counter column to machines table")
+            if "location_id" not in machine_cols:
+                conn.execute(text("ALTER TABLE machines ADD COLUMN location_id VARCHAR(36)"))
+                conn.commit()
+                print("✅ Migration: added location_id column to machines table")
 
         print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
     except Exception as e:
