@@ -123,6 +123,10 @@ async def startup_event():
                 conn.execute(text("ALTER TABLE machines ADD COLUMN upi_id VARCHAR(255)"))
                 conn.commit()
                 print("✅ Migration: added upi_id column to machines table")
+            if "bill_counter" not in machine_cols:
+                conn.execute(text("ALTER TABLE machines ADD COLUMN bill_counter INTEGER NOT NULL DEFAULT 0"))
+                conn.commit()
+                print("✅ Migration: added bill_counter column to machines table")
 
         print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
     except Exception as e:

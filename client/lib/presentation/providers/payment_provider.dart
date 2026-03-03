@@ -161,11 +161,13 @@ class PaymentController extends StateNotifier<PaymentState> {
 
     try {
       final apiClient = ref.read(apiClientProvider);
+      final billGen = ref.read(billNumberServiceProvider);
       final response = await apiClient.post(
         ApiConstants.syncPush,
         data: {
           'machine_id': user.id,
           'payments': pending,
+          'client_bill_counter': billGen.currentCounter,
         },
       );
 
@@ -173,13 +175,12 @@ class PaymentController extends StateNotifier<PaymentState> {
         await queue.clear();
         state = state.copyWith(pendingCount: 0);
 
-        // If the backend echoes back the latest bill counter, sync so the
-        // local sequence never dips below what the server has seen.
-        final backendCounter = response.data['latest_bill_counter'];
+        // Sync the confirmed backend counter so the local sequence never dips
+        // below what the server has recorded.
+        final responseData = response.data['data'] as Map<String, dynamic>?;
+        final backendCounter = responseData?['latest_bill_counter'];
         if (backendCounter is int) {
-          await ref
-              .read(billNumberServiceProvider)
-              .syncWithBackend(backendCounter);
+          await billGen.syncWithBackend(backendCounter);
         }
       }
     } catch (_) {

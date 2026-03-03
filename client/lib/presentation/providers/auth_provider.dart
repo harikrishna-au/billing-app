@@ -9,7 +9,8 @@ import 'bill_config_provider.dart';
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   final tokenManager = ref.watch(tokenManagerProvider);
-  return ApiAuthRepository(apiClient, tokenManager);
+  final billGenerator = ref.watch(billNumberServiceProvider);
+  return ApiAuthRepository(apiClient, tokenManager, billGenerator);
 });
 
 // State

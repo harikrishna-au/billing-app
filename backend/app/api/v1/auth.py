@@ -180,7 +180,8 @@ async def machine_login(
                 "location": machine.location,
                 "username": machine.username,
                 "status": machine.status,
-                "last_sync": machine.last_sync.isoformat() if machine.last_sync else None
+                "last_sync": machine.last_sync.isoformat() if machine.last_sync else None,
+                "bill_counter": machine.bill_counter or 0
             },
             "token": access_token,
             "refresh_token": refresh_token,

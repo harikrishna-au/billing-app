@@ -81,9 +81,10 @@ async def sync_push(
             failed_count += 1
             continue
     
-    # Update machine last_sync
+    # Update machine last_sync and bill_counter (take the max so we never go backwards)
     machine.last_sync = datetime.utcnow()
-    
+    machine.bill_counter = max(machine.bill_counter or 0, sync_data.client_bill_counter)
+
     try:
         db.commit()
     except Exception as e:
@@ -92,13 +93,14 @@ async def sync_push(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to sync data: {str(e)}"
         )
-    
+
     return {
         "success": True,
         "data": SyncPushResponse(
             synced_payments=synced_count,
             failed_payments=failed_count,
-            sync_timestamp=machine.last_sync
+            sync_timestamp=machine.last_sync,
+            latest_bill_counter=machine.bill_counter
         )
     }
 

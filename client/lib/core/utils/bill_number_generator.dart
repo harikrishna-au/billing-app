@@ -19,7 +19,7 @@ class BillNumberGenerator {
   Future<String> generate() async {
     final next = currentCounter + 1;
     await _prefs.setInt(_counterKey, next);
-    return 'BILL-${next.toString().padLeft(4, '0')}';
+    return 'BILL-${next.toString().padLeft(6, '0')}';
   }
 
   /// Force-set the counter (used when syncing with backend).

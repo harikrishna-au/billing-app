@@ -28,7 +28,8 @@ final printerServiceProvider = Provider<PrinterService>((ref) {
 });
 
 final syncQueueServiceProvider = Provider<SyncQueueService>((ref) {
-  return SyncQueueService();
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return SyncQueueService(prefs);
 });
 
 final cacheServiceProvider = Provider<CacheService>((ref) {

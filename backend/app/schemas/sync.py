@@ -21,6 +21,7 @@ class SyncPushRequest(BaseModel):
     machine_id: str
     payments: List[PaymentSync] = []
     last_sync: Optional[datetime] = None
+    client_bill_counter: int = 0
 
 
 class SyncPushResponse(BaseModel):
@@ -28,6 +29,7 @@ class SyncPushResponse(BaseModel):
     synced_payments: int
     failed_payments: int
     sync_timestamp: datetime
+    latest_bill_counter: int = 0
 
 
 class SyncPullResponse(BaseModel):

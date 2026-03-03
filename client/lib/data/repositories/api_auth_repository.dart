@@ -2,14 +2,16 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/token_manager.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/utils/bill_number_generator.dart';
 import '../models/user_model.dart';
 import 'auth_repository.dart';
 
 class ApiAuthRepository implements AuthRepository {
   final ApiClient _apiClient;
   final TokenManager _tokenManager;
+  final BillNumberGenerator _billNumberGenerator;
 
-  ApiAuthRepository(this._apiClient, this._tokenManager);
+  ApiAuthRepository(this._apiClient, this._tokenManager, this._billNumberGenerator);
 
   @override
   Future<User> login(String username, String password) async {
@@ -51,7 +53,13 @@ class ApiAuthRepository implements AuthRepository {
       if (userOrMachineData == null) {
         throw ApiException(message: 'No user or machine data in response');
       }
-      
+
+      // Sync bill counter from backend so the local sequence never goes backwards.
+      final backendCounter = userOrMachineData['bill_counter'];
+      if (backendCounter is int && backendCounter > 0) {
+        await _billNumberGenerator.syncWithBackend(backendCounter);
+      }
+
       return User.fromJson(userOrMachineData);
     } else {
       throw ApiException(message: 'Invalid response format');

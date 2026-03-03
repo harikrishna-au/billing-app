@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, Numeric, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -20,6 +20,7 @@ class Machine(Base):
     hashed_password = Column(String(255), nullable=False)
     status = Column(String(50), nullable=False, default="offline")  # online, offline, maintenance
     upi_id = Column(String(255), nullable=True)
+    bill_counter = Column(Integer, default=0, nullable=False)
     last_sync = Column(DateTime(timezone=True), nullable=True)
     online_collection = Column(Numeric(10, 2), default=0.00)
     offline_collection = Column(Numeric(10, 2), default=0.00)
