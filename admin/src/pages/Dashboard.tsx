@@ -47,7 +47,7 @@ const Dashboard = () => {
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Overview</p>
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Here's your billing overview for today.
+            Here's your Hadoom overview for today.
           </p>
         </div>
 

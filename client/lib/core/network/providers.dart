@@ -6,6 +6,7 @@ import '../services/printer_service.dart';
 import '../services/sync_queue_service.dart';
 import '../services/cache_service.dart';
 import '../utils/bill_number_generator.dart';
+import '../utils/printed_bills_tracker.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences not initialized');
@@ -20,8 +21,6 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final tokenManager = ref.watch(tokenManagerProvider);
   return ApiClient(tokenManager);
 });
-
-
 
 final printerServiceProvider = Provider<PrinterService>((ref) {
   return PrinterService();
@@ -40,4 +39,9 @@ final cacheServiceProvider = Provider<CacheService>((ref) {
 final billNumberServiceProvider = Provider<BillNumberGenerator>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return BillNumberGenerator(prefs);
+});
+
+final printedBillsTrackerProvider = Provider<PrintedBillsTracker>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return PrintedBillsTracker(prefs);
 });

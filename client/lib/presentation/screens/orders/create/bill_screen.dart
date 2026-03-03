@@ -28,6 +28,82 @@ class BillScreen extends ConsumerStatefulWidget {
 }
 
 class _BillScreenState extends ConsumerState<BillScreen> {
+  /// Attempts to print the receipt for [billNumber].
+  /// Blocks the print and shows an error dialog if this bill was already printed.
+  Future<void> _handlePrint(
+    BuildContext context,
+    WidgetRef ref,
+    String billNumber,
+    double total,
+    DateTime date,
+    CartState cartState,
+  ) async {
+    final tracker = ref.read(printedBillsTrackerProvider);
+
+    // --- GUARD: already printed? ---
+    if (tracker.hasBeenPrinted(billNumber)) {
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.orange, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Already Printed',
+                style: GoogleFonts.dmSans(
+                    fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          content: Text(
+            'Ticket $billNumber has already been printed.\n\nPrinting the same ticket again is not allowed.',
+            style: GoogleFonts.dmSans(
+                fontSize: 14, color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('OK',
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // --- PRINT ---
+    final items = cartState.items.values
+        .map((i) => {
+              'name': i.product.name,
+              'quantity': i.quantity,
+              'price': i.product.price,
+            })
+        .toList();
+    try {
+      await ref.read(printerServiceProvider).printReceipt(
+            orderId: billNumber,
+            totalAmount: total,
+            date: date,
+            items: items,
+            paymentMethod: widget.paymentMethod,
+            config: ref.read(billConfigProvider),
+          );
+      // Mark as printed only on success
+      await tracker.markAsPrinted(billNumber);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
@@ -68,13 +144,13 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         ),
         actions: [
           IconButton(
-            icon:
-                const Icon(Icons.share_outlined, color: AppColors.textSecondary, size: 22),
+            icon: const Icon(Icons.share_outlined,
+                color: AppColors.textSecondary, size: 22),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Share coming soon',
-                      style: GoogleFonts.dmSans()),
+                  content:
+                      Text('Share coming soon', style: GoogleFonts.dmSans()),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -86,30 +162,8 @@ class _BillScreenState extends ConsumerState<BillScreen> {
           IconButton(
             icon: const Icon(Icons.print_outlined,
                 color: AppColors.textSecondary, size: 22),
-            onPressed: () async {
-              final items = cartState.items.values
-                  .map((i) => {
-                        'name': i.product.name,
-                        'quantity': i.quantity,
-                        'price': i.product.price,
-                      })
-                  .toList();
-              try {
-                await ref.read(printerServiceProvider).printReceipt(
-                      orderId: invoiceNo,
-                      totalAmount: total,
-                      date: now,
-                      items: items,
-                      paymentMethod: widget.paymentMethod,
-                      config: ref.read(billConfigProvider),
-                    );
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Print failed: $e')));
-                }
-              }
-            },
+            onPressed: () =>
+                _handlePrint(context, ref, invoiceNo, total, now, cartState),
           ),
           const SizedBox(width: 4),
         ],
@@ -142,9 +196,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                     cartState: cartState,
                     paymentMethod: widget.paymentMethod,
                     isCash: isCash,
-                  )
-                      .animate()
-                      .fadeIn(duration: 200.ms, delay: 80.ms),
+                  ).animate().fadeIn(duration: 200.ms, delay: 80.ms),
 
                   const SizedBox(height: 100),
                 ],
@@ -154,30 +206,8 @@ class _BillScreenState extends ConsumerState<BillScreen> {
 
           // Action buttons
           _ActionsFooter(
-            onPrint: () async {
-              final items = cartState.items.values
-                  .map((i) => {
-                        'name': i.product.name,
-                        'quantity': i.quantity,
-                        'price': i.product.price,
-                      })
-                  .toList();
-              try {
-                await ref.read(printerServiceProvider).printReceipt(
-                      orderId: invoiceNo,
-                      totalAmount: total,
-                      date: now,
-                      items: items,
-                      paymentMethod: widget.paymentMethod,
-                      config: ref.read(billConfigProvider),
-                    );
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Print failed: $e')));
-                }
-              }
-            },
+            onPrint: () =>
+                _handlePrint(context, ref, invoiceNo, total, now, cartState),
             onNewOrder: () {
               ref.read(cartProvider.notifier).clearCart();
               context.go('/new');
@@ -224,7 +254,8 @@ class _SuccessBanner extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.check_rounded, color: Colors.white, size: 28),
+            child:
+                const Icon(Icons.check_rounded, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 14),
           Text(
@@ -335,8 +366,8 @@ class _InvoiceCard extends StatelessWidget {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(8),
@@ -375,9 +406,7 @@ class _InvoiceCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 _MetaChip(
-                  icon: isCash
-                      ? Icons.payments_rounded
-                      : Icons.qr_code_rounded,
+                  icon: isCash ? Icons.payments_rounded : Icons.qr_code_rounded,
                   label: isCash ? 'Cash' : 'Online',
                 ),
               ],

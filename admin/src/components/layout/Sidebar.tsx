@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Monitor, AlertTriangle, LogOut, Zap } from "lucide-react";
+import { LayoutDashboard, Monitor, AlertTriangle, LogOut } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "@/lib/api";
 
@@ -23,7 +23,7 @@ const Sidebar = () => {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Monitor, label: "Billing Machines", path: "/clients" },
+    { icon: Monitor, label: "Hadoom Machines", path: "/clients" },
     { icon: AlertTriangle, label: "System Alerts", path: "/alerts", badge: unresolvedCount },
   ];
 
@@ -40,12 +40,10 @@ const Sidebar = () => {
       <div className="relative flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
-            <Zap className="h-4 w-4 text-primary" />
-          </div>
+          <img src="/logo.png" alt="MIT Logo" className="h-8 w-8 rounded-lg object-cover" />
           <div className="flex flex-col">
             <span className="text-sm font-semibold leading-none text-sidebar-foreground tracking-tight">
-              Billing Admin
+              MIT Admin
             </span>
             <span className="mt-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
               Control Panel
@@ -67,9 +65,8 @@ const Sidebar = () => {
                 className={`sidebar-item group ${isActive ? "active" : ""}`}
               >
                 <item.icon
-                  className={`h-4 w-4 shrink-0 transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
-                  }`}
+                  className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
+                    }`}
                 />
                 <span className="truncate flex-1">{item.label}</span>
                 {item.badge != null && item.badge > 0 && (

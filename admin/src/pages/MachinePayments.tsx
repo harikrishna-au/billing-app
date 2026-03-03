@@ -93,7 +93,7 @@ const MachinePayments = () => {
                                 <BreadcrumbSeparator />
                                 <BreadcrumbItem>
                                     <BreadcrumbLink asChild>
-                                        <Link to="/clients">Billing Machines</Link>
+                                        <Link to="/clients">Hadoom Machines</Link>
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator />

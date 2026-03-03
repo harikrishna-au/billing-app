@@ -25,9 +25,10 @@ class PrinterService {
     final sgstAmt = base * sgstRate;
     final hasTax = taxRate > 0;
 
-    const boldStyle = pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11);
-    const normalStyle = pw.TextStyle(fontSize: 11);
-    const smallStyle = pw.TextStyle(fontSize: 10);
+    final boldStyle =
+        pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11);
+    final normalStyle = pw.TextStyle(fontSize: 11);
+    final smallStyle = pw.TextStyle(fontSize: 10);
 
     doc.addPage(
       pw.Page(
@@ -41,7 +42,8 @@ class PrinterService {
                 pw.Center(
                   child: pw.Text(
                     cfg.orgName,
-                    style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(
+                        fontSize: 20, fontWeight: pw.FontWeight.bold),
                   ),
                 ),
               if (cfg.tagline != null && cfg.tagline!.isNotEmpty)
@@ -52,8 +54,10 @@ class PrinterService {
               pw.Divider(),
 
               // Unit details
-              if (cfg.unitName != null) pw.Text(cfg.unitName!, style: normalStyle),
-              if (cfg.territory != null) pw.Text(cfg.territory!, style: normalStyle),
+              if (cfg.unitName != null)
+                pw.Text(cfg.unitName!, style: normalStyle),
+              if (cfg.territory != null)
+                pw.Text(cfg.territory!, style: normalStyle),
               if (cfg.gstNumber != null)
                 pw.Text('GSTIN: ${cfg.gstNumber}', style: normalStyle),
               if (cfg.posId != null)
@@ -69,7 +73,8 @@ class PrinterService {
               // Items header
               pw.Row(
                 children: [
-                  pw.Expanded(flex: 4, child: pw.Text('Item', style: boldStyle)),
+                  pw.Expanded(
+                      flex: 4, child: pw.Text('Item', style: boldStyle)),
                   pw.Expanded(
                       flex: 2,
                       child: pw.Text('Price',
@@ -97,19 +102,23 @@ class PrinterService {
                     children: [
                       pw.Expanded(
                           flex: 4,
-                          child: pw.Text(item['name'].toString(), style: normalStyle)),
+                          child: pw.Text(item['name'].toString(),
+                              style: normalStyle)),
                       pw.Expanded(
                           flex: 2,
                           child: pw.Text(price.toStringAsFixed(2),
-                              textAlign: pw.TextAlign.right, style: normalStyle)),
+                              textAlign: pw.TextAlign.right,
+                              style: normalStyle)),
                       pw.Expanded(
                           flex: 1,
                           child: pw.Text('$qty',
-                              textAlign: pw.TextAlign.right, style: normalStyle)),
+                              textAlign: pw.TextAlign.right,
+                              style: normalStyle)),
                       pw.Expanded(
                           flex: 2,
                           child: pw.Text(amt.toStringAsFixed(2),
-                              textAlign: pw.TextAlign.right, style: normalStyle)),
+                              textAlign: pw.TextAlign.right,
+                              style: normalStyle)),
                     ],
                   ),
                 );
@@ -141,9 +150,11 @@ class PrinterService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('TOTAL',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold, fontSize: 14)),
                   pw.Text('Rs.${totalAmount.toStringAsFixed(2)}',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold, fontSize: 14)),
                 ],
               ),
               if (paymentMethod != null)
@@ -151,8 +162,7 @@ class PrinterService {
                   padding: const pw.EdgeInsets.only(top: 3),
                   child: pw.Text('Mode: $paymentMethod', style: normalStyle),
                 ),
-              if (hasTax)
-                pw.Text('Inclusive of all taxes', style: smallStyle),
+              if (hasTax) pw.Text('Inclusive of all taxes', style: smallStyle),
 
               pw.SizedBox(height: 10),
               pw.Divider(),
@@ -168,7 +178,8 @@ class PrinterService {
                 pw.Center(child: pw.Text(cfg.website!, style: smallStyle)),
               if (cfg.tollFree != null)
                 pw.Center(
-                    child: pw.Text('Toll Free: ${cfg.tollFree}', style: smallStyle)),
+                    child: pw.Text('Toll Free: ${cfg.tollFree}',
+                        style: smallStyle)),
               pw.SizedBox(height: 20),
             ],
           );

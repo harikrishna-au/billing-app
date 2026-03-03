@@ -54,7 +54,7 @@ const Login = () => {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15">
               <Zap className="h-6 w-6 text-primary" />
             </div>
-            <h1 className="text-xl font-semibold text-foreground">Billing Admin</h1>
+            <h1 className="text-xl font-semibold text-foreground">MIT Admin</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Sign in to your control panel
             </p>
