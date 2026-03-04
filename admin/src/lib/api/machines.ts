@@ -28,6 +28,7 @@ export interface Machine {
     username: string;
     status: 'online' | 'offline' | 'maintenance';
     upi_id?: string | null;
+    location_id?: string | null;
     last_sync: string | null;
     online_collection: number;
     offline_collection: number;

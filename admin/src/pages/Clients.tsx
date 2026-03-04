@@ -172,7 +172,7 @@ const Clients = () => {
     setEditForm({
       name: machine.name,
       location: machine.location,
-      location_id: (machine as any).location_id ?? "",
+      location_id: machine.location_id ?? "",
       password: "",
     });
     setEditingMachine(machine);

@@ -260,6 +260,7 @@ async def get_machine(
             username=machine.username,
             status=machine.status,
             upi_id=machine.upi_id,
+            location_id=str(machine.location_id) if machine.location_id else None,
             last_sync=machine.last_sync,
             online_collection=float(online_total),
             offline_collection=float(offline_total),

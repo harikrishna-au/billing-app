@@ -111,12 +111,17 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables on startup."""
+    # Step 1: create all tables known to SQLAlchemy (idempotent).
     try:
         Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"⚠️  create_all failed (will attempt inline migrations anyway): {e}")
 
-        # Inline migrations — add new columns that may not exist in older databases.
+    # Step 2: inline migrations — run independently so a create_all failure
+    # doesn't prevent schema updates from being applied.
+    try:
+        from sqlalchemy import text, inspect as sa_inspect
         with engine.connect() as conn:
-            from sqlalchemy import text, inspect as sa_inspect
             inspector = sa_inspect(engine)
 
             # Locations table
@@ -124,12 +129,12 @@ async def startup_event():
             if "locations" not in existing_tables:
                 conn.execute(text("""
                     CREATE TABLE locations (
-                        id VARCHAR(36) PRIMARY KEY,
-                        user_id VARCHAR(36) NOT NULL,
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL,
                         name VARCHAR(255) NOT NULL,
                         upi_id VARCHAR(255),
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
                     )
                 """))
                 conn.commit()
@@ -145,7 +150,7 @@ async def startup_event():
                 conn.commit()
                 print("✅ Migration: added bill_counter column to machines table")
             if "location_id" not in machine_cols:
-                conn.execute(text("ALTER TABLE machines ADD COLUMN location_id VARCHAR(36)"))
+                conn.execute(text("ALTER TABLE machines ADD COLUMN location_id UUID"))
                 conn.commit()
                 print("✅ Migration: added location_id column to machines table")
 
