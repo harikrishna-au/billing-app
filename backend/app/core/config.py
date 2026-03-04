@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Billing Admin API"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False  # Override with DEBUG=True in .env for local development
     
     # Database
     DATABASE_URL: str

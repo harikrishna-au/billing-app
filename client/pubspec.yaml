@@ -19,6 +19,8 @@ dependencies:
   dio: ^5.4.3
   json_annotation: ^4.9.0
   shared_preferences: ^2.2.3
+  # Secure storage: tokens stored in Android Keystore (required for VAPT)
+  flutter_secure_storage: ^9.2.2
 
   # UI & Assets
   flutter_svg: ^2.0.10+1
