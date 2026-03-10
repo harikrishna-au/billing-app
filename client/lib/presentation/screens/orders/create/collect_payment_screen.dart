@@ -29,6 +29,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   bool _isProcessing = false;
 
   bool get _isCash => widget.paymentMethod == 'cash';
+  bool get _isCard => widget.paymentMethod == 'card';
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +64,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                   _AmountCard(
                     total: total,
                     isCash: _isCash,
+                    isCard: _isCard,
                   )
                       .animate()
                       .fadeIn(duration: 180.ms),
@@ -90,6 +92,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
           _ActionFooter(
             isCash: _isCash,
+            isCard: _isCard,
             isProcessing: _isProcessing,
             onConfirm: () => _handleConfirm(context),
             onCancel: () => _handleCancel(context),
@@ -101,6 +104,23 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 
   Future<void> _handleConfirm(BuildContext context) async {
     if (_isProcessing) return;
+
+    if (_isCard) {
+      setState(() => _isProcessing = true);
+      try {
+        final total = ref.read(cartProvider).totalAmount;
+        final billNumber =
+            await ref.read(billNumberServiceProvider).generate();
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        context.push(
+            '/new/review/collect-payment/card?amount=$total&invoice=$billNumber');
+      } catch (e) {
+        setState(() => _isProcessing = false);
+        _showError(context, e.toString());
+      }
+      return;
+    }
 
     if (!_isCash) {
       setState(() => _isProcessing = true);
@@ -265,12 +285,30 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
 class _AmountCard extends StatelessWidget {
   final double total;
   final bool isCash;
+  final bool isCard;
 
-  const _AmountCard({required this.total, required this.isCash});
+  const _AmountCard(
+      {required this.total, required this.isCash, this.isCard = false});
 
   @override
   Widget build(BuildContext context) {
-    final color = isCash ? AppColors.success : AppColors.primary;
+    final Color color;
+    final IconData icon;
+    final String label;
+
+    if (isCash) {
+      color = AppColors.success;
+      icon = Icons.payments_rounded;
+      label = 'CASH PAYMENT';
+    } else if (isCard) {
+      color = const Color(0xFF4F46E5);
+      icon = Icons.credit_card_rounded;
+      label = 'CARD / RAZORPAY';
+    } else {
+      color = AppColors.primary;
+      icon = Icons.qr_code_rounded;
+      label = 'UPI / ONLINE';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
@@ -284,24 +322,24 @@ class _AmountCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  isCash ? Icons.payments_rounded : Icons.qr_code_rounded,
-                  color: Colors.white.withOpacity(0.95),
+                  icon,
+                  color: Colors.white.withValues(alpha: 0.95),
                   size: 14,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isCash ? 'CASH PAYMENT' : 'UPI / ONLINE',
+                  label,
                   style: GoogleFonts.dmSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -313,7 +351,7 @@ class _AmountCard extends StatelessWidget {
             'Amount to collect',
             style: GoogleFonts.dmSans(
               fontSize: 13,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -507,12 +545,14 @@ class _CashNote extends StatelessWidget {
 
 class _ActionFooter extends StatelessWidget {
   final bool isCash;
+  final bool isCard;
   final bool isProcessing;
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
 
   const _ActionFooter({
     required this.isCash,
+    required this.isCard,
     required this.isProcessing,
     required this.onConfirm,
     required this.onCancel,
@@ -520,7 +560,14 @@ class _ActionFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isCash ? AppColors.success : AppColors.primary;
+    final Color color;
+    if (isCash) {
+      color = AppColors.success;
+    } else if (isCard) {
+      color = const Color(0xFF4F46E5);
+    } else {
+      color = AppColors.primary;
+    }
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -566,14 +613,18 @@ class _ActionFooter extends StatelessWidget {
                             Icon(
                               isCash
                                   ? Icons.check_circle_rounded
-                                  : Icons.qr_code_scanner_rounded,
+                                  : isCard
+                                      ? Icons.credit_card_rounded
+                                      : Icons.qr_code_scanner_rounded,
                               size: 20,
                             ),
                             const SizedBox(width: 10),
                             Text(
                               isCash
                                   ? 'Confirm Cash Received'
-                                  : 'Proceed to Pay',
+                                  : isCard
+                                      ? 'Pay with Card'
+                                      : 'Proceed to Pay',
                               style: GoogleFonts.dmSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
