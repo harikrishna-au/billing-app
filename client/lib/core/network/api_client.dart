@@ -177,6 +177,7 @@ class _AuthInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     // Skip auth for login and refresh endpoints
     if (options.path.contains('/auth/login') ||
+        options.path.contains('/auth/machine-login') ||
         options.path.contains('/auth/refresh')) {
       return handler.next(options);
     }
@@ -270,9 +271,16 @@ class _ErrorInterceptor extends Interceptor {
 
       case DioExceptionType.badResponse:
         final statusCode = err.response?.statusCode;
-        final message =
-            err.response?.data?['message'] as String? ?? 'Request failed';
-        final errors = err.response?.data?['errors'] as Map<String, dynamic>?;
+        // FastAPI uses 'detail' for error messages; some backends use 'message'
+        final responseData = err.response?.data;
+        final message = (responseData is Map)
+            ? (responseData['message'] as String? ??
+                responseData['detail'] as String? ??
+                'Request failed')
+            : 'Request failed';
+        final errors = (responseData is Map)
+            ? responseData['errors'] as Map<String, dynamic>?
+            : null;
 
         if (statusCode == 401) {
           exception = UnauthorizedException(message: message);

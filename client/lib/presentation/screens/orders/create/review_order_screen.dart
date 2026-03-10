@@ -283,30 +283,45 @@ class _PaymentMethodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _MethodTile(
-            id: 'cash',
-            label: 'Cash',
-            icon: Icons.payments_rounded,
-            color: AppColors.success,
-            lightColor: AppColors.successLight,
-            isSelected: selectedId == 'cash',
-            onTap: () => onChanged('cash'),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _MethodTile(
+                id: 'cash',
+                label: 'Cash',
+                icon: Icons.payments_rounded,
+                color: AppColors.success,
+                lightColor: AppColors.successLight,
+                isSelected: selectedId == 'cash',
+                onTap: () => onChanged('cash'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MethodTile(
+                id: 'online',
+                label: 'UPI / Online',
+                icon: Icons.qr_code_rounded,
+                color: AppColors.primary,
+                lightColor: AppColors.primaryLight,
+                isSelected: selectedId == 'online',
+                onTap: () => onChanged('online'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _MethodTile(
-            id: 'online',
-            label: 'UPI / Online',
-            icon: Icons.qr_code_rounded,
-            color: AppColors.primary,
-            lightColor: AppColors.primaryLight,
-            isSelected: selectedId == 'online',
-            onTap: () => onChanged('online'),
-          ),
+        const SizedBox(height: 12),
+        _MethodTile(
+          id: 'card',
+          label: 'Card / Razorpay',
+          icon: Icons.credit_card_rounded,
+          color: const Color(0xFF4F46E5),
+          lightColor: const Color(0xFFEEF2FF),
+          isSelected: selectedId == 'card',
+          onTap: () => onChanged('card'),
+          fullWidth: true,
         ),
       ],
     );
@@ -321,6 +336,7 @@ class _MethodTile extends StatelessWidget {
   final Color lightColor;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool fullWidth;
 
   const _MethodTile({
     required this.id,
@@ -330,6 +346,7 @@ class _MethodTile extends StatelessWidget {
     required this.lightColor,
     required this.isSelected,
     required this.onTap,
+    this.fullWidth = false,
   });
 
   @override
@@ -338,6 +355,7 @@ class _MethodTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
+        width: fullWidth ? double.infinity : null,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
         decoration: BoxDecoration(
           color: isSelected ? lightColor : AppColors.surface,

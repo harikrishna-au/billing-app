@@ -112,6 +112,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
     final total = widget.amount ?? cartState.totalAmount;
     final isCash = widget.paymentMethod.toLowerCase() == 'cash';
+    final isCard = widget.paymentMethod.toLowerCase() == 'card';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -196,6 +197,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                     cartState: cartState,
                     paymentMethod: widget.paymentMethod,
                     isCash: isCash,
+                    isCard: isCard,
                   ).animate().fadeIn(duration: 200.ms, delay: 80.ms),
 
                   const SizedBox(height: 100),
@@ -307,6 +309,7 @@ class _InvoiceCard extends StatelessWidget {
   final CartState cartState;
   final String paymentMethod;
   final bool isCash;
+  final bool isCard;
 
   const _InvoiceCard({
     required this.invoiceNo,
@@ -315,6 +318,7 @@ class _InvoiceCard extends StatelessWidget {
     required this.cartState,
     required this.paymentMethod,
     required this.isCash,
+    required this.isCard,
   });
 
   @override
@@ -406,8 +410,16 @@ class _InvoiceCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 _MetaChip(
-                  icon: isCash ? Icons.payments_rounded : Icons.qr_code_rounded,
-                  label: isCash ? 'Cash' : 'Online',
+                  icon: isCash
+                      ? Icons.payments_rounded
+                      : isCard
+                          ? Icons.credit_card_rounded
+                          : Icons.qr_code_rounded,
+                  label: isCash
+                      ? 'Cash'
+                      : isCard
+                          ? 'Card'
+                          : 'Online',
                 ),
               ],
             ),

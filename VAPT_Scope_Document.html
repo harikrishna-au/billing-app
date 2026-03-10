@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VAPT Scope Document – MIT Billing Application (Paytm POS)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    color: #1a1a1a;
+    background: #fff;
+    line-height: 1.6;
+  }
+
+  /* ── Cover page ── */
+  .cover {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px;
+    background: linear-gradient(135deg, #002B5B 0%, #0057B8 100%);
+    color: #fff;
+    page-break-after: always;
+  }
+  .cover .badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    max-width: 700px;
+  }
+  .cover .subtitle {
+    font-size: 18px;
+    opacity: 0.85;
+    margin-bottom: 48px;
+  }
+  .cover-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 48px;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .cover-meta .label { font-weight: 600; opacity: 0.6; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .cover-meta .value { margin-top: 2px; font-size: 14px; }
+  .cover-meta .item { margin-bottom: 8px; }
+
+  /* ── Page layout ── */
+  .page {
+    padding: 56px 72px;
+    max-width: 900px;
+    margin: 0 auto;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── Section heading ── */
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #0057B8;
+    margin-bottom: 4px;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #002B5B;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5ecf6;
+  }
+  h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #002B5B;
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+
+  p { margin-bottom: 10px; color: #333; }
+
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; color: #333; }
+
+  /* ── Info box ── */
+  .info-box {
+    background: #f0f6ff;
+    border-left: 4px solid #0057B8;
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .info-box.warning {
+    background: #fff8e6;
+    border-color: #f59e0b;
+  }
+  .info-box.danger {
+    background: #fff0f0;
+    border-color: #dc2626;
+  }
+  .info-box strong { display: block; margin-bottom: 4px; font-size: 12px; }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 12.5px;
+  }
+  thead tr { background: #002B5B; color: #fff; }
+  thead th { padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; }
+  tbody tr:nth-child(even) { background: #f5f8fd; }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid #e5ecf6; vertical-align: top; }
+  tbody tr:hover { background: #eef4ff; }
+
+  /* ── Badges ── */
+  .badge-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-high   { background: #fde8e8; color: #b91c1c; }
+  .badge-medium { background: #fef3c7; color: #92400e; }
+  .badge-low    { background: #d1fae5; color: #065f46; }
+  .badge-info   { background: #dbeafe; color: #1e40af; }
+
+  /* ── Code/endpoint ── */
+  code {
+    background: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #0f172a;
+  }
+  .endpoint-method {
+    display: inline-block;
+    min-width: 48px;
+    text-align: center;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+  .GET    { background: #dcfce7; color: #166534; }
+  .POST   { background: #dbeafe; color: #1e40af; }
+  .PUT    { background: #fef3c7; color: #92400e; }
+  .DELETE { background: #fde8e8; color: #b91c1c; }
+
+  /* ── Architecture diagram ── */
+  .arch-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    flex: 1;
+    min-width: 130px;
+    border: 2px solid #002B5B;
+    border-radius: 8px;
+    padding: 14px 10px;
+    text-align: center;
+    background: #f0f6ff;
+  }
+  .arch-box .icon { font-size: 22px; margin-bottom: 6px; }
+  .arch-box .label { font-weight: 700; font-size: 12px; color: #002B5B; }
+  .arch-box .sublabel { font-size: 10px; color: #555; margin-top: 3px; }
+  .arch-arrow { font-size: 22px; color: #0057B8; flex-shrink: 0; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #e5ecf6;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Print ── */
+  @media print {
+    body { font-size: 12px; }
+    .cover { height: 100vh; }
+    .page { padding: 40px 56px; }
+    a { text-decoration: none; color: inherit; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     COVER PAGE
+═══════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="badge">Confidential &nbsp;·&nbsp; Security Assessment</div>
+  <h1>Vulnerability Assessment &amp; Penetration Testing<br>Scope Document</h1>
+  <div class="subtitle">MIT Billing Application — Paytm POS Deployment</div>
+  <div class="cover-meta">
+    <div class="item">
+      <div class="label">Document Version</div>
+      <div class="value">1.0</div>
+    </div>
+    <div class="item">
+      <div class="label">Date</div>
+      <div class="value">March 2026</div>
+    </div>
+    <div class="item">
+      <div class="label">Classification</div>
+      <div class="value">Confidential – For VAPT Team Only</div>
+    </div>
+    <div class="item">
+      <div class="label">Testing Type</div>
+      <div class="value">Black-box + Grey-box VAPT</div>
+    </div>
+    <div class="item">
+      <div class="label">Application Name</div>
+      <div class="value">MIT Billing System</div>
+    </div>
+    <div class="item">
+      <div class="label">Platform Target</div>
+      <div class="value">Paytm POS (Android) + Web Admin + REST API</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     TABLE OF CONTENTS
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Navigation</div>
+  <h2>Table of Contents</h2>
+  <ol style="line-height:2.2;">
+    <li>Executive Summary</li>
+    <li>Application Overview</li>
+    <li>System Architecture</li>
+    <li>Technology Stack</li>
+    <li>Components in Scope</li>
+    <li>API Endpoints Reference</li>
+    <li>Authentication &amp; Authorization Flow</li>
+    <li>Payment Flows</li>
+    <li>Data Sensitivity &amp; Classification</li>
+    <li>VAPT Scope Definition</li>
+    <li>Testing Focus Areas &amp; Test Cases</li>
+    <li>Out-of-Scope Items</li>
+    <li>Testing Environment Details</li>
+    <li>Engagement Rules &amp; Contact</li>
+  </ol>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     1. EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 1</div>
+  <h2>Executive Summary</h2>
+
+  <p>
+    This document defines the scope, objectives, and technical details for the
+    <strong>Vulnerability Assessment and Penetration Testing (VAPT)</strong> of the
+    <strong>MIT Billing System</strong> prior to its commercial launch on the
+    <strong>Paytm POS (Point of Sale)</strong> platform.
+  </p>
+
+  <p>
+    The MIT Billing System is a multi-component payment and billing platform consisting of:
+  </p>
+  <ul>
+    <li>A <strong>Flutter Android client application</strong> deployed on Paytm EDC (Electronic Data Capture) POS terminals</li>
+    <li>A <strong>FastAPI REST backend</strong> providing all business logic and data persistence</li>
+    <li>A <strong>React web-based Admin Panel</strong> for merchant/admin management</li>
+  </ul>
+
+  <p>
+    The application handles <strong>real financial transactions</strong> (UPI, Card via Paytm EDC, and Cash) and
+    stores sensitive payment data, making a thorough security assessment critical before production launch.
+  </p>
+
+  <div class="info-box warning">
+    <strong>⚠ Purpose of this Document</strong>
+    This document is prepared to brief the VAPT team on the application's architecture, components, endpoints,
+    authentication mechanisms, and data flows so that an effective and comprehensive security test can be conducted.
+    All testing must be performed on the designated <strong>staging/test environment only</strong>.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     2. APPLICATION OVERVIEW
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 2</div>
+  <h2>Application Overview</h2>
+
+  <h3>What the Application Does</h3>
+  <p>
+    MIT Billing System is a <strong>billing and payment management platform</strong> designed for
+    institutions (e.g., colleges, hostels, service centers) to accept and track payments from
+    customers at physical POS counters.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>User Type</th><th>Interface</th><th>Primary Actions</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Admin / Merchant</strong></td>
+        <td>React Web Admin Panel</td>
+        <td>Manage machines, view dashboards, configure services, manage locations, export reports, view alerts</td>
+      </tr>
+      <tr>
+        <td><strong>Machine / Cashier</strong></td>
+        <td>Flutter Android App (Paytm POS)</td>
+        <td>Log in as a machine, select services, collect payments (UPI / Card / Cash), print bills, sync transactions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Business Context</h3>
+  <ul>
+    <li>Each physical POS device is registered as a <strong>Machine</strong> in the system with unique credentials.</li>
+    <li>Machines belong to <strong>Locations</strong> (e.g., "Counter A – Block 1").</li>
+    <li>Services (items for billing) are configured per-machine from the admin panel.</li>
+    <li>Payments are collected via <strong>Paytm EDC SDK</strong> (card/UPI), UPI QR, or Cash.</li>
+    <li>Transactions sync to the central backend in real time or queue locally when offline.</li>
+    <li>Bills are printed via the Paytm POS's built-in thermal printer.</li>
+  </ul>
+
+  <h3>Application ID / Package Name</h3>
+  <table>
+    <thead>
+      <tr><th>Platform</th><th>Identifier</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Android (Paytm POS)</td><td><code>com.mit.billing</code></td></tr>
+      <tr><td>Backend API</td><td>Billing Admin API v1.0.0</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     3. SYSTEM ARCHITECTURE
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 3</div>
+  <h2>System Architecture</h2>
+
+  <div class="arch-diagram">
+    <div class="arch-box">
+      <div class="icon">📱</div>
+      <div class="label">Flutter App</div>
+      <div class="sublabel">Paytm POS Terminal<br>(Android)</div>
+    </div>
+    <div class="arch-arrow">⟶</div>
+    <div class="arch-box">
+      <div class="icon">🌐</div>
+      <div class="label">FastAPI Backend</div>
+      <div class="sublabel">REST API v1<br>Python / SQLAlchemy</div>
+    </div>
+    <div class="arch-arrow">⟶</div>
+    <div class="arch-box">
+      <div class="icon">🗄️</div>
+      <div class="label">PostgreSQL DB</div>
+      <div class="sublabel">Production<br>SQLite (local dev)</div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-bottom:16px;">
+    <div class="arch-box" style="display:inline-block; min-width:200px;">
+      <div class="icon">🖥️</div>
+      <div class="label">React Admin Panel</div>
+      <div class="sublabel">Web Browser<br>React + TypeScript + Vite</div>
+    </div>
+    <div style="margin-top:8px; color:#0057B8;">↕ also communicates with FastAPI Backend</div>
+  </div>
+
+  <h3>Communication Channels</h3>
+  <table>
+    <thead>
+      <tr><th>From</th><th>To</th><th>Protocol</th><th>Auth Method</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Flutter App (POS)</td>
+        <td>FastAPI Backend</td>
+        <td>HTTPS / REST</td>
+        <td>JWT Bearer Token</td>
+      </tr>
+      <tr>
+        <td>React Admin</td>
+        <td>FastAPI Backend</td>
+        <td>HTTPS / REST</td>
+        <td>JWT Bearer Token</td>
+      </tr>
+      <tr>
+        <td>Flutter App</td>
+        <td>Paytm EDC SDK</td>
+        <td>Local IPC (Android Intent / SDK)</td>
+        <td>Paytm SDK credentials</td>
+      </tr>
+      <tr>
+        <td>Paytm EDC SDK</td>
+        <td>Paytm Payment Gateway</td>
+        <td>HTTPS (managed by SDK)</td>
+        <td>Paytm merchant credentials</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Deployment Notes</h3>
+  <ul>
+    <li>Backend is hosted on a cloud server (production). A staging instance will be provided for VAPT.</li>
+    <li>The Flutter app is side-loaded on Paytm POS terminals (APK deployment).</li>
+    <li>Admin panel is a static web app served over HTTPS.</li>
+    <li>CORS is configured on the backend to allow specific origins only.</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     4. TECHNOLOGY STACK
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 4</div>
+  <h2>Technology Stack</h2>
+
+  <table>
+    <thead>
+      <tr><th>Layer</th><th>Technology</th><th>Version / Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Mobile App</strong></td><td>Flutter (Dart)</td><td>Deployed on Paytm Android POS</td></tr>
+      <tr><td></td><td>Riverpod</td><td>State management</td></tr>
+      <tr><td></td><td>Dio</td><td>HTTP client with interceptors</td></tr>
+      <tr><td></td><td>GoRouter</td><td>App navigation</td></tr>
+      <tr><td></td><td>SharedPreferences</td><td>Local storage (offline queue, settings)</td></tr>
+      <tr><td></td><td>Paytm EDC SDK</td><td>Card &amp; UPI payment processing</td></tr>
+      <tr><td><strong>Backend</strong></td><td>Python / FastAPI</td><td>Async REST API</td></tr>
+      <tr><td></td><td>SQLAlchemy</td><td>ORM</td></tr>
+      <tr><td></td><td>PostgreSQL</td><td>Production database</td></tr>
+      <tr><td></td><td>JWT (HS256)</td><td>Access + Refresh token auth</td></tr>
+      <tr><td></td><td>Bcrypt</td><td>Password hashing</td></tr>
+      <tr><td></td><td>Pydantic v2</td><td>Request/response validation</td></tr>
+      <tr><td><strong>Admin Panel</strong></td><td>React + TypeScript</td><td>Vite build tool</td></tr>
+      <tr><td></td><td>TanStack Query</td><td>API state &amp; caching</td></tr>
+      <tr><td></td><td>shadcn/ui</td><td>UI component library</td></tr>
+      <tr><td></td><td>Recharts</td><td>Analytics charts</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     5. COMPONENTS IN SCOPE
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 5</div>
+  <h2>Components in Scope</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Component</th><th>Type</th><th>Testing Priority</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>FastAPI REST Backend API</td>
+        <td>Web Application / API</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Flutter Android Application (Paytm POS)</td>
+        <td>Mobile Application (Android)</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>React Admin Web Panel</td>
+        <td>Web Application</td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>JWT Authentication Implementation</td>
+        <td>Authentication Mechanism</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Offline Sync Queue (SharedPreferences)</td>
+        <td>Mobile Local Storage</td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Payment Submission Flow</td>
+        <td>Business Logic / API</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Paytm EDC SDK Integration (app-layer)</td>
+        <td>SDK Interface</td>
+        <td><span class="badge-pill badge-medium">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box">
+    <strong>📌 Note on Paytm EDC SDK</strong>
+    The Paytm EDC SDK itself (payment gateway communication) is managed by Paytm and is not in scope.
+    However, how our application interfaces with the SDK — including how transaction results are handled
+    and recorded — is in scope.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     6. API ENDPOINTS REFERENCE
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 6</div>
+  <h2>API Endpoints Reference</h2>
+  <p>All API endpoints are prefixed with <code>/v1</code>. Base URL to be provided separately for staging environment.</p>
+
+  <h3>Authentication Endpoints</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Endpoint</th><th>Auth Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/auth/login</code></td>
+        <td>No</td>
+        <td>Admin/user login → returns JWT access + refresh token</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/auth/machine-login</code></td>
+        <td>No</td>
+        <td>Machine (POS device) login → returns machine JWT</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/auth/refresh</code></td>
+        <td>Refresh Token</td>
+        <td>Exchange refresh token for new access token</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/auth/logout</code></td>
+        <td>Yes</td>
+        <td>Logout (client-side token invalidation)</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/auth/me</code></td>
+        <td>Yes</td>
+        <td>Get current user/machine info; updates machine status to "online"</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Machine Management Endpoints</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Endpoint</th><th>Auth Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/machines/</code></td>
+        <td>Admin JWT</td>
+        <td>List all machines</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/machines/</code></td>
+        <td>Admin JWT</td>
+        <td>Create a new machine (auto-generates username)</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/machines/{id}</code></td>
+        <td>Admin JWT</td>
+        <td>Get machine details by ID</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method PUT">PUT</span></td>
+        <td><code>/v1/machines/{id}</code></td>
+        <td>Admin JWT</td>
+        <td>Update machine (name, location, UPI ID, password)</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method DELETE">DELETE</span></td>
+        <td><code>/v1/machines/{id}</code></td>
+        <td>Admin JWT</td>
+        <td>Delete a machine</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Payment Endpoints</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Endpoint</th><th>Auth Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/payments</code></td>
+        <td>JWT</td>
+        <td>Get all payments (supports filters: period, method, status, date range, machine_id, pagination)</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/machines/{machine_id}/payments</code></td>
+        <td>JWT</td>
+        <td>Get payments for a specific machine with filters</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/payments</code></td>
+        <td>JWT</td>
+        <td>Create a payment record (manual entry)</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/payments/{payment_id}</code></td>
+        <td>JWT</td>
+        <td>Get a specific payment</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Sync Endpoints</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Endpoint</th><th>Auth Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/sync/push</code></td>
+        <td>Machine JWT</td>
+        <td>Push offline-queued payments from POS to server</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method POST">POST</span></td>
+        <td><code>/v1/sync/pull</code></td>
+        <td>Machine JWT</td>
+        <td>Pull latest services &amp; config from server to POS</td>
+      </tr>
+      <tr>
+        <td><span class="endpoint-method GET">GET</span></td>
+        <td><code>/v1/sync/status/{machine_id}</code></td>
+        <td>JWT</td>
+        <td>Get sync status of a machine</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Other Endpoints</h3>
+  <table>
+    <thead>
+      <tr><th>Module</th><th>Prefix</th><th>Examples</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Dashboard</td><td><code>/v1/dashboard</code></td><td>Analytics summary, revenue charts</td></tr>
+      <tr><td>Services</td><td><code>/v1/services</code></td><td>CRUD for billable services per machine</td></tr>
+      <tr><td>Logs</td><td><code>/v1/logs</code></td><td>Activity logs, export logs to CSV</td></tr>
+      <tr><td>Analytics</td><td><code>/v1/analytics</code></td><td>Revenue analytics, uptime stats, export to CSV</td></tr>
+      <tr><td>Alerts</td><td><code>/v1/alerts</code></td><td>Machine status alerts (offline, maintenance)</td></tr>
+      <tr><td>Config</td><td><code>/v1/config</code></td><td>Bill config (org name, UPI ID, bill prefix)</td></tr>
+      <tr><td>Locations</td><td><code>/v1/locations</code></td><td>Location management (CRUD)</td></tr>
+      <tr><td>Health</td><td><code>/health</code></td><td>Unauthenticated health check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     7. AUTHENTICATION & AUTHORIZATION
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 7</div>
+  <h2>Authentication &amp; Authorization Flow</h2>
+
+  <h3>JWT Token Architecture</h3>
+  <table>
+    <thead>
+      <tr><th>Token Type</th><th>Algorithm</th><th>Expiry</th><th>Contains</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Access Token</td>
+        <td>HS256</td>
+        <td>30 minutes (configurable)</td>
+        <td><code>sub</code> (user/machine ID), <code>username</code>, <code>role</code>, <code>type</code></td>
+      </tr>
+      <tr>
+        <td>Refresh Token</td>
+        <td>HS256</td>
+        <td>7 days (configurable)</td>
+        <td><code>sub</code>, <code>type: "refresh"</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Two Principal Types</h3>
+  <ul>
+    <li>
+      <strong>Admin/User accounts</strong> — Log in via <code>/v1/auth/login</code>.
+      JWT payload includes <code>role</code> field. Used by the React admin panel.
+    </li>
+    <li>
+      <strong>Machine accounts</strong> — Log in via <code>/v1/auth/machine-login</code>.
+      JWT payload includes <code>type: "machine"</code> and <code>machine_id</code>.
+      Used by the Flutter POS app. Machine status is updated to "online" on login.
+    </li>
+  </ul>
+
+  <h3>Authorization Notes</h3>
+  <ul>
+    <li>All protected endpoints use a <code>get_current_user</code> FastAPI dependency that decodes and validates the Bearer token.</li>
+    <li>The dependency resolves whether the caller is a <strong>User</strong> or <strong>Machine</strong> based on the JWT <code>type</code> claim.</li>
+    <li>No fine-grained RBAC beyond admin/machine distinction is currently implemented — this is a potential area of review.</li>
+    <li>Logout is client-side only (no server-side token blacklisting).</li>
+    <li>Inactive users (<code>is_active != "true"</code>) are rejected at login.</li>
+    <li>Machines in <code>maintenance</code> status are rejected at machine-login.</li>
+  </ul>
+
+  <h3>Password Storage</h3>
+  <p>All passwords (admin users and machine credentials) are hashed using <strong>Bcrypt</strong> before storage. Plaintext passwords are never stored.</p>
+
+  <h3>Flutter Client Token Handling</h3>
+  <ul>
+    <li>JWT tokens are stored in <strong>SharedPreferences</strong> on the Android device.</li>
+    <li>An HTTP interceptor (Dio <code>_ErrorInterceptor</code>) wraps network errors into typed <code>NetworkException</code> objects.</li>
+    <li>Token refresh happens automatically when a 401 is encountered.</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     8. PAYMENT FLOWS
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 8</div>
+  <h2>Payment Flows</h2>
+
+  <h3>Flow 1 — Online Payment (UPI via Paytm EDC)</h3>
+  <ol>
+    <li>Cashier selects services on POS app and initiates payment.</li>
+    <li>App calls Paytm EDC SDK with amount and merchant credentials.</li>
+    <li>Paytm SDK handles QR display / card tap / UPI collect internally.</li>
+    <li>SDK returns a transaction result (success/failure) to the app.</li>
+    <li>App creates a payment record by calling <code>POST /v1/payments</code> (or via sync) with status, amount, method.</li>
+    <li>Bill is printed via the POS thermal printer.</li>
+  </ol>
+
+  <h3>Flow 2 — Offline Payment (No Network)</h3>
+  <ol>
+    <li>POS app detects network unavailability (catches <code>NetworkException</code>).</li>
+    <li>Payment record is enqueued locally in <strong>SharedPreferences</strong> (JSON list).</li>
+    <li>A "pending" payment object is returned to the UI so the bill can still be printed.</li>
+    <li>On the next successful API call, <code>flushSyncQueue()</code> is triggered.</li>
+    <li>Queued payments are sent to <code>POST /v1/sync/push</code> in bulk.</li>
+    <li>Server deduplicates by <code>bill_number</code> before storing.</li>
+  </ol>
+
+  <h3>Flow 3 — Cash Payment</h3>
+  <ol>
+    <li>Cashier selects Cash payment method.</li>
+    <li>App directly calls <code>POST /v1/payments</code> with <code>method: "Cash"</code>.</li>
+    <li>No Paytm SDK interaction. Bill printed immediately.</li>
+  </ol>
+
+  <h3>Payment Data Model</h3>
+  <table>
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>id</td><td>UUID</td><td>Auto-generated</td></tr>
+      <tr><td>machine_id</td><td>UUID (FK)</td><td>Which POS terminal</td></tr>
+      <tr><td>bill_number</td><td>String</td><td>Sequential, used for deduplication in sync</td></tr>
+      <tr><td>amount</td><td>Decimal</td><td>Transaction amount in INR</td></tr>
+      <tr><td>method</td><td>Enum</td><td>UPI / Card / Cash</td></tr>
+      <tr><td>status</td><td>Enum</td><td>success / pending / failed</td></tr>
+      <tr><td>created_at</td><td>Timestamp</td><td>UTC; can be set by client for offline payments</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     9. DATA SENSITIVITY
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 9</div>
+  <h2>Data Sensitivity &amp; Classification</h2>
+
+  <table>
+    <thead>
+      <tr><th>Data Type</th><th>Sensitivity</th><th>Where Stored</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Admin credentials</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+        <td>PostgreSQL (bcrypt hashed)</td>
+        <td>Full platform access if compromised</td>
+      </tr>
+      <tr>
+        <td>Machine credentials</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+        <td>PostgreSQL (bcrypt hashed)</td>
+        <td>Can submit fraudulent payments if compromised</td>
+      </tr>
+      <tr>
+        <td>JWT Secret Key</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+        <td>Backend environment variable</td>
+        <td>Compromise allows forging any token</td>
+      </tr>
+      <tr>
+        <td>JWT tokens (access/refresh)</td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+        <td>Android SharedPreferences</td>
+        <td>No secure storage (Keystore) currently used</td>
+      </tr>
+      <tr>
+        <td>UPI ID (merchant)</td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+        <td>DB + app memory</td>
+        <td>Admin-configured; rendered in QR code</td>
+      </tr>
+      <tr>
+        <td>Transaction records</td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+        <td>PostgreSQL</td>
+        <td>Financial data — amount, method, timestamp</td>
+      </tr>
+      <tr>
+        <td>Offline payment queue</td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+        <td>Android SharedPreferences (JSON)</td>
+        <td>Unencrypted local storage on device</td>
+      </tr>
+      <tr>
+        <td>Activity logs</td>
+        <td><span class="badge-pill badge-low">Medium</span></td>
+        <td>PostgreSQL</td>
+        <td>Machine activity logs</td>
+      </tr>
+      <tr>
+        <td>Organisation name, bill prefix</td>
+        <td><span class="badge-pill badge-low">Low</span></td>
+        <td>PostgreSQL / app</td>
+        <td>Non-sensitive configuration</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box danger">
+    <strong>🔴 Key Risk: JWT Tokens in SharedPreferences</strong>
+    The Flutter app currently stores JWT tokens in Android SharedPreferences, which is accessible
+    to root users and backup-extractable on non-hardened devices. The VAPT team should evaluate
+    whether Android Keystore integration is required for the Paytm POS deployment context.
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     10. VAPT SCOPE DEFINITION
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 10</div>
+  <h2>VAPT Scope Definition</h2>
+
+  <h3>In-Scope — API &amp; Backend</h3>
+  <ul>
+    <li>All REST API endpoints listed in Section 6</li>
+    <li>Authentication and token management logic</li>
+    <li>Input validation and SQL injection surface (SQLAlchemy ORM)</li>
+    <li>Authorization checks (can Machine X access Machine Y's payments?)</li>
+    <li>CORS policy enforcement</li>
+    <li>Rate limiting (presence/absence)</li>
+    <li>Error message information disclosure</li>
+    <li>API documentation exposure (<code>/docs</code>, <code>/redoc</code> in production)</li>
+    <li>Sync endpoint integrity (can a machine submit payments for another machine?)</li>
+  </ul>
+
+  <h3>In-Scope — Mobile Application (Android / Paytm POS)</h3>
+  <ul>
+    <li>APK static analysis (reverse engineering, hardcoded secrets, API keys)</li>
+    <li>Data storage analysis (SharedPreferences, SQLite, logs)</li>
+    <li>Network traffic analysis (certificate pinning, TLS version, MITM)</li>
+    <li>Improper session handling (token storage, expiry enforcement)</li>
+    <li>Exported Activities / Broadcast Receivers / Content Providers</li>
+    <li>Paytm EDC SDK integration (result handling, amount tampering)</li>
+    <li>Offline queue tampering (injecting/modifying queued payments locally)</li>
+    <li>Insecure logging (LogCat exposure of sensitive data)</li>
+  </ul>
+
+  <h3>In-Scope — Admin Web Panel</h3>
+  <ul>
+    <li>XSS (Cross-Site Scripting)</li>
+    <li>CSRF (Cross-Site Request Forgery)</li>
+    <li>Broken access control (accessing other merchants' data)</li>
+    <li>Sensitive data exposure in browser storage (localStorage, sessionStorage, cookies)</li>
+    <li>Content Security Policy headers</li>
+  </ul>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     11. TESTING FOCUS AREAS
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 11</div>
+  <h2>Testing Focus Areas &amp; Test Cases</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Category</th><th>Test Cases</th><th>Priority</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>Authentication</strong></td>
+        <td>
+          Brute force on <code>/auth/login</code> and <code>/auth/machine-login</code><br>
+          JWT algorithm confusion (none algorithm, RS256 downgrade)<br>
+          Refresh token reuse after logout<br>
+          Token expiry not enforced client-side<br>
+          Username enumeration via response timing/message difference
+        </td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Broken Access Control</strong></td>
+        <td>
+          Machine A using JWT to access Machine B's payments<br>
+          Machine JWT accessing admin-only endpoints<br>
+          IDOR on <code>/payments/{id}</code>, <code>/machines/{id}</code><br>
+          Horizontal privilege escalation between locations
+        </td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Payment Integrity</strong></td>
+        <td>
+          Amount tampering in API request (<code>POST /payments</code>)<br>
+          Status manipulation (setting <code>status: "success"</code> for a failed txn)<br>
+          Bill number manipulation (deduplication bypass in sync)<br>
+          Submitting payment for a machine_id the caller doesn't own<br>
+          Offline queue injection on rooted device
+        </td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Injection</strong></td>
+        <td>
+          SQL injection via query parameters (machine_id, start_date, end_date, etc.)<br>
+          NoSQL injection (not applicable but confirm)<br>
+          XSS in admin panel (machine name, service name, location name)<br>
+          Command injection (not expected but verify)
+        </td>
+        <td><span class="badge-pill badge-high">Critical</span></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Sensitive Data Exposure</strong></td>
+        <td>
+          JWT secret in environment / source code / logs<br>
+          Merchant UPI ID exposed unnecessarily<br>
+          SharedPreferences readable on non-rooted devices<br>
+          LogCat printing tokens or payment data<br>
+          Stack traces in production API responses (<code>details</code> field)
+        </td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>API Security</strong></td>
+        <td>
+          Missing rate limiting on login endpoints<br>
+          <code>/docs</code> and <code>/redoc</code> accessible in production<br>
+          CORS misconfiguration (wildcard origins)<br>
+          HTTP methods not restricted (e.g., DELETE on read-only endpoints)<br>
+          Response contains excess data (over-exposure)
+        </td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><strong>Mobile App Static Analysis</strong></td>
+        <td>
+          Hardcoded API base URL, secrets, or credentials in APK<br>
+          ProGuard / code obfuscation check<br>
+          Backup flag in AndroidManifest (<code>allowBackup</code>)<br>
+          Debuggable flag in release build<br>
+          Exported components (Activities, Services, Receivers)
+        </td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><strong>Network Security</strong></td>
+        <td>
+          TLS version and cipher suite evaluation<br>
+          Certificate pinning check (if implemented)<br>
+          Man-in-the-middle via proxy (Burp Suite)<br>
+          Cleartext HTTP fallback<br>
+          Network Security Config in Android app
+        </td>
+        <td><span class="badge-pill badge-medium">High</span></td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><strong>Business Logic</strong></td>
+        <td>
+          Creating payments with negative amounts<br>
+          Creating payments with zero amount<br>
+          Pagination manipulation (negative page, limit=0)<br>
+          Date filter manipulation to extract all historical data<br>
+          Bill counter overflow/manipulation
+        </td>
+        <td><span class="badge-pill badge-low">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     12. OUT OF SCOPE
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 12</div>
+  <h2>Out-of-Scope Items</h2>
+
+  <div class="info-box warning">
+    <strong>⚠ Do Not Test</strong>
+    The following are explicitly out of scope. Testing these without additional authorization may violate
+    third-party agreements.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Reason</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Paytm EDC SDK internals / Paytm Payment Gateway</td>
+        <td>Third-party system owned and secured by Paytm. Not our infrastructure.</td>
+      </tr>
+      <tr>
+        <td>Paytm POS device firmware / OS</td>
+        <td>Hardware-level security is Paytm's responsibility.</td>
+      </tr>
+      <tr>
+        <td>Production environment / live data</td>
+        <td>All testing must be on the designated staging environment only.</td>
+      </tr>
+      <tr>
+        <td>Physical device tampering</td>
+        <td>Out of software security scope.</td>
+      </tr>
+      <tr>
+        <td>DoS / DDoS attacks</td>
+        <td>Out of scope — may affect availability for other users.</td>
+      </tr>
+      <tr>
+        <td>Social engineering / phishing</td>
+        <td>Not in scope for this engagement.</td>
+      </tr>
+      <tr>
+        <td>Cloud infrastructure (host OS, network)</td>
+        <td>Only the application layer is in scope.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     13. TEST ENVIRONMENT
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 13</div>
+  <h2>Testing Environment Details</h2>
+
+  <div class="info-box">
+    <strong>📋 Environment Provision</strong>
+    The following details will be provided to the VAPT team by the client team before testing begins.
+    Blanks to be filled in before sharing this document externally.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Staging API Base URL</td><td>[ To be provided ]</td></tr>
+      <tr><td>Admin Panel URL (Staging)</td><td>[ To be provided ]</td></tr>
+      <tr><td>Test Admin Credentials</td><td>[ To be provided securely ]</td></tr>
+      <tr><td>Test Machine Credentials</td><td>[ To be provided securely — 2 test machines ]</td></tr>
+      <tr><td>APK Download</td><td>[ To be provided via secure link ]</td></tr>
+      <tr><td>Swagger / OpenAPI Spec</td><td><code>https://[staging-url]/docs</code></td></tr>
+      <tr><td>Database</td><td>Isolated staging PostgreSQL (no production data)</td></tr>
+      <tr><td>Paytm EDC Integration</td><td>Paytm sandbox credentials will be used for testing</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Test Accounts to be Provided</h3>
+  <table>
+    <thead>
+      <tr><th>Account Type</th><th>Role</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Admin User 1</td><td>Super Admin</td><td>Full admin access for admin panel testing</td></tr>
+      <tr><td>Machine 1</td><td>POS Machine</td><td>Primary test POS account</td></tr>
+      <tr><td>Machine 2</td><td>POS Machine</td><td>Cross-machine access control testing</td></tr>
+    </tbody>
+  </table>
+
+  <h3>API Documentation</h3>
+  <p>
+    Interactive API documentation is available at <code>/docs</code> (Swagger UI) and <code>/redoc</code>
+    (ReDoc) on the staging server. These provide full schema definitions for all request/response models.
+  </p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     14. RULES OF ENGAGEMENT & CONTACT
+═══════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-title">Section 14</div>
+  <h2>Engagement Rules &amp; Contact</h2>
+
+  <h3>Rules of Engagement</h3>
+  <ul>
+    <li>All testing must be performed <strong>only on the designated staging environment</strong>. Production is strictly off-limits.</li>
+    <li>Any critical vulnerability found (especially involving live payment data or credential exposure) must be <strong>reported immediately</strong> and not exploited further.</li>
+    <li>Testers must not exfiltrate or retain any data discovered during testing beyond what is needed for proof-of-concept.</li>
+    <li>No DoS/DDoS attacks — keep load testing within agreed limits.</li>
+    <li>All findings must be documented and shared in a structured report with CVSS scoring, reproduction steps, impact, and remediation recommendations.</li>
+    <li>Testing window: [ To be agreed upon and filled in ]</li>
+  </ul>
+
+  <h3>Point of Contact</h3>
+  <table>
+    <thead>
+      <tr><th>Role</th><th>Name</th><th>Contact</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Project Lead / Technical Owner</td>
+        <td>[ Your Name ]</td>
+        <td>[ Your Email / Phone ]</td>
+      </tr>
+      <tr>
+        <td>Backend Developer</td>
+        <td>[ Name ]</td>
+        <td>[ Email ]</td>
+      </tr>
+      <tr>
+        <td>VAPT Engagement Manager</td>
+        <td>[ VAPT Team Lead ]</td>
+        <td>[ Email ]</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Expected Deliverables from VAPT Team</h3>
+  <ul>
+    <li>Vulnerability Assessment Report (VA Report)</li>
+    <li>Penetration Testing Report with proof-of-concept for each finding</li>
+    <li>CVSS v3 score for each vulnerability</li>
+    <li>Executive Summary suitable for management review</li>
+    <li>Re-test sign-off after remediation</li>
+  </ul>
+
+  <div class="footer">
+    <span>MIT Billing System — VAPT Scope Document v1.0</span>
+    <span>Confidential &amp; Restricted &nbsp;·&nbsp; March 2026</span>
+  </div>
+</div>
+
+</body>
+</html>
