@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:8080,http://localhost:5173"
     
+    # Razorpay
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
