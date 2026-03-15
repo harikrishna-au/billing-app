@@ -89,7 +89,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
                 border: Border.all(color: AppColors.border),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -245,11 +245,11 @@ class _ErrorState extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.08),
+              color: AppColors.error.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(Icons.cloud_off_rounded,
-                size: 30, color: AppColors.error.withOpacity(0.7)),
+                size: 30, color: AppColors.error.withValues(alpha: 0.7)),
           ),
           const SizedBox(height: 16),
           Text(

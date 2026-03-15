@@ -38,7 +38,7 @@ const Clients = () => {
     password: ""
   });
   const [editingMachine, setEditingMachine] = useState<MachineType | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", password: "" });
+  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", upi_id: "", password: "" });
 
   // Location management state
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
@@ -173,6 +173,7 @@ const Clients = () => {
       name: machine.name,
       location: machine.location,
       location_id: machine.location_id ?? "",
+      upi_id: machine.upi_id ?? "",
       password: "",
     });
     setEditingMachine(machine);
@@ -185,6 +186,7 @@ const Clients = () => {
       name: editForm.name || undefined,
       location: editForm.location || undefined,
       location_id: editForm.location_id || undefined,
+      upi_id: editForm.upi_id || undefined,
     };
     if (editForm.password) data.password = editForm.password;
     updateMutation.mutate({ id: editingMachine.id, data });
@@ -367,6 +369,19 @@ const Clients = () => {
                     className="bg-secondary/50 mt-2"
                   />
                 )}
+              </div>
+              <div>
+                <Label htmlFor="edit-upi">UPI ID (machine-level override)</Label>
+                <Input
+                  id="edit-upi"
+                  value={editForm.upi_id}
+                  onChange={(e) => setEditForm({ ...editForm, upi_id: e.target.value })}
+                  placeholder="merchant@upi (overrides location UPI if set)"
+                  className="bg-secondary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  If this machine has a location with a UPI ID, the location's UPI ID takes priority.
+                </p>
               </div>
               <Separator />
               <div>

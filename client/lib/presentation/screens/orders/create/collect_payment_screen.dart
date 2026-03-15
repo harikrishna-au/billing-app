@@ -113,10 +113,13 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
             await ref.read(billNumberServiceProvider).generate();
         if (!mounted) return;
         setState(() => _isProcessing = false);
+        if (!mounted) return;
         context.push(
             '/new/review/collect-payment/card?amount=$total&invoice=$billNumber');
       } catch (e) {
+        if (!mounted) return;
         setState(() => _isProcessing = false);
+        if (!mounted) return;
         _showError(context, e.toString());
       }
       return;
@@ -131,10 +134,13 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
             await ref.read(billNumberServiceProvider).generate();
         if (!mounted) return;
         setState(() => _isProcessing = false);
+        if (!mounted) return;
         context.push(
             '/new/review/collect-payment/upi?amount=$total&invoice=$billNumber');
       } catch (e) {
+        if (!mounted) return;
         setState(() => _isProcessing = false);
+        if (!mounted) return;
         _showError(context, e.toString());
       }
       return;
@@ -147,7 +153,7 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       final total = cartState.totalAmount;
       final billNumber = await ref.read(billNumberServiceProvider).generate();
 
-      await _createPaymentRecord(context, total, PaymentMethod.cash, billNumber);
+      await _createPaymentRecord(total, PaymentMethod.cash, billNumber);
 
       // Print receipt
       try {
@@ -205,11 +211,12 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
+      if (!mounted) return;
       _showError(context, e.toString());
     }
   }
 
-  Future<void> _createPaymentRecord(BuildContext context, double amount,
+  Future<void> _createPaymentRecord(double amount,
       PaymentMethod method, String billNumber) async {
     final payment = Payment(
       id: '',
@@ -224,8 +231,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
         await ref.read(paymentProvider.notifier).createPayment(payment);
     if (created == null) throw Exception('Failed to create payment');
     if (!mounted) return;
-
     setState(() => _isProcessing = false);
+    if (!mounted) return;
     context.push(
       '/new/review/collect-payment/bill?method=${widget.paymentMethod}&invoice=${payment.billNumber}',
     );
@@ -387,7 +394,7 @@ class _ItemsSummary extends StatelessWidget {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -518,7 +525,7 @@ class _CashNote extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.warningLight,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.warning.withOpacity(0.25)),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

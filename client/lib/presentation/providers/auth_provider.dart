@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -62,16 +63,16 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
-    print('Attempting login for: $email');
+    debugPrint('Attempting login for: $email');
     state = state.copyWith(isLoading: true, error: null);
     try {
       final authRepo = ref.read(authRepositoryProvider);
       final user = await authRepo.login(email, password);
-      print('Login successful: ${user.username}');
+      debugPrint('Login successful: ${user.username}');
       state = state.copyWith(user: user, isLoading: false);
       ref.read(billConfigProvider.notifier).refresh(user.id);
     } catch (e) {
-      print('Login error: $e');
+      debugPrint('Login error: $e');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

@@ -293,247 +293,267 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen>
         elevation: 0,
         backgroundColor: AppColors.background,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Invoice info
-            if (widget.invoiceNumber != null)
-              Text(
-                'Invoice #${widget.invoiceNumber}',
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, color: AppColors.textSecondary),
-              ).animate().fadeIn(duration: 300.ms),
-
-            const SizedBox(height: 12),
-
-            // Amount
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          // Amount + invoice
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+            child: Column(
               children: [
-                Text(
-                  '₹',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-                Text(
-                  widget.amount.toStringAsFixed(2).split('.')[0],
-                  style: GoogleFonts.dmSans(
-                    fontSize: 56,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    height: 1.2,
-                  ),
-                ),
-                Text(
-                  '.${widget.amount.toStringAsFixed(2).split('.')[1]}',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.2, end: 0),
-
-            const SizedBox(height: 24),
-
-            // QR Code section
-            if (!isConfigured)
-              const _UpiNotConfiguredBanner()
-            else
-              _QrCard(
-                upiUrl: _buildUpiUrl(upiId, merchantName),
-                upiId: upiId,
-                merchantName: merchantName,
-              ),
-
-            const SizedBox(height: 28),
-
-            // Countdown + confirmation buttons
-            if (_showConfirmationButtons) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _remainingSeconds < 60
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-                        : AppColors.primary.withValues(alpha: 0.3),
-                    width: 2,
-                  ),
-                ),
-                child: Column(
+                if (widget.invoiceNumber != null)
+                  Text(
+                    'Invoice #${widget.invoiceNumber}',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ).animate().fadeIn(duration: 300.ms),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Waiting for customer to pay',
+                      '₹',
                       style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary),
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    Text(
+                      widget.amount.toStringAsFixed(2).split('.')[0],
+                      style: GoogleFonts.dmSans(
+                        fontSize: 46,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        height: 1.2,
+                      ),
+                    ),
+                    Text(
+                      '.${widget.amount.toStringAsFixed(2).split('.')[1]}',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Compact timer strip (shown above QR when countdown active)
+          if (_showConfirmationButtons)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: _remainingSeconds < 60
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.08)
+                      : AppColors.primary.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _remainingSeconds < 60
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.35)
+                        : AppColors.primary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: _remainingSeconds < 60
+                          ? const Color(0xFFEF4444)
+                          : AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Waiting for payment',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
                     Text(
                       _formattedTime,
                       style: GoogleFonts.dmSans(
-                        fontSize: 48,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: _remainingSeconds < 60
                             ? const Color(0xFFEF4444)
                             : AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Time remaining',
-                      style: GoogleFonts.dmSans(
-                          fontSize: 12, color: AppColors.textSecondary),
-                    ),
                   ],
                 ),
-              ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
+              ).animate().fadeIn(duration: 300.ms),
+            ),
 
-              const SizedBox(height: 16),
+          // QR Code section (fills remaining space)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: isConfigured
+                  ? _QrCard(
+                      upiUrl: _buildUpiUrl(upiId, merchantName),
+                      upiId: upiId,
+                      merchantName: merchantName,
+                    )
+                  : const _UpiNotConfiguredBanner(),
+            ),
+          ),
 
-              Row(
+          // Bottom action area
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _handlePaymentFailed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFFEF4444),
-                          elevation: 0,
-                          side: const BorderSide(
-                              color: Color(0xFFEF4444), width: 2),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                  if (_showConfirmationButtons) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _handlePaymentFailed,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFFEF4444),
+                                elevation: 0,
+                                side: const BorderSide(
+                                    color: Color(0xFFEF4444), width: 2),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              child: Text(
+                                'Not Received',
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          'Not Received',
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _isProcessingPayment
+                                  ? null
+                                  : _handlePaymentSuccess,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
+                              child: _isProcessingPayment
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5, color: Colors.white),
+                                    )
+                                  : Text(
+                                      'Received ✓',
+                                      style: GoogleFonts.dmSans(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ).animate().fadeIn(duration: 300.ms),
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _paymentCompleted ? null : _startCountdown,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AppColors.primary.withValues(alpha: 0.5),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.check_circle_outline, size: 20),
+                        label: Text(
+                          'Customer is Scanning — Start Timer',
                           style: GoogleFonts.dmSans(
-                              fontSize: 15, fontWeight: FontWeight.w600),
+                              fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isProcessingPayment
-                            ? null
-                            : _handlePaymentSuccess,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
+                  ],
+                  TextButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        child: _isProcessingPayment
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2.5, color: Colors.white),
-                              )
-                            : Text(
-                                'Received ✓',
-                                style: GoogleFonts.dmSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700),
+                              borderRadius: BorderRadius.circular(20)),
+                          title: Text('Cancel Transaction?',
+                              style: GoogleFonts.dmSans(
+                                  fontWeight: FontWeight.w600)),
+                          content: Text(
+                              'Are you sure you want to cancel this payment request?',
+                              style: GoogleFonts.dmSans()),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: Text('Keep it',
+                                  style: GoogleFonts.dmSans(
+                                      color: AppColors.textSecondary)),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                context.pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
-                      ),
+                              child: Text('Cancel',
+                                  style: GoogleFonts.dmSans(
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 10)),
+                    child: Text(
+                      'Cancel Transaction',
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
-              ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.2, end: 0),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _paymentCompleted ? null : _startCountdown,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        AppColors.primary.withValues(alpha: 0.5),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  icon: const Icon(Icons.check_circle_outline, size: 22),
-                  label: Text(
-                    'Customer is Scanning — Start Timer',
-                    style: GoogleFonts.dmSans(
-                        fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 14),
-
-            TextButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                    title: Text('Cancel Transaction?',
-                        style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-                    content: Text(
-                        'Are you sure you want to cancel this payment request?',
-                        style: GoogleFonts.dmSans()),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text('Keep it',
-                            style: GoogleFonts.dmSans(
-                                color: AppColors.textSecondary)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          context.pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text('Cancel',
-                            style: GoogleFonts.dmSans(
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 12)),
-              child: Text(
-                'Cancel Transaction',
-                style: GoogleFonts.dmSans(
-                    fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

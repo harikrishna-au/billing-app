@@ -125,12 +125,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                               final date = dateStr != null
                                   ? DateTime.tryParse(dateStr)
                                   : null;
+                              final readOnly =
+                                  state.uri.queryParameters['readOnly'] == 'true';
 
                               return BillScreen(
                                 paymentMethod: paymentMethod,
                                 invoiceNumber: invoice,
                                 amount: amount,
                                 date: date,
+                                readOnly: readOnly,
                               );
                             },
                             parentNavigatorKey: _rootNavigatorKey,

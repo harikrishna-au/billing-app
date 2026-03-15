@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class SmartPosPrinterService {
@@ -10,7 +11,7 @@ class SmartPosPrinterService {
       final String result = await _channel.invokeMethod('initSdk');
       return result == "SDK Initialized Successfully";
     } on PlatformException catch (e) {
-      print("Failed to init SDK: '${e.message}'.");
+      debugPrint("Failed to init SDK: '${e.message}'.");
       return false;
     }
   }
@@ -31,7 +32,7 @@ class SmartPosPrinterService {
       });
       return result == "Printed Successfully";
     } on PlatformException catch (e) {
-      print("Failed to print text: '${e.message}'.");
+      debugPrint("Failed to print text: '${e.message}'.");
       return false;
     }
   }
@@ -41,7 +42,7 @@ class SmartPosPrinterService {
     try {
       await _channel.invokeMethod('cutPaper');
     } on PlatformException catch (e) {
-      print("Failed to cut paper: '${e.message}'.");
+      debugPrint("Failed to cut paper: '${e.message}'.");
     }
   }
 }

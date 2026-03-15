@@ -15,12 +15,15 @@ class BillScreen extends ConsumerStatefulWidget {
   final double? amount;
   final DateTime? date;
 
+  final bool readOnly;
+
   const BillScreen({
     super.key,
     this.invoiceNumber,
     required this.paymentMethod,
     this.amount,
     this.date,
+    this.readOnly = false,
   });
 
   @override
@@ -28,6 +31,22 @@ class BillScreen extends ConsumerStatefulWidget {
 }
 
 class _BillScreenState extends ConsumerState<BillScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.readOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final cartState = ref.read(cartProvider);
+        final now = widget.date ?? DateTime.now();
+        final invoiceNo = widget.invoiceNumber ??
+            'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
+        final total = widget.amount ?? cartState.totalAmount;
+        _handlePrint(context, ref, invoiceNo, total, now, cartState);
+      });
+    }
+  }
+
   /// Attempts to print the receipt for [billNumber].
   /// Blocks the print and shows an error dialog if this bill was already printed.
   Future<void> _handlePrint(
@@ -144,28 +163,30 @@ class _BillScreenState extends ConsumerState<BillScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined,
-                color: AppColors.textSecondary, size: 22),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content:
-                      Text('Share coming soon', style: GoogleFonts.dmSans()),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  margin: const EdgeInsets.all(16),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.print_outlined,
-                color: AppColors.textSecondary, size: 22),
-            onPressed: () =>
-                _handlePrint(context, ref, invoiceNo, total, now, cartState),
-          ),
+          if (!widget.readOnly) ...[
+            IconButton(
+              icon: const Icon(Icons.share_outlined,
+                  color: AppColors.textSecondary, size: 22),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        Text('Share coming soon', style: GoogleFonts.dmSans()),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    margin: const EdgeInsets.all(16),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.print_outlined,
+                  color: AppColors.textSecondary, size: 22),
+              onPressed: () =>
+                  _handlePrint(context, ref, invoiceNo, total, now, cartState),
+            ),
+          ],
           const SizedBox(width: 4),
         ],
         elevation: 0,
@@ -208,6 +229,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
 
           // Action buttons
           _ActionsFooter(
+            showPrint: !widget.readOnly,
             onPrint: () =>
                 _handlePrint(context, ref, invoiceNo, total, now, cartState),
             onNewOrder: () {
@@ -238,7 +260,7 @@ class _SuccessBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.successLight,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.success.withOpacity(0.2)),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -250,7 +272,7 @@ class _SuccessBanner extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.success.withOpacity(0.3),
+                  color: AppColors.success.withValues(alpha: 0.3),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -284,7 +306,7 @@ class _SuccessBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.15),
+              color: AppColors.success.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -330,7 +352,7 @@ class _InvoiceCard extends StatelessWidget {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -569,11 +591,13 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _ActionsFooter extends StatelessWidget {
+  final bool showPrint;
   final VoidCallback onPrint;
   final VoidCallback onNewOrder;
   final VoidCallback onViewOrders;
 
   const _ActionsFooter({
+    required this.showPrint,
     required this.onPrint,
     required this.onNewOrder,
     required this.onViewOrders,
@@ -616,27 +640,29 @@ class _ActionsFooter extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      onPressed: onPrint,
-                      icon: const Icon(Icons.print_outlined, size: 17),
-                      label: Text(
-                        'Print',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                if (showPrint) ...[
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: onPrint,
+                        icon: const Icon(Icons.print_outlined, size: 17),
+                        label: Text(
+                          'Print',
+                          style: GoogleFonts.dmSans(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
                   child: SizedBox(
                     height: 44,

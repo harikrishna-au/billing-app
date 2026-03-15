@@ -140,6 +140,18 @@ async def startup_event():
                 conn.commit()
                 print("✅ Migration: created locations table")
 
+            # Fix locations table column types if they were created as varchar instead of uuid
+            if "locations" in existing_tables:
+                loc_cols = {c["name"]: c for c in inspector.get_columns("locations")}
+                if loc_cols.get("id") and str(loc_cols["id"]["type"]).lower().startswith("var"):
+                    conn.execute(text("""
+                        ALTER TABLE locations
+                            ALTER COLUMN id TYPE uuid USING id::uuid,
+                            ALTER COLUMN user_id TYPE uuid USING user_id::uuid
+                    """))
+                    conn.commit()
+                    print("✅ Migration: fixed locations id/user_id column types to uuid")
+
             machine_cols = {c["name"] for c in inspector.get_columns("machines")}
             if "upi_id" not in machine_cols:
                 conn.execute(text("ALTER TABLE machines ADD COLUMN upi_id VARCHAR(255)"))

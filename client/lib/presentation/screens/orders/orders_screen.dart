@@ -371,6 +371,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               upiCount: payments
                   .where((p) => p.method == PaymentMethod.upi && p.isSuccess)
                   .length,
+              cardAmount: payments
+                  .where((p) => p.method == PaymentMethod.card && p.isSuccess)
+                  .fold(0.0, (s, p) => s + p.amount),
+              cardCount: payments
+                  .where((p) => p.method == PaymentMethod.card && p.isSuccess)
+                  .length,
               isLoading: state.isLoading,
             ),
           ),
@@ -446,7 +452,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           return PaymentCard(
                             payment: p,
                             onTap: () => context.push(
-                              '/new/review/collect-payment/bill?method=${p.methodDisplay}&invoice=${p.billNumber}&amount=${p.amount}&date=${p.createdAt.toIso8601String()}',
+                              '/new/review/collect-payment/bill?method=${p.methodDisplay}&invoice=${p.billNumber}&amount=${p.amount}&date=${p.createdAt.toIso8601String()}&readOnly=true',
                             ),
                           )
                               .animate()
@@ -470,6 +476,8 @@ class _SummaryCard extends StatelessWidget {
   final int cashCount;
   final double upiAmount;
   final int upiCount;
+  final double cardAmount;
+  final int cardCount;
   final bool isLoading;
 
   const _SummaryCard({
@@ -479,6 +487,8 @@ class _SummaryCard extends StatelessWidget {
     required this.cashCount,
     required this.upiAmount,
     required this.upiCount,
+    required this.cardAmount,
+    required this.cardCount,
     required this.isLoading,
   });
 
@@ -582,7 +592,7 @@ class _SummaryCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
             ),
             const SizedBox(height: 14),
-            // Breakdown row — cash | UPI
+            // Breakdown row — cash | UPI | Card
             Row(
               children: [
                 Expanded(
@@ -593,13 +603,22 @@ class _SummaryCard extends StatelessWidget {
                     count: cashCount,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _BreakdownChip(
                     icon: Icons.qr_code_rounded,
                     label: 'UPI',
                     amount: CurrencyFormatter.format(upiAmount),
                     count: upiCount,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _BreakdownChip(
+                    icon: Icons.credit_card_rounded,
+                    label: 'Card',
+                    amount: CurrencyFormatter.format(cardAmount),
+                    count: cardCount,
                   ),
                 ),
               ],

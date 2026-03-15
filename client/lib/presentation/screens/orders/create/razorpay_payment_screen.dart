@@ -107,8 +107,12 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
       'name': config.orgName.isNotEmpty ? config.orgName : 'Payment',
       'description': 'Invoice #${widget.invoiceNumber}',
       'prefill': {
-        'contact': '',
-        'email': '',
+        'contact': '9999999999',
+        'email': 'customer@pos.local',
+      },
+      'hidden': {
+        'contact': true,
+        'email': true,
       },
       'theme': {'color': '#6366F1'},
       'external': {

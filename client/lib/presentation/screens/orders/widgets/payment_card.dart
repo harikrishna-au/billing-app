@@ -35,7 +35,7 @@ class PaymentCard extends StatelessWidget {
         break;
       case PaymentStatus.failed:
         statusColor = AppColors.error;
-        statusBg = AppColors.error.withOpacity(0.1);
+        statusBg = AppColors.error.withValues(alpha: 0.1);
         statusLabel = 'Failed';
         break;
     }
@@ -53,7 +53,7 @@ class PaymentCard extends StatelessWidget {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

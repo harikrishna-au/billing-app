@@ -69,17 +69,17 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final successList = payments.where((p) => p.isSuccess).toList();
       final failedList = payments.where((p) => p.isFailed).toList();
 
-      double _sum(Iterable<Payment> list) =>
+      double sum(Iterable<Payment> list) =>
           list.fold(0.0, (s, p) => s + p.amount);
 
-      final successTotal = _sum(successList);
-      final failedTotal = _sum(failedList);
-      final successCash = _sum(successList.where((p) => p.method == PaymentMethod.cash));
-      final successUpi = _sum(successList.where((p) => p.method == PaymentMethod.upi));
-      final successCard = _sum(successList.where((p) => p.method == PaymentMethod.card));
-      final failedCash = _sum(failedList.where((p) => p.method == PaymentMethod.cash));
-      final failedUpi = _sum(failedList.where((p) => p.method == PaymentMethod.upi));
-      final failedCard = _sum(failedList.where((p) => p.method == PaymentMethod.card));
+      final successTotal = sum(successList);
+      final failedTotal = sum(failedList);
+      final successCash = sum(successList.where((p) => p.method == PaymentMethod.cash));
+      final successUpi = sum(successList.where((p) => p.method == PaymentMethod.upi));
+      final successCard = sum(successList.where((p) => p.method == PaymentMethod.card));
+      final failedCash = sum(failedList.where((p) => p.method == PaymentMethod.cash));
+      final failedUpi = sum(failedList.where((p) => p.method == PaymentMethod.upi));
+      final failedCard = sum(failedList.where((p) => p.method == PaymentMethod.card));
 
       final dateStr = DateFormat('dd-MM-yyyy').format(_selectedDate);
       final printedStr = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
@@ -193,7 +193,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final successList = payments.where((p) => p.isSuccess).toList();
       final failedList = payments.where((p) => p.isFailed).toList();
 
-      double _sum(Iterable<Payment> list) =>
+      double sum(Iterable<Payment> list) =>
           list.fold(0.0, (s, p) => s + p.amount);
 
       // Per-method groups
@@ -203,12 +203,12 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final upiFailedList  = failedList.where((p) => p.method == PaymentMethod.upi).toList();
       final cardFailedList = failedList.where((p) => p.method == PaymentMethod.card).toList();
 
-      final transTotal  = _sum(successList);
-      final cashAmt     = _sum(cashSuccess);
-      final upiAmt      = _sum(upiSuccess);
-      final cardAmt     = _sum(cardSuccess);
-      final failedUpiAmt  = _sum(upiFailedList);
-      final failedCardAmt = _sum(cardFailedList);
+      final transTotal  = sum(successList);
+      final cashAmt     = sum(cashSuccess);
+      final upiAmt      = sum(upiSuccess);
+      final cardAmt     = sum(cardSuccess);
+      final failedUpiAmt  = sum(upiFailedList);
+      final failedCardAmt = sum(cardFailedList);
 
       final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
       final printedStr   = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
@@ -251,7 +251,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       // Helper to print one method-group block
       Future<void> printMethodBlock(
           String label, List<Payment> successGroup, List<Payment> failedGroup) async {
-        final total = _sum(successGroup) + _sum(failedGroup);
+        final total = sum(successGroup) + sum(failedGroup);
         final tickets = successGroup.length + failedGroup.length;
         if (tickets == 0) return;
         await printer.printText(
@@ -329,8 +329,10 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
     final totalAmount = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final cashPayments = payments.where((p) => p.method == PaymentMethod.cash).toList();
     final onlinePayments = payments.where((p) => p.method == PaymentMethod.upi).toList();
+    final cardPayments = payments.where((p) => p.method == PaymentMethod.card).toList();
     final cashAmount = cashPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final onlineAmount = onlinePayments.fold<double>(0.0, (sum, p) => sum + p.amount);
+    final cardAmount = cardPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
 
     return Scaffold(
       appBar: AppBar(
@@ -350,7 +352,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                 // Date Header
                 Container(
                   padding: const EdgeInsets.all(16),
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -408,11 +410,21 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _StatCard(
-                              title: 'Online',
+                              title: 'UPI / Online',
                               value: '₹${onlineAmount.toStringAsFixed(2)}',
                               subtitle: '${onlinePayments.length} bills',
                               icon: Icons.qr_code,
                               color: Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _StatCard(
+                              title: 'Card',
+                              value: '₹${cardAmount.toStringAsFixed(2)}',
+                              subtitle: '${cardPayments.length} bills',
+                              icon: Icons.credit_card,
+                              color: Colors.teal,
                             ),
                           ),
                         ],
@@ -538,9 +550,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,8 +608,8 @@ class _PaymentListItem extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: payment.method == PaymentMethod.cash
-              ? Colors.orange.withOpacity(0.2)
-              : Colors.purple.withOpacity(0.2),
+              ? Colors.orange.withValues(alpha: 0.2)
+              : Colors.purple.withValues(alpha: 0.2),
           child: Icon(
             payment.method == PaymentMethod.cash ? Icons.money : Icons.qr_code,
             color: payment.method == PaymentMethod.cash ? Colors.orange : Colors.purple,

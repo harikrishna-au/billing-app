@@ -239,8 +239,10 @@ class PaymentController extends StateNotifier<PaymentState> {
       final createdPayment =
           await ref.read(paymentRepositoryProvider).createPayment(payment);
 
-      // Reload all payments (also attempts to flush the sync queue).
-      await loadAllPayments();
+      // Flush offline queue, then reload today's payments only so the
+      // Orders screen always defaults to the current day.
+      await flushSyncQueue();
+      await loadPaymentsForDate(DateTime.now());
 
       state = state.copyWith(lastCreatedPayment: createdPayment);
       return createdPayment;
