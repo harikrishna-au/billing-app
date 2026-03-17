@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Zap, Loader2, Phone, ArrowLeft } from "lucide-react";
+import { Loader2, Phone, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api";
 import { sendPhoneOtp } from "@/lib/firebase";
@@ -84,9 +84,7 @@ const Login = () => {
         <div className="login-card px-8 py-10">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15">
-              <Zap className="h-6 w-6 text-primary" />
-            </div>
+            <img src="/logo.png" alt="MIT Logo" className="mb-4 h-12 w-12 rounded-xl object-cover" />
             <h1 className="text-xl font-semibold text-foreground">MIT Admin</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {step === "phone"

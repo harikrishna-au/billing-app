@@ -94,7 +94,7 @@ const ClientDashboard = () => {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link to="/clients">Hadoom Machines</Link>
+                    <Link to="/clients">Blaze Machines</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />

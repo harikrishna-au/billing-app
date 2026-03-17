@@ -217,8 +217,8 @@ const Clients = () => {
         <div className="flex items-center justify-between animate-fade-in">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Management</p>
-            <h1 className="text-2xl font-semibold text-foreground">Hadoom Machines</h1>
-            <p className="text-sm text-muted-foreground">Manage all your Hadoom machines and their configurations</p>
+            <h1 className="text-2xl font-semibold text-foreground">Blaze Machines</h1>
+            <p className="text-sm text-muted-foreground">Manage all your Blaze machines and their configurations</p>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -231,7 +231,7 @@ const Clients = () => {
             <DialogContent className="bg-card border-border">
               <DialogHeader>
                 <DialogTitle>Add New Machine</DialogTitle>
-                <DialogDescription>Create a new Hadoom machine entry</DialogDescription>
+                <DialogDescription>Create a new Blaze machine entry</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateMachine} className="space-y-4">
                 <div>

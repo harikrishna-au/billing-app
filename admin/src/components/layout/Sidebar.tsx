@@ -23,7 +23,7 @@ const Sidebar = () => {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Monitor, label: "Hadoom Machines", path: "/clients" },
+    { icon: Monitor, label: "Blaze Machines", path: "/clients" },
     { icon: AlertTriangle, label: "System Alerts", path: "/alerts", badge: unresolvedCount },
   ];
 
