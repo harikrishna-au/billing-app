@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    # Supabase (legacy — kept for backward compat, no longer used for auth)
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+
+    # Firebase
+    FIREBASE_PROJECT_ID: str = ""
+    FIREBASE_SERVICE_ACCOUNT_JSON: str = ""  # full service account JSON as a single-line string
+
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000

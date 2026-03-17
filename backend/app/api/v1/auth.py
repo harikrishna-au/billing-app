@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 from typing import Union
+import httpx
+import json
 
 from app.database import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token, get_password_hash
@@ -76,6 +78,150 @@ async def login(
     # Log successful authentication
     log_auth_success(user.username, client_ip)
     
+    return {
+        "success": True,
+        "data": {
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            },
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    }
+
+
+@router.post("/phone-login", response_model=SuccessResponse[dict])
+async def phone_login(
+    request_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate admin via Supabase phone OTP.
+    Accepts a verified Supabase access token, looks up the user by phone,
+    and issues our own JWT.
+    """
+    supabase_token = request_data.get("supabase_token")
+    if not supabase_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="supabase_token is required")
+
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Supabase not configured")
+
+    # Verify the Supabase token and get the phone number
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{settings.SUPABASE_URL}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {supabase_token}",
+                "apikey": settings.SUPABASE_ANON_KEY,
+            },
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired Supabase token")
+
+    supabase_user = resp.json()
+    phone = supabase_user.get("phone")
+
+    if not phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No phone number associated with this Supabase session")
+
+    # Find our user by phone
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No admin account found for this phone number. Contact your administrator.")
+
+    if user.is_active != "true":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive")
+
+    # Issue our own JWT
+    access_token = create_access_token(
+        data={"sub": str(user.id), "username": user.username, "role": user.role}
+    )
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    log_auth_success(user.username, None)
+
+    return {
+        "success": True,
+        "data": {
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            },
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    }
+
+
+@router.post("/firebase-login", response_model=SuccessResponse[dict])
+async def firebase_login(
+    request_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate admin via Firebase phone OTP.
+    Accepts a verified Firebase ID token + password.
+    Verifies the token with Firebase Admin SDK, looks up the user by phone,
+    validates the password, then issues our own JWT.
+    """
+    firebase_id_token = request_data.get("firebase_id_token")
+
+    if not firebase_id_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="firebase_id_token is required")
+
+    if not settings.FIREBASE_PROJECT_ID:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Firebase not configured")
+
+    # Initialize Firebase Admin SDK (idempotent)
+    try:
+        import firebase_admin
+        from firebase_admin import auth as firebase_auth, credentials as firebase_credentials
+
+        if not firebase_admin._apps:
+            if settings.FIREBASE_SERVICE_ACCOUNT_JSON:
+                sa_dict = json.loads(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
+                cred = firebase_credentials.Certificate(sa_dict)
+            else:
+                # Fall back to application default credentials
+                cred = firebase_credentials.ApplicationDefault()
+            firebase_admin.initialize_app(cred)
+
+        # Verify the Firebase ID token
+        decoded_token = firebase_auth.verify_id_token(firebase_id_token)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid or expired Firebase token: {str(e)}")
+
+    phone = decoded_token.get("phone_number")
+    if not phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No phone number in Firebase token")
+
+    # Find user by phone
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No admin account found for this phone number")
+
+    if user.is_active != "true":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive")
+
+    # Issue our JWT
+    access_token = create_access_token(
+        data={"sub": str(user.id), "username": user.username, "role": user.role}
+    )
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    log_auth_success(user.username, None)
+
     return {
         "success": True,
         "data": {

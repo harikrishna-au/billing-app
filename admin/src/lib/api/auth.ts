@@ -122,6 +122,23 @@ export const getCurrentUser = async (): Promise<UserResponse['data']> => {
 };
 
 /**
+ * Login with Firebase phone OTP token + password
+ */
+export const firebaseLogin = async (firebaseIdToken: string): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>('/v1/auth/firebase-login', {
+        firebase_id_token: firebaseIdToken,
+    });
+
+    if (response.data.success) {
+        localStorage.setItem('access_token', response.data.data.token);
+        localStorage.setItem('refresh_token', response.data.data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+    }
+
+    return response.data;
+};
+
+/**
  * Check if user is authenticated
  */
 export const isAuthenticated = (): boolean => {

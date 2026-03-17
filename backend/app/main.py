@@ -152,6 +152,12 @@ async def startup_event():
                     conn.commit()
                     print("✅ Migration: fixed locations id/user_id column types to uuid")
 
+            user_cols = {c["name"] for c in inspector.get_columns("users")}
+            if "phone" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN phone VARCHAR(20) UNIQUE"))
+                conn.commit()
+                print("✅ Migration: added phone column to users table")
+
             machine_cols = {c["name"] for c in inspector.get_columns("machines")}
             if "upi_id" not in machine_cols:
                 conn.execute(text("ALTER TABLE machines ADD COLUMN upi_id VARCHAR(255)"))

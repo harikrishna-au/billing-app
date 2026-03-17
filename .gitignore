@@ -12,3 +12,11 @@ Thumbs.db
 node_modules/
 build/
 .dart_tool/
+
+# Environment & secrets — never commit these
+.env
+.env.local
+.env.production
+*.env
+*adminsdk*.json
+firebase.txt
