@@ -95,7 +95,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // Company name
                 Text(
-                  'HaDaoom Technologies',
+                  'Blaze Technologies',
                   style: GoogleFonts.dmSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
