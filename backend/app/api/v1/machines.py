@@ -504,51 +504,161 @@ async def delete_machine(
         "message": "Machine deleted successfully"
     }
 
-
 # ─── Excel / CSV bulk import for service catalog ───────────────────────────
 
-def _parse_excel_bytes(content: bytes) -> list[dict]:
-    """Parse an xlsx/xls file and return a list of row dicts."""
+# Keywords used to auto-detect which row is the real column header row
+_NAME_KEYWORDS = {"activity", "name", "service", "description", "item", "detail"}
+_PRICE_KEYWORDS = {"rate", "price", "amount", "head", "person", "cost", "charge", "tariff"}
+
+
+def _is_header_row(row_values: list) -> bool:
+    """Return True if this row looks like a header (contains name+price keywords)."""
+    text = " ".join(str(v).lower() for v in row_values if v is not None)
+    has_name = any(kw in text for kw in _NAME_KEYWORDS)
+    has_price = any(kw in text for kw in _PRICE_KEYWORDS)
+    return has_name and has_price
+
+
+def _find_col_indices(headers: list[str]):
+    """
+    Given a list of header strings (already lowercased+stripped),
+    return (name_idx, price_idx) or (None, None) if not found.
+    """
+    name_patterns = [
+        "activity name/details", "activity name", "activity", "name",
+        "service name", "service", "description", "item", "detail"
+    ]
+    price_patterns = [
+        "rate per head/person", "rate per head", "rate/person", "rate per person",
+        "rate", "price", "amount", "charge", "cost", "tariff"
+    ]
+
+    name_idx = None
+    price_idx = None
+
+    for pat in name_patterns:
+        for i, h in enumerate(headers):
+            if pat in h:
+                name_idx = i
+                break
+        if name_idx is not None:
+            break
+
+    for pat in price_patterns:
+        for i, h in enumerate(headers):
+            if pat in h and i != name_idx:
+                price_idx = i
+                break
+        if price_idx is not None:
+            break
+
+    return name_idx, price_idx
+
+
+def _clean_price(val) -> Optional[float]:
+    """Parse a cell value into a float, stripping currency symbols."""
+    if val is None:
+        return None
+    try:
+        return float(str(val).replace("₹", "").replace("Rs", "").replace(",", "").replace(" ", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_excel_bytes(content: bytes) -> tuple[list[dict], str]:
+    """
+    Parse an xlsx file. Returns (rows_as_dicts, debug_info).
+    Auto-detects the real header row (skipping title/subtitle rows at the top).
+    """
     try:
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
-        if not rows:
-            raise ValueError("Excel file is empty")
-        headers = [str(h).strip() if h is not None else "" for h in rows[0]]
-        return [{headers[i]: row[i] for i in range(len(headers))} for row in rows[1:]]
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="openpyxl is not installed on the server"
         )
 
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    ws = wb.active
+    all_rows = [list(row) for row in ws.iter_rows(values_only=True)]
 
-def _parse_csv_bytes(content: bytes) -> list[dict]:
-    """Parse a CSV file and return a list of row dicts."""
-    text = content.decode("utf-8-sig")
-    return list(csv.DictReader(io.StringIO(text)))
+    if not all_rows:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Excel file is empty.")
 
-
-def _extract_name_price(row: dict):
-    """Extract (name, price) from a row dict with flexible column matching."""
-    name = None
-    price = None
-    for col in ["Activity name/details", "Activity Name/Details", "activity name/details",
-                "name", "Name", "Service Name", "service_name", "Activity"]:
-        if col in row and row[col]:
-            name = str(row[col]).strip()
+    # Find the header row (scan first 10 rows)
+    header_row_idx = None
+    for i, row in enumerate(all_rows[:10]):
+        if _is_header_row(row):
+            header_row_idx = i
             break
-    for col in ["Rate Per Head/Person", "Rate per Head/Person", "rate per head/person",
-                "Price", "price", "Rate", "rate", "Amount", "amount"]:
-        if col in row and row[col] is not None:
-            try:
-                price = float(str(row[col]).replace("\u20b9", "").replace(",", "").strip())
-                break
-            except (ValueError, TypeError):
-                continue
-    return name, price
+
+    if header_row_idx is None:
+        # Fallback: treat row 0 as header
+        header_row_idx = 0
+
+    raw_headers = all_rows[header_row_idx]
+    headers_lower = [str(h).strip().lower() if h is not None else "" for h in raw_headers]
+    headers_orig = [str(h).strip() if h is not None else "" for h in raw_headers]
+
+    name_idx, price_idx = _find_col_indices(headers_lower)
+
+    debug = (
+        f"Header row detected at index {header_row_idx}. "
+        f"Headers: {headers_orig}. "
+        f"Name col: {name_idx} ({headers_orig[name_idx] if name_idx is not None else 'NOT FOUND'}), "
+        f"Price col: {price_idx} ({headers_orig[price_idx] if price_idx is not None else 'NOT FOUND'})."
+    )
+
+    # Positional fallback: if header detection fails, use col index 1 (name) and 2 (price)
+    if name_idx is None:
+        name_idx = 1
+    if price_idx is None:
+        price_idx = 2
+
+    data_rows = all_rows[header_row_idx + 1:]
+    result = []
+    for row in data_rows:
+        # Skip entirely empty rows
+        if all(v is None or str(v).strip() == "" for v in row):
+            continue
+        name_val = row[name_idx] if name_idx < len(row) else None
+        price_val = row[price_idx] if price_idx < len(row) else None
+        result.append({"_name": name_val, "_price": price_val})
+
+    return result, debug
+
+
+def _parse_csv_bytes(content: bytes) -> tuple[list[dict], str]:
+    """Parse a CSV file. Returns (rows_as_dicts, debug_info)."""
+    text = content.decode("utf-8-sig")
+    lines = [l for l in text.splitlines() if l.strip()]
+
+    # Find the header row
+    header_row_idx = 0
+    for i, line in enumerate(lines[:10]):
+        parts = [p.strip() for p in line.split(",")]
+        if _is_header_row(parts):
+            header_row_idx = i
+            break
+
+    reader = csv.DictReader(io.StringIO("\n".join(lines[header_row_idx:])))
+    all_rows = list(reader)
+    fieldnames = reader.fieldnames or []
+    headers_lower = [h.lower().strip() for h in fieldnames]
+
+    name_idx, price_idx = _find_col_indices(headers_lower)
+    name_col = fieldnames[name_idx] if name_idx is not None else (fieldnames[1] if len(fieldnames) > 1 else None)
+    price_col = fieldnames[price_idx] if price_idx is not None else (fieldnames[2] if len(fieldnames) > 2 else None)
+
+    debug = f"CSV header row {header_row_idx}. Name col: '{name_col}', Price col: '{price_col}'."
+    result = []
+    for row in all_rows:
+        name_val = row.get(name_col) if name_col else None
+        price_val = row.get(price_col) if price_col else None
+        if name_val or price_val:
+            result.append({"_name": name_val, "_price": price_val})
+
+    return result, debug
 
 
 @router.post("/{machine_id}/services/bulk-import")
@@ -559,8 +669,8 @@ async def bulk_import_services(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Bulk import services for a machine from an Excel (.xlsx) or CSV (.csv) file.
-    Expected columns: 'Activity name/details' and 'Rate Per Head/Person'.
+    Bulk import services from an Excel (.xlsx) or CSV (.csv) tariff sheet.
+    Auto-detects header row and column positions.
     """
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
     if not machine:
@@ -571,9 +681,9 @@ async def bulk_import_services(
 
     try:
         if filename.endswith(".csv"):
-            rows = _parse_csv_bytes(content)
+            rows, debug_info = _parse_csv_bytes(content)
         elif filename.endswith(".xlsx") or filename.endswith(".xls"):
-            rows = _parse_excel_bytes(content)
+            rows, debug_info = _parse_excel_bytes(content)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -585,24 +695,38 @@ async def bulk_import_services(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse file: {e}")
 
     if not rows:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The file contains no data rows.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The file contains no data rows after the header."
+        )
 
     created, skipped = [], []
     for i, row in enumerate(rows, start=2):
-        name, price = _extract_name_price(row)
-        if not name:
-            skipped.append({"row": i, "reason": "Missing service name"})
+        raw_name = row.get("_name")
+        raw_price = row.get("_price")
+
+        name = str(raw_name).strip() if raw_name is not None else None
+        # Skip rows where the "name" cell is a number (e.g., Sl. No column bleed)
+        if not name or name.replace(".", "").replace(",", "").isdigit():
+            skipped.append({"row": i, "reason": f"Missing or invalid name (got: {raw_name!r})"})
             continue
+
+        price = _clean_price(raw_price)
         if price is None or price <= 0:
-            skipped.append({"row": i, "reason": f"Invalid or missing price for '{name}'"})
+            skipped.append({"row": i, "reason": f"Invalid price for '{name}' (got: {raw_price!r})"})
             continue
+
         db.add(Service(machine_id=machine_id, name=name, price=price, status="active"))
         created.append(name)
 
     if not created:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid services found. Make sure your file has 'Activity name/details' and 'Rate Per Head/Person' columns."
+            detail=(
+                f"No valid services found in the uploaded file. "
+                f"Parser debug: {debug_info} — "
+                f"Make sure the file has readable 'Activity name/details' and 'Rate Per Head/Person' columns."
+            )
         )
 
     try:
