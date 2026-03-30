@@ -28,6 +28,14 @@ export interface ServiceResponse {
     data: Service | Service[];
 }
 
+export interface BulkImportResult {
+    success: boolean;
+    imported: number;
+    skipped: number;
+    skipped_details: { row: number; reason: string }[];
+    message: string;
+}
+
 export const servicesApi = {
     /**
      * Get all services for a machine
@@ -94,5 +102,22 @@ export const servicesApi = {
             { params: { status: 'active' } }
         );
         return response.data.data;
+    },
+
+    /**
+     * Bulk import services from an Excel (.xlsx) or CSV (.csv) file.
+     * The file should have columns: "Activity name/details" and "Rate Per Head/Person"
+     */
+    async bulkImport(machineId: string, file: File): Promise<BulkImportResult> {
+        console.log(`📤 Bulk importing services for machine ${machineId} from file: ${file.name}`);
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiClient.post<BulkImportResult>(
+            `/v1/machines/${machineId}/services/bulk-import`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        console.log(`✅ Bulk import result: ${response.data.message}`);
+        return response.data;
     },
 };
