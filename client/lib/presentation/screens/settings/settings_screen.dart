@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/theme/app_colors.dart';
-import '../../../data/models/bill_config_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../providers/catalogue_provider.dart';
@@ -104,23 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'View and print daily sales report',
               onTap: () => context.push('/settings/day-summary'),
             ),
-            const SizedBox(height: 8),
-            Consumer(
-              builder: (context, ref, _) {
-                final config = ref.watch(billConfigProvider);
-                final upiId = config.upiId;
-                return _Tile(
-                  icon: Icons.qr_code_rounded,
-                  iconBg: const Color(0xFFEDE9FE),
-                  iconColor: const Color(0xFF7C3AED),
-                  title: 'UPI Settings',
-                  subtitle: (upiId != null && upiId.isNotEmpty)
-                      ? upiId
-                      : 'Not configured — contact admin',
-                  onTap: () => _showUpiInfoSheet(context, config),
-                );
-              },
-            ),
+
 
             const SizedBox(height: 28),
             _SectionLabel('Data'),
@@ -285,7 +268,7 @@ class _ReloadTile extends StatelessWidget {
                     Text(
                       isReloading
                           ? 'Fetching latest data…'
-                          : 'Sync products, UPI details & services',
+                          : 'Sync products & services',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -361,115 +344,7 @@ void _showNotificationsSheet(BuildContext context) {
   );
 }
 
-void _showUpiInfoSheet(BuildContext context, BillConfig config) {
-  final upiId = config.upiId;
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'UPI Settings',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'UPI configuration is managed by your administrator.',
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderLight),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'UPI ID',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  (upiId != null && upiId.isNotEmpty) ? upiId : 'Not configured',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: (upiId != null && upiId.isNotEmpty)
-                        ? AppColors.textPrimary
-                        : AppColors.textLight,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (upiId == null || upiId.isEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFED7AA)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: Color(0xFFF97316), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Contact your admin to set up UPI ID for QR payments.',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: const Color(0xFF9A3412),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    ),
-  );
-}
+
 
 
 class _ProfileRow extends StatelessWidget {
