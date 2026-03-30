@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from typing import Optional
 import re
+import io
+import csv
 
 from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
+from app.models.service import Service
 from app.dependencies import get_current_user
 from app.core.security import get_password_hash
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse, MachineStatusUpdate
@@ -499,4 +502,119 @@ async def delete_machine(
     return {
         "success": True,
         "message": "Machine deleted successfully"
+    }
+
+
+# ─── Excel / CSV bulk import for service catalog ───────────────────────────
+
+def _parse_excel_bytes(content: bytes) -> list[dict]:
+    """Parse an xlsx/xls file and return a list of row dicts."""
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            raise ValueError("Excel file is empty")
+        headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+        return [{headers[i]: row[i] for i in range(len(headers))} for row in rows[1:]]
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="openpyxl is not installed on the server"
+        )
+
+
+def _parse_csv_bytes(content: bytes) -> list[dict]:
+    """Parse a CSV file and return a list of row dicts."""
+    text = content.decode("utf-8-sig")
+    return list(csv.DictReader(io.StringIO(text)))
+
+
+def _extract_name_price(row: dict):
+    """Extract (name, price) from a row dict with flexible column matching."""
+    name = None
+    price = None
+    for col in ["Activity name/details", "Activity Name/Details", "activity name/details",
+                "name", "Name", "Service Name", "service_name", "Activity"]:
+        if col in row and row[col]:
+            name = str(row[col]).strip()
+            break
+    for col in ["Rate Per Head/Person", "Rate per Head/Person", "rate per head/person",
+                "Price", "price", "Rate", "rate", "Amount", "amount"]:
+        if col in row and row[col] is not None:
+            try:
+                price = float(str(row[col]).replace("\u20b9", "").replace(",", "").strip())
+                break
+            except (ValueError, TypeError):
+                continue
+    return name, price
+
+
+@router.post("/{machine_id}/services/bulk-import")
+async def bulk_import_services(
+    machine_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Bulk import services for a machine from an Excel (.xlsx) or CSV (.csv) file.
+    Expected columns: 'Activity name/details' and 'Rate Per Head/Person'.
+    """
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
+
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    try:
+        if filename.endswith(".csv"):
+            rows = _parse_csv_bytes(content)
+        elif filename.endswith(".xlsx") or filename.endswith(".xls"):
+            rows = _parse_excel_bytes(content)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unsupported file type. Please upload a .xlsx or .csv file."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse file: {e}")
+
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The file contains no data rows.")
+
+    created, skipped = [], []
+    for i, row in enumerate(rows, start=2):
+        name, price = _extract_name_price(row)
+        if not name:
+            skipped.append({"row": i, "reason": "Missing service name"})
+            continue
+        if price is None or price <= 0:
+            skipped.append({"row": i, "reason": f"Invalid or missing price for '{name}'"})
+            continue
+        db.add(Service(machine_id=machine_id, name=name, price=price, status="active"))
+        created.append(name)
+
+    if not created:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid services found. Make sure your file has 'Activity name/details' and 'Rate Per Head/Person' columns."
+        )
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to save services: {e}")
+
+    return {
+        "success": True,
+        "imported": len(created),
+        "skipped": len(skipped),
+        "skipped_details": skipped,
+        "message": f"Successfully imported {len(created)} service(s). {len(skipped)} row(s) skipped."
     }
