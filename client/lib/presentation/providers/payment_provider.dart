@@ -188,8 +188,6 @@ class PaymentController extends StateNotifier<PaymentState> {
     }
   }
 
-
-
   Future<void> loadTodayPayments() async {
     await loadAllPayments();
   }

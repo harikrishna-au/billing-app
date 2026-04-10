@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from typing import Optional
 from datetime import datetime, timedelta, timezone
+import pytz
 
 from app.database import get_db
 from app.models.user import User
@@ -70,15 +71,20 @@ async def get_payments_by_machine(
 
     # Apply period filter
     if period:
-        now = datetime.now(timezone.utc)
+        IST = pytz.timezone('Asia/Kolkata')
+        now_ist = datetime.now(IST)
         if period == "day":
-            start_dt = now - timedelta(days=1)
+            # Start of today in IST (midnight), convert to UTC
+            start_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0)).astimezone(timezone.utc)
         elif period == "week":
-            start_dt = now - timedelta(weeks=1)
+            # Start of this week (Monday midnight IST)
+            start_of_week = now_ist - timedelta(days=now_ist.weekday())
+            start_dt = IST.localize(datetime(start_of_week.year, start_of_week.month, start_of_week.day, 0, 0, 0)).astimezone(timezone.utc)
         elif period == "month":
-            start_dt = now - timedelta(days=30)
+            # Start of this calendar month (IST)
+            start_dt = IST.localize(datetime(now_ist.year, now_ist.month, 1, 0, 0, 0)).astimezone(timezone.utc)
         else:  # year
-            start_dt = now - timedelta(days=365)
+            start_dt = IST.localize(datetime(now_ist.year, 1, 1, 0, 0, 0)).astimezone(timezone.utc)
         query = query.filter(Payment.created_at >= start_dt)
 
     # Apply date range filters
@@ -169,15 +175,20 @@ async def get_all_payments(
     
     # Apply period filter
     if period:
-        now = datetime.now(timezone.utc)
+        IST = pytz.timezone('Asia/Kolkata')
+        now_ist = datetime.now(IST)
         if period == "day":
-            start_dt = now - timedelta(days=1)
+            # Start of today in IST (midnight), convert to UTC
+            start_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0)).astimezone(timezone.utc)
         elif period == "week":
-            start_dt = now - timedelta(weeks=1)
+            # Start of this week (Monday midnight IST)
+            start_of_week = now_ist - timedelta(days=now_ist.weekday())
+            start_dt = IST.localize(datetime(start_of_week.year, start_of_week.month, start_of_week.day, 0, 0, 0)).astimezone(timezone.utc)
         elif period == "month":
-            start_dt = now - timedelta(days=30)
+            # Start of this calendar month (IST)
+            start_dt = IST.localize(datetime(now_ist.year, now_ist.month, 1, 0, 0, 0)).astimezone(timezone.utc)
         else:  # year
-            start_dt = now - timedelta(days=365)
+            start_dt = IST.localize(datetime(now_ist.year, 1, 1, 0, 0, 0)).astimezone(timezone.utc)
         query = query.filter(Payment.created_at >= start_dt)
 
     # Apply date range filters
