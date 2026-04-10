@@ -7,10 +7,10 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/bill_config_provider.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../../core/network/providers.dart';
-import '../../../../services/smart_pos_printer_service.dart';
-import '../../../providers/bill_config_provider.dart';
+import '../../../widgets/app_error_widget.dart';
 
 class CollectPaymentScreen extends ConsumerStatefulWidget {
   final String paymentMethod;
@@ -27,6 +27,7 @@ class CollectPaymentScreen extends ConsumerStatefulWidget {
 
 class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
   bool _isProcessing = false;
+  Object? _lastError;
 
   bool get _isCash => widget.paymentMethod == 'cash';
   bool get _isCard => widget.paymentMethod == 'card';
@@ -84,6 +85,15 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
                         .animate()
                         .fadeIn(duration: 180.ms, delay: 100.ms),
 
+                  // Error banner
+                  if (_lastError != null) ...[
+                    const SizedBox(height: 12),
+                    InlineErrorBanner(
+                      error: _lastError,
+                      onDismiss: () => setState(() => _lastError = null),
+                    ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.2),
+                  ],
+
                   const SizedBox(height: 100),
                 ],
               ),
@@ -109,13 +119,10 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       setState(() => _isProcessing = true);
       try {
         final total = ref.read(cartProvider).totalAmount;
-        final billNumber =
-            await ref.read(billNumberServiceProvider).generate();
         if (!mounted) return;
         setState(() => _isProcessing = false);
         if (!mounted) return;
-        context.push(
-            '/new/review/collect-payment/card?amount=$total&invoice=$billNumber');
+        context.push('/new/review/collect-payment/card?amount=$total');
       } catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);
@@ -129,14 +136,10 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
       setState(() => _isProcessing = true);
       try {
         final total = ref.read(cartProvider).totalAmount;
-        // Generate the bill number here so cash and UPI share the same sequence.
-        final billNumber =
-            await ref.read(billNumberServiceProvider).generate();
         if (!mounted) return;
         setState(() => _isProcessing = false);
         if (!mounted) return;
-        context.push(
-            '/new/review/collect-payment/upi?amount=$total&invoice=$billNumber');
+        context.push('/new/review/collect-payment/upi?amount=$total');
       } catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);
@@ -151,68 +154,17 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     try {
       final cartState = ref.read(cartProvider);
       final total = cartState.totalAmount;
-      final billNumber = await ref.read(billNumberServiceProvider).generate();
+      final billConfig = ref.read(billConfigProvider);
+      final billNumber = await ref.read(billNumberServiceProvider).generate(
+            posId: billConfig.posId,
+          );
 
       await _createPaymentRecord(total, PaymentMethod.cash, billNumber);
-
-      // Print receipt
-      try {
-        final config = ref.read(billConfigProvider);
-        final now = DateTime.now();
-        final printer = SmartPosPrinterService();
-        await printer.initSdk();
-
-        // Header
-        if (config.orgName.isNotEmpty) {
-          await printer.printText(text: config.orgName, size: 28, isBold: true, align: 1);
-        }
-        if (config.tagline != null && config.tagline!.isNotEmpty) {
-          await printer.printText(text: config.tagline!, size: 20, align: 1);
-        }
-        await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-        // Invoice info
-        await printer.printText(text: 'Invoice: $billNumber', size: 22, align: 0);
-        final dateStr =
-            '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}  '
-            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-        await printer.printText(text: dateStr, size: 20, align: 0);
-        await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-        // Items
-        for (final item in ref.read(cartProvider).items.values) {
-          final line =
-              '${item.product.name}  x${item.quantity}   Rs.${(item.product.price * item.quantity).toStringAsFixed(2)}';
-          await printer.printText(text: line, size: 22, align: 0);
-        }
-
-        await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-        // Total
-        await printer.printText(
-            text: 'TOTAL    Rs.${total.toStringAsFixed(2)}',
-            size: 26,
-            isBold: true,
-            align: 0);
-        await printer.printText(text: 'Payment: CASH', size: 20, align: 0);
-        await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-        // Footer
-        final footer = (config.footerMessage != null && config.footerMessage!.isNotEmpty)
-            ? config.footerMessage!
-            : 'Thank you. Visit again!';
-        await printer.printText(text: footer, size: 20, align: 1);
-        await printer.printText(text: '\n\n', size: 20, align: 1);
-
-        await printer.cutPaper();
-      } catch (e) {
-        debugPrint("Printing failed: $e");
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
       if (!mounted) return;
-      _showError(context, e.toString());
+      setState(() => _lastError = e);
     }
   }
 
@@ -275,17 +227,8 @@ class _CollectPaymentScreenState extends ConsumerState<CollectPaymentScreen> {
     );
   }
 
-  void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $message',
-            style: GoogleFonts.dmSans(color: Colors.white)),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+  void _showError(BuildContext context, Object error) {
+    setState(() => _lastError = error);
   }
 }
 

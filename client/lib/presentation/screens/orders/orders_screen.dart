@@ -11,7 +11,7 @@ import '../../../data/models/payment_model.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../widgets/shimmer_loader.dart';
-import '../../widgets/offline_banner.dart';
+import '../../widgets/app_error_widget.dart';
 import '../../../services/smart_pos_printer_service.dart';
 import 'widgets/payment_card.dart';
 
@@ -351,7 +351,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (state.isOffline) const OfflineBanner(),
+          if (state.isOffline)
+            ImprovedOfflineBanner(
+              pendingCount: state.pendingCount > 0 ? state.pendingCount : null,
+            ),
+
+          // Full-screen error (non-offline hard failure)
+          if (state.error != null && !state.isOffline && payments.isEmpty)
+            Expanded(
+              child: AppErrorWidget(
+                error: state.error,
+                onRetry: () => _loadFor(_selectedDate),
+              ),
+            )
+          else ...[
 
           // Summary card
           Padding(
@@ -463,6 +476,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         },
                       ),
           ),
+          ], // end else block
         ],
       ),
     );

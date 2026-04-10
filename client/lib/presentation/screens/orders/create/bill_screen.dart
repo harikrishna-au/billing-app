@@ -6,8 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../providers/cart_provider.dart';
-import '../../../../core/network/providers.dart';
 import '../../../providers/bill_config_provider.dart';
+import '../../../../services/smart_pos_printer_service.dart';
+import '../../../../core/network/providers.dart';
 
 class BillScreen extends ConsumerStatefulWidget {
   final String? invoiceNumber;
@@ -31,6 +32,8 @@ class BillScreen extends ConsumerStatefulWidget {
 }
 
 class _BillScreenState extends ConsumerState<BillScreen> {
+  final SmartPosPrinterService _printer = SmartPosPrinterService();
+
   @override
   void initState() {
     super.initState();
@@ -39,8 +42,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         if (!mounted) return;
         final cartState = ref.read(cartProvider);
         final now = widget.date ?? DateTime.now();
-        final invoiceNo = widget.invoiceNumber ??
-            'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
+        final invoiceNo = widget.invoiceNumber ?? 'BILL/PENDING';
         final total = widget.amount ?? cartState.totalAmount;
         _handlePrint(context, ref, invoiceNo, total, now, cartState);
       });
@@ -97,22 +99,129 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     }
 
     // --- PRINT ---
-    final items = cartState.items.values
-        .map((i) => {
-              'name': i.product.name,
-              'quantity': i.quantity,
-              'price': i.product.price,
-            })
-        .toList();
     try {
-      await ref.read(printerServiceProvider).printReceipt(
-            orderId: billNumber,
-            totalAmount: total,
-            date: date,
-            items: items,
-            paymentMethod: widget.paymentMethod,
-            config: ref.read(billConfigProvider),
-          );
+      final config = ref.read(billConfigProvider);
+      final cgstRate = config.cgstPercent / 100;
+      final sgstRate = config.sgstPercent / 100;
+      final taxRate = cgstRate + sgstRate;
+      final taxableAmount = taxRate > 0 ? total / (1 + taxRate) : total;
+      final cgstAmount = taxableAmount * cgstRate;
+      final sgstAmount = taxableAmount * sgstRate;
+      final hasTax = taxRate > 0;
+      await _printer.initSdk();
+
+      if (config.orgName.isNotEmpty) {
+        await _printer.printText(
+          text: config.orgName,
+          size: 28,
+          isBold: true,
+          align: 1,
+        );
+      }
+      await _printer.printText(
+        text: '--------------------------------',
+        size: 20,
+        align: 1,
+      );
+
+      if (config.unitName != null && config.unitName!.isNotEmpty) {
+        await _printer.printText(text: config.unitName!, size: 20, align: 0);
+      }
+      if (config.territory != null && config.territory!.isNotEmpty) {
+        await _printer.printText(text: config.territory!, size: 20, align: 0);
+      }
+      if (config.gstNumber != null && config.gstNumber!.isNotEmpty) {
+        await _printer.printText(
+          text: 'GSTIN: ${config.gstNumber!}',
+          size: 20,
+          align: 0,
+        );
+      }
+      if (config.posId != null && config.posId!.isNotEmpty) {
+        await _printer.printText(
+          text: 'POS ID: ${config.posId!}',
+          size: 20,
+          align: 0,
+        );
+      }
+      if ((config.unitName != null && config.unitName!.isNotEmpty) ||
+          (config.territory != null && config.territory!.isNotEmpty) ||
+          (config.gstNumber != null && config.gstNumber!.isNotEmpty) ||
+          (config.posId != null && config.posId!.isNotEmpty)) {
+        await _printer.printText(
+          text: '--------------------------------',
+          size: 20,
+          align: 1,
+        );
+      }
+
+      await _printer.printText(text: 'Bill No: $billNumber', size: 22, align: 0);
+      final dateStr =
+          '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}  '
+          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      await _printer.printText(text: dateStr, size: 20, align: 0);
+      await _printer.printText(
+        text: '--------------------------------',
+        size: 20,
+        align: 1,
+      );
+
+      for (final item in cartState.items.values) {
+        final line =
+            '${item.product.name}  x${item.quantity}   Rs.${(item.product.price * item.quantity).toStringAsFixed(2)}';
+        await _printer.printText(text: line, size: 22, align: 0);
+      }
+
+      await _printer.printText(
+        text: '--------------------------------',
+        size: 20,
+        align: 1,
+      );
+      await _printer.printText(
+        text: 'TOTAL    Rs.${total.toStringAsFixed(2)}',
+        size: 26,
+        isBold: true,
+        align: 0,
+      );
+      if (hasTax) {
+        await _printer.printText(
+          text:
+              'Taxable Amt  Rs.${taxableAmount.toStringAsFixed(2)}',
+          size: 20,
+          align: 0,
+        );
+        await _printer.printText(
+          text:
+              'CGST @${config.cgstPercent.toStringAsFixed(0)}%  Rs.${cgstAmount.toStringAsFixed(2)}',
+          size: 20,
+          align: 0,
+        );
+        await _printer.printText(
+          text:
+              'SGST @${config.sgstPercent.toStringAsFixed(0)}%  Rs.${sgstAmount.toStringAsFixed(2)}',
+          size: 20,
+          align: 0,
+        );
+      }
+      await _printer.printText(
+        text: 'Payment: ${_paymentLabel(widget.paymentMethod)}',
+        size: 20,
+        align: 0,
+      );
+      await _printer.printText(
+        text: '--------------------------------',
+        size: 20,
+        align: 1,
+      );
+
+      final footer =
+          (config.footerMessage != null && config.footerMessage!.isNotEmpty)
+              ? config.footerMessage!
+              : 'Thank you. Visit again!';
+      await _printer.printText(text: footer, size: 20, align: 1);
+      await _printer.printText(text: '\n\n', size: 20, align: 1);
+      await _printer.cutPaper();
+
       // Mark as printed only on success
       await tracker.markAsPrinted(billNumber);
     } catch (e) {
@@ -123,12 +232,25 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     }
   }
 
+  String _paymentLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'cash':
+        return 'CASH';
+      case 'card':
+        return 'CARD / Online';
+      case 'online':
+      case 'upi':
+        return 'UPI / Online';
+      default:
+        return method.toUpperCase();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
     final now = widget.date ?? DateTime.now();
-    final invoiceNo = widget.invoiceNumber ??
-        'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(8)}';
+    final invoiceNo = widget.invoiceNumber ?? 'BILL/PENDING';
     final total = widget.amount ?? cartState.totalAmount;
     final isCash = widget.paymentMethod.toLowerCase() == 'cash';
     final isCard = widget.paymentMethod.toLowerCase() == 'card';
@@ -371,7 +493,7 @@ class _InvoiceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'INVOICE',
+                      'BILL NO',
                       style: GoogleFonts.dmSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,

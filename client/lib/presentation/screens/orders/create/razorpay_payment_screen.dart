@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,18 +11,16 @@ import '../../../../core/network/providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/payment_model.dart';
 import '../../../providers/payment_provider.dart';
-import '../../../providers/cart_provider.dart';
 import '../../../providers/bill_config_provider.dart';
-import '../../../../services/smart_pos_printer_service.dart';
 
 class RazorpayPaymentScreen extends ConsumerStatefulWidget {
   final double amount;
-  final String invoiceNumber;
+  final String? invoiceNumber;
 
   const RazorpayPaymentScreen({
     super.key,
     required this.amount,
-    required this.invoiceNumber,
+    this.invoiceNumber,
   });
 
   @override
@@ -34,8 +33,6 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
   bool _isCreatingOrder = false;
   bool _isProcessingPayment = false;
   String? _errorMessage;
-
-  final _printer = SmartPosPrinterService();
 
   @override
   void initState() {
@@ -57,13 +54,16 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
   Future<String?> _createRazorpayOrder() async {
     try {
       final apiClient = ref.read(apiClientProvider);
+      final fallbackInvoice = 'order_${DateTime.now().millisecondsSinceEpoch}';
+      final receiptValue = widget.invoiceNumber ?? fallbackInvoice;
+      
       final response = await apiClient.post(
         RazorpayConfig.createOrderPath,
         data: {
           'amount': (widget.amount * 100).toInt(), // Razorpay expects paise
           'currency': 'INR',
-          'receipt': widget.invoiceNumber,
-          'notes': {'invoice': widget.invoiceNumber},
+          'receipt': receiptValue,
+          'notes': {'invoice': receiptValue},
         },
       );
 
@@ -134,9 +134,15 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
     setState(() => _isProcessingPayment = true);
 
     try {
+      final billConfig = ref.read(billConfigProvider);
+      final actualInvoice = widget.invoiceNumber ??
+          await ref.read(billNumberServiceProvider).generate(
+                posId: billConfig.posId,
+              );
+
       final payment = Payment(
         id: '',
-        billNumber: widget.invoiceNumber,
+        billNumber: actualInvoice,
         amount: widget.amount,
         method: PaymentMethod.card,
         status: PaymentStatus.success,
@@ -148,11 +154,9 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
 
       if (created == null) throw Exception('Failed to record payment');
 
-      await _printReceipt();
-
       if (!mounted) return;
       context.pushReplacement(
-        '/new/review/collect-payment/bill?method=card&invoice=${widget.invoiceNumber}',
+        '/new/review/collect-payment/bill?method=card&invoice=$actualInvoice',
       );
     } catch (e) {
       if (!mounted) return;
@@ -183,65 +187,6 @@ class _RazorpayPaymentScreenState extends ConsumerState<RazorpayPaymentScreen> {
         margin: const EdgeInsets.all(16),
       ),
     );
-  }
-
-  // ── Receipt printing ───────────────────────────────────────────────────────
-
-  Future<void> _printReceipt() async {
-    final cartState = ref.read(cartProvider);
-    final config = ref.read(billConfigProvider);
-    final now = DateTime.now();
-
-    try {
-      await _printer.initSdk();
-
-      if (config.orgName.isNotEmpty) {
-        await _printer.printText(
-            text: config.orgName, size: 28, isBold: true, align: 1);
-      }
-      if (config.tagline != null && config.tagline!.isNotEmpty) {
-        await _printer.printText(text: config.tagline!, size: 20, align: 1);
-      }
-      await _printer.printText(
-          text: '--------------------------------', size: 20, align: 1);
-
-      await _printer.printText(
-          text: 'Invoice: ${widget.invoiceNumber}', size: 22, align: 0);
-      final dateStr =
-          '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}  '
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-      await _printer.printText(text: dateStr, size: 20, align: 0);
-      await _printer.printText(
-          text: '--------------------------------', size: 20, align: 1);
-
-      for (final item in cartState.items.values) {
-        final line =
-            '${item.product.name}  x${item.quantity}   Rs.${(item.product.price * item.quantity).toStringAsFixed(2)}';
-        await _printer.printText(text: line, size: 22, align: 0);
-      }
-
-      await _printer.printText(
-          text: '--------------------------------', size: 20, align: 1);
-      await _printer.printText(
-          text: 'TOTAL    Rs.${widget.amount.toStringAsFixed(2)}',
-          size: 26,
-          isBold: true,
-          align: 0);
-      await _printer.printText(text: 'Payment: CARD / Online', size: 20, align: 0);
-      await _printer.printText(
-          text: '--------------------------------', size: 20, align: 1);
-
-      final footer =
-          (config.footerMessage != null && config.footerMessage!.isNotEmpty)
-              ? config.footerMessage!
-              : 'Thank you. Visit again!';
-      await _printer.printText(text: footer, size: 20, align: 1);
-      await _printer.printText(text: '\n\n', size: 20, align: 1);
-
-      await _printer.cutPaper();
-    } catch (_) {
-      // Non-blocking — bill screen still shown
-    }
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
