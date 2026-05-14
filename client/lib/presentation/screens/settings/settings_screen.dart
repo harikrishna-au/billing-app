@@ -8,6 +8,7 @@ import '../../../config/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../providers/catalogue_provider.dart';
+import '../../providers/payment_provider.dart';
 import '../../providers/service_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -19,6 +20,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isReloading = false;
+  bool _isSyncingQueued = false;
 
   Future<void> _reloadAll() async {
     final user = ref.read(authProvider).user;
@@ -58,6 +60,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _isReloading = false);
+    }
+  }
+
+  Future<void> _syncQueuedTickets() async {
+    if (_isSyncingQueued) return;
+    setState(() => _isSyncingQueued = true);
+    try {
+      final r = await ref.read(paymentProvider.notifier).syncQueuedTicketsNow();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            r.userMessage,
+            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: r == QueuedTicketsSyncResult.success
+              ? AppColors.success
+              : AppColors.textSecondary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSyncingQueued = false);
     }
   }
 
@@ -111,6 +138,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _ReloadTile(
               isReloading: _isReloading,
               onTap: _isReloading ? null : _reloadAll,
+            ),
+            const SizedBox(height: 8),
+            _Tile(
+              icon: Icons.cloud_upload_outlined,
+              iconBg: const Color(0xFFE0E7FF),
+              iconColor: const Color(0xFF4338CA),
+              title: 'Sync queued tickets',
+              subtitle: _isSyncingQueued
+                  ? 'Syncing…'
+                  : 'Upload offline sales (every 60s while queued, every 5 min, and when network returns)',
+              onTap: _isSyncingQueued ? () {} : _syncQueuedTickets,
             ),
 
             const SizedBox(height: 28),

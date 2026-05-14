@@ -56,7 +56,7 @@ class ApiAuthRepository implements AuthRepository {
 
       // Sync bill counter from backend so the local sequence never goes backwards.
       final backendCounter = userOrMachineData['bill_counter'];
-      if (backendCounter is int && backendCounter > 0) {
+      if (backendCounter is int) {
         await _billNumberGenerator.syncWithBackend(backendCounter);
       }
 

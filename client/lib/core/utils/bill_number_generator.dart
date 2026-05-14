@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Continuous bill number generator backed by SharedPreferences.
-/// Format: POSID/000001 (or BILL/000001 when POS ID is unavailable).
+/// Format: POSID/1 (or BILL/1 when POS ID is unavailable) — numeric part has no leading zeros.
 /// The counter never resets automatically, so bill numbers continue across days.
 ///
 /// Use via [billNumberServiceProvider] — do NOT call [SharedPreferences.getInstance]
@@ -16,14 +16,32 @@ class BillNumberGenerator {
   /// Current counter value (does not increment).
   int get currentCounter => _prefs.getInt(_counterKey) ?? 0;
 
-  /// Increment the counter and return the next bill number.
-  Future<String> generate({String? posId}) async {
+  /// Generate the next bill number WITHOUT incrementing the counter.
+  /// Use this when generating a bill number for preview/confirmation.
+  /// Call [confirmBillNumber] only after payment is successfully processed.
+  String generatePreview({String? posId}) {
+    final next = currentCounter + 1;
+    final normalizedPosId = (posId ?? '').trim();
+    final prefix = normalizedPosId.isEmpty ? 'BILL' : normalizedPosId;
+    return '$prefix/$next';
+  }
+
+  /// Confirm and increment the bill number counter.
+  /// Call this ONLY after successful payment creation to lock in the bill number.
+  Future<String> confirmBillNumber({String? posId}) async {
     final next = currentCounter + 1;
     await _prefs.setInt(_counterKey, next);
 
     final normalizedPosId = (posId ?? '').trim();
     final prefix = normalizedPosId.isEmpty ? 'BILL' : normalizedPosId;
-    return '$prefix/${next.toString().padLeft(6, '0')}';
+    return '$prefix/$next';
+  }
+
+  /// Legacy method - for backward compatibility, increments immediately.
+  /// Deprecated: Use [generatePreview] + [confirmBillNumber] instead.
+  @deprecated
+  Future<String> generate({String? posId}) async {
+    return confirmBillNumber(posId: posId);
   }
 
   /// Force-set the counter (used when syncing with backend).

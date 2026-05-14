@@ -8,5 +8,9 @@ abstract class PaymentRepository {
   Future<List<Payment>> getPaymentsByDateRange(DateTime start, DateTime end);
   Future<Payment> getPaymentById(String id);
   Future<Payment> createPayment(Payment payment);
-  Future<void> updatePaymentStatus(String id, PaymentStatus status);
+  Future<Payment> updatePaymentStatus(String id, PaymentStatus status);
+
+  /// Inserts [payment] at the front of the all-payments local cache, replacing
+  /// any row with the same [Payment.billNumber] (dedupe).
+  Future<void> mergePaymentIntoLocalCache(Payment payment);
 }

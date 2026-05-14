@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config/router/app_router.dart';
 import 'config/theme/app_theme.dart';
 import 'core/network/providers.dart';
+import 'presentation/providers/queued_tickets_sync_scheduler_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,7 @@ class MitApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(queuedTicketsSyncSchedulerProvider);
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

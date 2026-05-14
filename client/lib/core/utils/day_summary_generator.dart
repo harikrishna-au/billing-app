@@ -279,7 +279,7 @@ class DaySummaryGenerator {
           pw.Expanded(
             flex: 2,
             child: pw.Text(
-              timeFormat.format(payment.createdAt),
+              timeFormat.format(payment.createdAtLocal),
               style: const pw.TextStyle(fontSize: 9),
             ),
           ),

@@ -187,8 +187,8 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final sorted = [...payments]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       final firstTicket = sorted.first.billNumber;
       final lastTicket = sorted.last.billNumber;
-      final startingDate = sorted.first.createdAt;
-      final endingDate = sorted.last.createdAt;
+      final startingDate = sorted.first.createdAtLocal;
+      final endingDate = sorted.last.createdAtLocal;
 
       final successList = payments.where((p) => p.isSuccess).toList();
       final failedList = payments.where((p) => p.isFailed).toList();
@@ -620,7 +620,7 @@ class _PaymentListItem extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          DateFormat('hh:mm a').format(payment.createdAt),
+          DateFormat('hh:mm a').format(payment.createdAtLocal),
           style: TextStyle(color: Colors.grey[600], fontSize: 12),
         ),
         trailing: Column(

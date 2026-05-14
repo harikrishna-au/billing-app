@@ -18,6 +18,8 @@ enum PaymentStatus {
   pending,
   @JsonValue('failed')
   failed,
+  @JsonValue('cancelled')
+  cancelled,
 }
 
 @JsonSerializable()
@@ -40,9 +42,13 @@ class Payment {
     required this.createdAt,
   });
 
+  /// Wall clock on this device — API stores UTC; use this for UI and receipts.
+  DateTime get createdAtLocal => createdAt.toLocal();
+
   bool get isSuccess => status == PaymentStatus.success;
   bool get isPending => status == PaymentStatus.pending;
   bool get isFailed => status == PaymentStatus.failed;
+  bool get isCancelled => status == PaymentStatus.cancelled;
 
   String get methodDisplay {
     switch (method) {
@@ -63,6 +69,8 @@ class Payment {
         return 'Pending';
       case PaymentStatus.failed:
         return 'Failed';
+      case PaymentStatus.cancelled:
+        return 'Cancelled';
     }
   }
 

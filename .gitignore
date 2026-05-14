@@ -13,6 +13,9 @@ node_modules/
 build/
 .dart_tool/
 
+# Local clone / scratch (do not commit)
+.tmp_plutusapp_new/
+
 # Environment & secrets — never commit these
 .env
 .env.local

@@ -46,6 +46,8 @@ class Order {
   double get totalAmount => grandTotal;
   DateTime get createdAt => orderDate;
 
+  DateTime get createdAtLocal => orderDate.toLocal();
+
   Order({
     required this.id,
     required this.invoiceNumber,

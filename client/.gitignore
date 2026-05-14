@@ -47,7 +47,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# FVM Version Cache
-.fvm/
+# FVM — commit .fvm/fvm_config.json; symlinks are machine-local
+.fvm/flutter_sdk
+.fvm/versions
 # Environment variables
 .env

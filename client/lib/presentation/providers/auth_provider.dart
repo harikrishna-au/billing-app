@@ -1,10 +1,21 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/network/api_exception.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/api_auth_repository.dart';
 import '../../core/network/providers.dart';
 import 'bill_config_provider.dart';
+
+/// Dio wraps our [ApiException] in [DioException.error] — surface the inner message for UI/logs.
+String _unwrapAuthError(Object e) {
+  if (e is DioException && e.error is ApiException) {
+    return (e.error as ApiException).message;
+  }
+  if (e is ApiException) return e.message;
+  return e.toString();
+}
 
 // Repository Provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -58,22 +69,29 @@ class AuthController extends StateNotifier<AuthState> {
         ref.read(billConfigProvider.notifier).refresh(user.id);
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: _unwrapAuthError(e));
     }
   }
 
   Future<void> login(String email, String password) async {
-    debugPrint('Attempting login for: $email');
+    if (kDebugMode) {
+      debugPrint('Login attempt (username only): $email');
+    }
     state = state.copyWith(isLoading: true, error: null);
     try {
       final authRepo = ref.read(authRepositoryProvider);
       final user = await authRepo.login(email, password);
-      debugPrint('Login successful: ${user.username}');
+      if (kDebugMode) {
+        debugPrint('Login successful: ${user.username}');
+      }
       state = state.copyWith(user: user, isLoading: false);
       ref.read(billConfigProvider.notifier).refresh(user.id);
     } catch (e) {
-      debugPrint('Login error: $e');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      final msg = _unwrapAuthError(e);
+      if (kDebugMode) {
+        debugPrint('Login error: $msg');
+      }
+      state = state.copyWith(isLoading: false, error: msg);
     }
   }
 

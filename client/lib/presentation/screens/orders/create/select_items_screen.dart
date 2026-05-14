@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../providers/catalogue_provider.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/payment_provider.dart';
 import '../../../widgets/shimmer_loader.dart';
 import '../../../widgets/offline_banner.dart';
 import 'widgets/select_item_card.dart';
@@ -28,6 +29,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(catalogueProvider.notifier).setFilter(null);
       ref.read(catalogueProvider.notifier).fetchItems();
+      ref.read(paymentProvider.notifier).loadTodayPayments();
     });
   }
 
@@ -38,11 +40,32 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
     super.dispose();
   }
 
+  Future<void> _syncQueuedTickets() async {
+    final r = await ref.read(paymentProvider.notifier).syncQueuedTicketsNow();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          r.userMessage,
+          style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: r == QueuedTicketsSyncResult.success
+            ? AppColors.success
+            : AppColors.textSecondary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+    await ref.read(paymentProvider.notifier).loadTodayPayments();
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalogueState = ref.watch(catalogueProvider);
     final cartState = ref.watch(cartProvider);
     final cartController = ref.read(cartProvider.notifier);
+    final paymentState = ref.watch(paymentProvider);
 
     final filteredItems = catalogueState.items;
 
@@ -75,7 +98,15 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
       body: Column(
         children: [
           // Offline indicator
-          if (catalogueState.isOffline) const OfflineBanner(),
+          if (catalogueState.isOffline || paymentState.pendingCount > 0)
+            OfflineBanner(
+              message: !catalogueState.isOffline && paymentState.pendingCount > 0
+                  ? '${paymentState.pendingCount} ticket(s) queued for server'
+                  : null,
+              pendingCount:
+                  paymentState.pendingCount > 0 ? paymentState.pendingCount : null,
+              onSyncTap: paymentState.pendingCount > 0 ? _syncQueuedTickets : null,
+            ),
 
           // Search bar
           Container(
