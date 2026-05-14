@@ -5,10 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/print_utils.dart';
 import '../../../providers/cart_provider.dart';
-import '../../../providers/bill_config_provider.dart';
-import '../../../../services/smart_pos_printer_service.dart';
-import '../../../../core/network/providers.dart';
 
 class BillScreen extends ConsumerStatefulWidget {
   final String? invoiceNumber;
@@ -32,8 +30,6 @@ class BillScreen extends ConsumerStatefulWidget {
 }
 
 class _BillScreenState extends ConsumerState<BillScreen> {
-  final SmartPosPrinterService _printer = SmartPosPrinterService();
-
   @override
   void initState() {
     super.initState();
@@ -41,7 +37,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final cartState = ref.read(cartProvider);
-        final now = widget.date ?? DateTime.now();
+        final now = (widget.date ?? DateTime.now()).toLocal();
         final invoiceNo = widget.invoiceNumber ?? 'BILL/PENDING';
         final total = widget.amount ?? cartState.totalAmount;
         _handlePrint(context, ref, invoiceNo, total, now, cartState);
@@ -49,8 +45,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     }
   }
 
-  /// Attempts to print the receipt for [billNumber].
-  /// Blocks the print and shows an error dialog if this bill was already printed.
+  /// Uses [PrintUtils.printReceipt] so layout matches checkout / UPI / card.
   Future<void> _handlePrint(
     BuildContext context,
     WidgetRef ref,
@@ -59,197 +54,21 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     DateTime date,
     CartState cartState,
   ) async {
-    final tracker = ref.read(printedBillsTrackerProvider);
-
-    // --- GUARD: already printed? ---
-    if (tracker.hasBeenPrinted(billNumber)) {
-      if (!context.mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: Colors.orange, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Already Printed',
-                style: GoogleFonts.dmSans(
-                    fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          content: Text(
-            'Ticket $billNumber has already been printed.\n\nPrinting the same ticket again is not allowed.',
-            style: GoogleFonts.dmSans(
-                fontSize: 14, color: AppColors.textSecondary),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('OK',
-                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    // --- PRINT ---
-    try {
-      final config = ref.read(billConfigProvider);
-      final cgstRate = config.cgstPercent / 100;
-      final sgstRate = config.sgstPercent / 100;
-      final taxRate = cgstRate + sgstRate;
-      final taxableAmount = taxRate > 0 ? total / (1 + taxRate) : total;
-      final cgstAmount = taxableAmount * cgstRate;
-      final sgstAmount = taxableAmount * sgstRate;
-      final hasTax = taxRate > 0;
-      await _printer.initSdk();
-
-      if (config.orgName.isNotEmpty) {
-        await _printer.printText(
-          text: config.orgName,
-          size: 28,
-          isBold: true,
-          align: 1,
-        );
-      }
-      await _printer.printText(
-        text: '--------------------------------',
-        size: 20,
-        align: 1,
-      );
-
-      if (config.unitName != null && config.unitName!.isNotEmpty) {
-        await _printer.printText(text: config.unitName!, size: 20, align: 0);
-      }
-      if (config.territory != null && config.territory!.isNotEmpty) {
-        await _printer.printText(text: config.territory!, size: 20, align: 0);
-      }
-      if (config.gstNumber != null && config.gstNumber!.isNotEmpty) {
-        await _printer.printText(
-          text: 'GSTIN: ${config.gstNumber!}',
-          size: 20,
-          align: 0,
-        );
-      }
-      if (config.posId != null && config.posId!.isNotEmpty) {
-        await _printer.printText(
-          text: 'POS ID: ${config.posId!}',
-          size: 20,
-          align: 0,
-        );
-      }
-      if ((config.unitName != null && config.unitName!.isNotEmpty) ||
-          (config.territory != null && config.territory!.isNotEmpty) ||
-          (config.gstNumber != null && config.gstNumber!.isNotEmpty) ||
-          (config.posId != null && config.posId!.isNotEmpty)) {
-        await _printer.printText(
-          text: '--------------------------------',
-          size: 20,
-          align: 1,
-        );
-      }
-
-      await _printer.printText(text: 'Bill No: $billNumber', size: 22, align: 0);
-      final dateStr =
-          '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}  '
-          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-      await _printer.printText(text: dateStr, size: 20, align: 0);
-      await _printer.printText(
-        text: '--------------------------------',
-        size: 20,
-        align: 1,
-      );
-
-      for (final item in cartState.items.values) {
-        final line =
-            '${item.product.name}  x${item.quantity}   Rs.${(item.product.price * item.quantity).toStringAsFixed(2)}';
-        await _printer.printText(text: line, size: 22, align: 0);
-      }
-
-      await _printer.printText(
-        text: '--------------------------------',
-        size: 20,
-        align: 1,
-      );
-      await _printer.printText(
-        text: 'TOTAL    Rs.${total.toStringAsFixed(2)}',
-        size: 26,
-        isBold: true,
-        align: 0,
-      );
-      if (hasTax) {
-        await _printer.printText(
-          text:
-              'Taxable Amt  Rs.${taxableAmount.toStringAsFixed(2)}',
-          size: 20,
-          align: 0,
-        );
-        await _printer.printText(
-          text:
-              'CGST @${config.cgstPercent.toStringAsFixed(0)}%  Rs.${cgstAmount.toStringAsFixed(2)}',
-          size: 20,
-          align: 0,
-        );
-        await _printer.printText(
-          text:
-              'SGST @${config.sgstPercent.toStringAsFixed(0)}%  Rs.${sgstAmount.toStringAsFixed(2)}',
-          size: 20,
-          align: 0,
-        );
-      }
-      await _printer.printText(
-        text: 'Payment: ${_paymentLabel(widget.paymentMethod)}',
-        size: 20,
-        align: 0,
-      );
-      await _printer.printText(
-        text: '--------------------------------',
-        size: 20,
-        align: 1,
-      );
-
-      final footer =
-          (config.footerMessage != null && config.footerMessage!.isNotEmpty)
-              ? config.footerMessage!
-              : 'Thank you. Visit again!';
-      await _printer.printText(text: footer, size: 20, align: 1);
-      await _printer.printText(text: '\n\n', size: 20, align: 1);
-      await _printer.cutPaper();
-
-      // Mark as printed only on success
-      await tracker.markAsPrinted(billNumber);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
-      }
-    }
-  }
-
-  String _paymentLabel(String method) {
-    switch (method.toLowerCase()) {
-      case 'cash':
-        return 'CASH';
-      case 'card':
-        return 'CARD / Online';
-      case 'online':
-      case 'upi':
-        return 'UPI / Online';
-      default:
-        return method.toUpperCase();
-    }
+    await PrintUtils.printReceipt(
+      context: context,
+      provider: ProviderScope.containerOf(context, listen: false),
+      billNumber: billNumber,
+      total: total,
+      date: date,
+      cartState: cartState,
+      paymentMethod: widget.paymentMethod,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
-    final now = widget.date ?? DateTime.now();
+    final now = (widget.date ?? DateTime.now()).toLocal();
     final invoiceNo = widget.invoiceNumber ?? 'BILL/PENDING';
     final total = widget.amount ?? cartState.totalAmount;
     final isCash = widget.paymentMethod.toLowerCase() == 'cash';
@@ -322,7 +141,8 @@ class _BillScreenState extends ConsumerState<BillScreen> {
               child: Column(
                 children: [
                   // Success banner
-                  _SuccessBanner(total: total, isCash: isCash)
+                  _SuccessBanner(
+                      total: total, paymentMethod: widget.paymentMethod)
                       .animate()
                       .fadeIn(duration: 200.ms)
                       .scale(
@@ -371,9 +191,9 @@ class _BillScreenState extends ConsumerState<BillScreen> {
 
 class _SuccessBanner extends StatelessWidget {
   final double total;
-  final bool isCash;
+  final String paymentMethod;
 
-  const _SuccessBanner({required this.total, required this.isCash});
+  const _SuccessBanner({required this.total, required this.paymentMethod});
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +225,7 @@ class _SuccessBanner extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Payment successful',
+            'Ticket Booked',
             style: GoogleFonts.dmSans(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -432,7 +252,7 @@ class _SuccessBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isCash ? 'Paid via Cash' : 'Paid via UPI / Online',
+              PrintUtils.receiptPaymentLabel(paymentMethod),
               style: GoogleFonts.dmSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

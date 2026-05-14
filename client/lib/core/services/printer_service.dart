@@ -65,7 +65,7 @@ class PrinterService {
               pw.SizedBox(height: 4),
               pw.Text('Ticket: $orderId', style: normalStyle),
               pw.Text(
-                'Date: ${DateFormat('dd/MM/yyyy HH:mm').format(date)}',
+                'Date: ${DateFormat('dd/MM/yyyy HH:mm').format(date.toLocal())}',
                 style: normalStyle,
               ),
               pw.Divider(),

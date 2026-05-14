@@ -6,16 +6,7 @@
 -keep class io.flutter.plugin.** { *; }
 
 # Keep MainActivity
--keep class com.hadoom.mit.MainActivity { *; }
-
-# Razorpay
--keepattributes *Annotation*
--dontwarn com.razorpay.**
--keep class com.razorpay.** { *; }
--optimizations !method/inlining/*
--keepclasseswithmembers class * {
-    public void onPayment*(...);
-}
+-keep class com.mit.MainActivity { *; }
 
 # Gson / JSON
 -keepattributes Signature

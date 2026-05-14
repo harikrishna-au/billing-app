@@ -1,9 +1,24 @@
 import 'dart:convert';
+
 import '../models/payment_model.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/cache_service.dart';
 import 'payment_repository.dart';
+
+String _apiDetailFromBody(dynamic raw) {
+  if (raw is! Map) return 'Request failed';
+  final m = Map<String, dynamic>.from(raw);
+  final d = m['detail'];
+  if (d is String) return d;
+  if (d is List && d.isNotEmpty) {
+    final first = d.first;
+    if (first is Map && first['msg'] is String) return first['msg'] as String;
+  }
+  final msg = m['message'];
+  if (msg is String) return msg;
+  return 'Request failed';
+}
 
 class ApiPaymentRepository implements PaymentRepository {
   static const _cacheKey = 'payments_all';
@@ -34,6 +49,14 @@ class ApiPaymentRepository implements PaymentRepository {
         _cacheKey, jsonEncode(payments.map((p) => p.toJson()).toList()));
   }
 
+  @override
+  Future<void> mergePaymentIntoLocalCache(Payment payment) async {
+    final existing = loadCachedPayments();
+    final tail =
+        existing.where((p) => p.billNumber != payment.billNumber).toList();
+    await _persistPayments([payment, ...tail]);
+  }
+
   // ── Repository methods ───────────────────────────────────────────────────
 
   @override
@@ -49,7 +72,10 @@ class ApiPaymentRepository implements PaymentRepository {
       if (response.data['success'] == true) {
         final paymentsData = response.data['data']['payments'] as List;
         final payments = paymentsData.map((p) => Payment.fromJson(p)).toList();
-        await _persistPayments(payments);
+        // Only cache if we have data; otherwise serve from DB pagination
+        if (payments.isNotEmpty) {
+          await _persistPayments(payments);
+        }
         return payments;
       }
       return loadCachedPayments();
@@ -78,6 +104,7 @@ class ApiPaymentRepository implements PaymentRepository {
         final paymentsData = response.data['data']['payments'] as List;
         return paymentsData.map((p) => Payment.fromJson(p)).toList();
       }
+      // Use server-side filtering instead of client-side filtering
       return _filterCachedByRange(start, end);
     } catch (_) {
       // Fall back to filtering the cached full list by date range.
@@ -123,17 +150,38 @@ class ApiPaymentRepository implements PaymentRepository {
       },
     );
 
-    if (response.data['success'] == true) {
-      return Payment.fromJson(response.data['data']);
+    final raw = response.data;
+    if (raw is! Map) {
+      throw Exception('Invalid response from server');
     }
-    throw Exception('Failed to create payment');
+    final body = Map<String, dynamic>.from(raw);
+    if (body['success'] == true && body['data'] != null) {
+      try {
+        return Payment.fromJson(
+          Map<String, dynamic>.from(body['data'] as Map),
+        );
+      } catch (e) {
+        throw Exception(
+          'Payment may have been saved but the app could not read the response. '
+          'Pull to refresh on Orders, or try again. ($e)',
+        );
+      }
+    }
+    throw Exception(_apiDetailFromBody(body));
   }
 
   @override
-  Future<void> updatePaymentStatus(String id, PaymentStatus status) async {
-    await _apiClient.put(
+  Future<Payment> updatePaymentStatus(String id, PaymentStatus status) async {
+    final response = await _apiClient.put(
       ApiConstants.paymentById(id),
       data: {'status': status.name},
     );
+    final raw = response.data;
+    if (raw is Map && raw['success'] == true && raw['data'] != null) {
+      return Payment.fromJson(
+        Map<String, dynamic>.from(raw['data'] as Map),
+      );
+    }
+    throw Exception('Failed to update payment');
   }
 }

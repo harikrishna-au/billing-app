@@ -24,11 +24,11 @@ class ApiClient {
     _dio.interceptors.add(_AuthInterceptor(_tokenManager, _dio));
     _dio.interceptors.add(_RetryInterceptor(_dio));
     _dio.interceptors.add(_ErrorInterceptor());
-    // Only log in debug builds — avoids sensitive data in production logs.
+    // Debug-only: never log bodies — login/password and tokens would appear in Logcat.
     assert(() {
       _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
+        requestBody: false,
+        responseBody: false,
         error: true,
       ));
       return true;
@@ -166,6 +166,35 @@ class _RetryInterceptor extends Interceptor {
   }
 }
 
+String _friendlyConnectionMessage(DioException err) {
+  final raw = err.message ?? '';
+  final inner = err.error?.toString() ?? '';
+  if (raw.contains('Failed host lookup') ||
+      inner.contains('Failed host lookup')) {
+    return 'Cannot find server host. Check Wi‑Fi/mobile data, DNS, and API URL '
+        '(${ApiConstants.baseUrl}).';
+  }
+  if (raw.contains('Network is unreachable') ||
+      inner.contains('Network is unreachable')) {
+    return 'Network unreachable. Turn on Wi‑Fi or mobile data and try again.';
+  }
+  if (raw.contains('CERTIFICATE_VERIFY_FAILED') ||
+      raw.contains('HandshakeException')) {
+    return 'Secure connection failed. Check this device’s date and time.';
+  }
+  if (raw.isNotEmpty) return raw;
+  return 'Network error occurred';
+}
+
+/// Parses `{ success, data: { access_token, ... } }` or flat `{ access_token }`.
+Map<String, dynamic>? _parseJsonMap(dynamic body) {
+  if (body is! Map) return null;
+  final map = Map<String, dynamic>.from(body);
+  final inner = map['data'];
+  if (inner is Map) return Map<String, dynamic>.from(inner);
+  return map;
+}
+
 /// Auth Interceptor - Adds token to requests and handles token refresh
 class _AuthInterceptor extends Interceptor {
   final TokenManager _tokenManager;
@@ -192,12 +221,16 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // Don't retry if this is already a login or refresh request
+    // Auth endpoints: only wipe the session on real auth rejection (401/403),
+    // not on timeouts/network blips — otherwise one failed Razorpay/order call
+    // could leave the user "logged out" for Cash/UPI on the same checkout.
     if (err.requestOptions.path.contains('/auth/login') ||
         err.requestOptions.path.contains('/auth/refresh') ||
         err.requestOptions.path.contains('/auth/machine-login')) {
-      // Clear tokens on auth failure
-      await _tokenManager.clearAll();
+      final code = err.response?.statusCode;
+      if (code == 401 || code == 403) {
+        await _tokenManager.clearAll();
+      }
       return handler.next(err);
     }
 
@@ -207,20 +240,29 @@ class _AuthInterceptor extends Interceptor {
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
-          // Attempt to refresh token
+          // Attempt to refresh token (must match backend: data.access_token)
           final response = await _dio.post(
             ApiConstants.refresh,
             data: {'refresh_token': refreshToken},
           );
 
           if (response.statusCode == 200) {
-            final newAccessToken = response.data['accessToken'] as String?;
-            final newRefreshToken = response.data['refreshToken'] as String?;
+            final data = _parseJsonMap(response.data);
+            final newAccessToken = data?['access_token'] as String? ??
+                data?['accessToken'] as String?;
+            final newRefreshToken = data?['refresh_token'] as String? ??
+                data?['refreshToken'] as String?;
+            final expiresIn = data?['expires_in'] as int?;
 
             if (newAccessToken != null) {
               await _tokenManager.saveAccessToken(newAccessToken);
               if (newRefreshToken != null) {
                 await _tokenManager.saveRefreshToken(newRefreshToken);
+              }
+              if (expiresIn != null) {
+                await _tokenManager.saveTokenExpiry(
+                  DateTime.now().add(Duration(seconds: expiresIn)),
+                );
               }
 
               // Retry the original request
@@ -243,8 +285,10 @@ class _AuthInterceptor extends Interceptor {
             }
           }
         } catch (e) {
-          // Refresh failed, clear tokens
-          await _tokenManager.clearAll();
+          if (e is DioException &&
+              (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+            await _tokenManager.clearAll();
+          }
         }
       } else {
         // No refresh token available, clear all tokens
@@ -302,7 +346,7 @@ class _ErrorInterceptor extends Interceptor {
       case DioExceptionType.unknown:
       default:
         exception = NetworkException(
-          message: err.message ?? 'Network error occurred',
+          message: _friendlyConnectionMessage(err),
         );
         break;
     }

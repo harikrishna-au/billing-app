@@ -1,7 +1,17 @@
 /// API Configuration for Backend
 class ApiConstants {
-  // Base URL - Backend running on Render
-  static const String baseUrl = 'https://billing-app-xceo.onrender.com/v1';
+  /// Default backend on Render. Override when building or running:
+  /// `flutter run --dart-define=API_BASE_URL=https://your-host.com/v1`
+  static String get baseUrl {
+    const env = String.fromEnvironment('API_BASE_URL');
+    final trimmed = env.trim();
+    if (trimmed.isEmpty) {
+      return 'https://billing-app-xceo.onrender.com/v1';
+    }
+    if (trimmed.endsWith('/v1')) return trimmed;
+    if (trimmed.endsWith('/')) return '${trimmed}v1';
+    return '$trimmed/v1';
+  }
 
   // Auth Endpoints
   static const String login = '/auth/machine-login';  // Machine login for client app
@@ -39,16 +49,4 @@ class ApiConstants {
   static const String authHeader = 'Authorization';
   static const String contentType = 'Content-Type';
   static const String applicationJson = 'application/json';
-}
-
-/// Razorpay configuration — Key ID only (secret stays on the backend).
-class RazorpayConfig {
-  /// Razorpay Key ID (rzp_test_xxx or rzp_live_xxx)
-  static const String keyId = String.fromEnvironment(
-    'RAZORPAY_KEY_ID',
-    defaultValue: 'rzp_live_SPMIwC9OdtwY5r',
-  );
-
-  /// Backend endpoint to create a Razorpay order (uses existing FastAPI backend)
-  static const String createOrderPath = '/payments/razorpay/create-order';
 }

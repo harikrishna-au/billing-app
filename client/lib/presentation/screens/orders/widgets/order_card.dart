@@ -38,7 +38,7 @@ class OrderCard extends StatelessWidget {
     }
 
     final formattedDate =
-        DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt);
+        DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAtLocal);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

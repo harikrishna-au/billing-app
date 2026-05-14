@@ -38,6 +38,26 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     await ref.read(paymentProvider.notifier).loadPaymentsForDate(date);
   }
 
+  Future<void> _syncQueuedTickets() async {
+    final r = await ref.read(paymentProvider.notifier).syncQueuedTicketsNow();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          r.userMessage,
+          style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: r == QueuedTicketsSyncResult.success
+            ? AppColors.success
+            : AppColors.textSecondary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+    await _loadFor(_selectedDate);
+  }
+
   bool _isPrinting = false;
 
   void _showPrintSheet(BuildContext context) {
@@ -213,8 +233,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
       final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
       final printedStr   = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
-      final startDateStr = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.first.createdAt);
-      final endDateStr   = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.last.createdAt);
+      final startDateStr = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.first.createdAtLocal);
+      final endDateStr   = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.last.createdAtLocal);
       final terminal     = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
       String fmt(double v) => v.toStringAsFixed(2);
       String cnt(int n, double v) => n > 0 ? '${n.toString().padLeft(2)}  ${fmt(v)}' : '';
@@ -299,6 +319,78 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     if (picked != null) _loadFor(picked);
   }
 
+  Future<void> _confirmCancelTicket(BuildContext context, Payment payment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Cancel this ticket?',
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+        content: Text(
+          '${payment.billNumber} — ${CurrencyFormatter.format(payment.amount)}\n\n'
+          'This marks the sale as cancelled. It cannot be undone from the POS.',
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 14, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Keep',
+              style: GoogleFonts.dmSans(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Cancel ticket',
+              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final err = await ref.read(paymentProvider.notifier).cancelTicket(payment);
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (err != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(err, style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ticket cancelled',
+            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(paymentProvider);
@@ -325,21 +417,17 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
-          if (_isPrinting)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.print_rounded,
-                  color: AppColors.textSecondary, size: 22),
-              onPressed: () => _showPrintSheet(context),
-              tooltip: 'Print Summary',
+          IconButton(
+            icon: Icon(
+              Icons.print_rounded,
+              color: _isPrinting
+                  ? AppColors.border
+                  : AppColors.textSecondary,
+              size: 22,
             ),
+            onPressed: _isPrinting ? null : () => _showPrintSheet(context),
+            tooltip: 'Print Summary',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded,
                 color: AppColors.textSecondary, size: 22),
@@ -351,9 +439,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (state.isOffline)
+          if (state.isOffline || state.pendingCount > 0)
             ImprovedOfflineBanner(
+              message: !state.isOffline && state.pendingCount > 0
+                  ? '${state.pendingCount} ticket(s) queued — tap Sync'
+                  : null,
               pendingCount: state.pendingCount > 0 ? state.pendingCount : null,
+              onSyncTap: state.pendingCount > 0 ? _syncQueuedTickets : null,
             ),
 
           // Full-screen error (non-offline hard failure)
@@ -462,11 +554,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         itemCount: payments.length,
                         itemBuilder: (context, index) {
                           final p = payments[index];
+                          final billUri = Uri(
+                            path: '/new/review/bill',
+                            queryParameters: {
+                              'method': p.methodDisplay,
+                              'invoice': p.billNumber,
+                              'amount': p.amount.toString(),
+                              'date': p.createdAt.toUtc().toIso8601String(),
+                              'readOnly': 'true',
+                            },
+                          );
                           return PaymentCard(
                             payment: p,
-                            onTap: () => context.push(
-                              '/new/review/collect-payment/bill?method=${p.methodDisplay}&invoice=${p.billNumber}&amount=${p.amount}&date=${p.createdAt.toIso8601String()}&readOnly=true',
-                            ),
+                            onTap: () => context.push(billUri.toString()),
+                            onCancelTicket: () => _confirmCancelTicket(context, p),
                           )
                               .animate()
                               .fadeIn(

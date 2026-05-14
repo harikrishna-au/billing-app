@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +10,52 @@ import '../../data/models/payment_model.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/api_payment_repository.dart';
 import 'auth_provider.dart';
+
+String _paymentErrorMessage(Object e) {
+  if (e is DioException && e.error is ApiException) {
+    return (e.error! as ApiException).message;
+  }
+  if (e is ApiException) return e.message;
+  final s = e.toString();
+  if (s.startsWith('Exception: ')) return s.substring('Exception: '.length);
+  return s;
+}
+
+/// Sentinel for [PaymentState.copyWith] so omitting [error] preserves the prior value.
+class _PaymentErrorUnset {
+  const _PaymentErrorUnset();
+}
+
+const Object _paymentErrorUnset = _PaymentErrorUnset();
+
+/// Outcome of pushing locally queued tickets to the server (`/sync/push`).
+enum QueuedTicketsSyncResult {
+  nothingToSync,
+  notLoggedIn,
+  success,
+  failedNetwork,
+}
+
+bool _sameLocalCalendarDay(DateTime a, DateTime b) {
+  final la = a.toLocal();
+  final lb = b.toLocal();
+  return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+}
+
+extension QueuedTicketsSyncResultMessage on QueuedTicketsSyncResult {
+  String get userMessage {
+    switch (this) {
+      case QueuedTicketsSyncResult.nothingToSync:
+        return 'Nothing queued to sync';
+      case QueuedTicketsSyncResult.notLoggedIn:
+        return 'Sign in to sync tickets';
+      case QueuedTicketsSyncResult.success:
+        return 'Tickets synced to server';
+      case QueuedTicketsSyncResult.failedNetwork:
+        return 'Server unreachable — tickets stay queued';
+    }
+  }
+}
 
 // Repository Provider
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
@@ -25,7 +73,6 @@ class PaymentState {
   final List<Payment> filteredPayments;
   final bool isLoading;
   final String? error;
-  final Payment? lastCreatedPayment;
   final int pendingCount;
   /// True when the list is being served from local cache (network unavailable).
   final bool isOffline;
@@ -35,7 +82,6 @@ class PaymentState {
     this.filteredPayments = const [],
     this.isLoading = false,
     this.error,
-    this.lastCreatedPayment,
     this.pendingCount = 0,
     this.isOffline = false,
   });
@@ -44,8 +90,7 @@ class PaymentState {
     List<Payment>? payments,
     List<Payment>? filteredPayments,
     bool? isLoading,
-    String? error,
-    Payment? lastCreatedPayment,
+    Object? error = _paymentErrorUnset,
     int? pendingCount,
     bool? isOffline,
   }) {
@@ -53,8 +98,9 @@ class PaymentState {
       payments: payments ?? this.payments,
       filteredPayments: filteredPayments ?? this.filteredPayments,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
-      lastCreatedPayment: lastCreatedPayment ?? this.lastCreatedPayment,
+      error: identical(error, _paymentErrorUnset)
+          ? this.error
+          : error as String?,
       pendingCount: pendingCount ?? this.pendingCount,
       isOffline: isOffline ?? this.isOffline,
     );
@@ -83,6 +129,11 @@ class PaymentController extends StateNotifier<PaymentState> {
 
   PaymentController(this.ref) : super(PaymentState());
 
+  /// Clears API error from the last payment attempt so it does not linger on Checkout.
+  void clearPaymentError() {
+    state = state.copyWith(error: null);
+  }
+
   Future<void> loadAllPayments() async {
     // Try to flush any queued offline payments first (silently).
     await flushSyncQueue();
@@ -90,6 +141,7 @@ class PaymentController extends StateNotifier<PaymentState> {
     state = state.copyWith(isLoading: true);
     try {
       final payments = await ref.read(paymentRepositoryProvider).getPayments();
+      // Get pending count in parallel with payment fetch
       final pending = await ref.read(syncQueueServiceProvider).pendingCount;
       state = state.copyWith(
         payments: payments,
@@ -97,6 +149,7 @@ class PaymentController extends StateNotifier<PaymentState> {
         isLoading: false,
         pendingCount: pending,
         isOffline: false,
+        error: null,
       );
 
       assert(() {
@@ -150,14 +203,28 @@ class PaymentController extends StateNotifier<PaymentState> {
     }
   }
 
+  Future<void> _refreshPendingCount() async {
+    final n = await ref.read(syncQueueServiceProvider).pendingCount;
+    state = state.copyWith(pendingCount: n);
+  }
+
   /// Push any locally queued payments to the server via /sync/push.
+  /// Prefer [syncQueuedTicketsNow] when you need the result; this stays for silent hooks.
   Future<void> flushSyncQueue() async {
+    await syncQueuedTicketsNow();
+  }
+
+  /// Manual or periodic sync: uploads queued offline tickets, updates bill counter on success.
+  Future<QueuedTicketsSyncResult> syncQueuedTicketsNow() async {
     final queue = ref.read(syncQueueServiceProvider);
     final pending = await queue.getPending();
-    if (pending.isEmpty) return;
+    if (pending.isEmpty) {
+      await _refreshPendingCount();
+      return QueuedTicketsSyncResult.nothingToSync;
+    }
 
     final user = ref.read(authProvider).user;
-    if (user == null) return;
+    if (user == null) return QueuedTicketsSyncResult.notLoggedIn;
 
     try {
       final apiClient = ref.read(apiClientProvider);
@@ -175,16 +242,18 @@ class PaymentController extends StateNotifier<PaymentState> {
         await queue.clear();
         state = state.copyWith(pendingCount: 0);
 
-        // Sync the confirmed backend counter so the local sequence never dips
-        // below what the server has recorded.
         final responseData = response.data['data'] as Map<String, dynamic>?;
         final backendCounter = responseData?['latest_bill_counter'];
         if (backendCounter is int) {
           await billGen.syncWithBackend(backendCounter);
         }
+        return QueuedTicketsSyncResult.success;
       }
+      await _refreshPendingCount();
+      return QueuedTicketsSyncResult.failedNetwork;
     } catch (_) {
-      // Still offline — leave items in the queue.
+      await _refreshPendingCount();
+      return QueuedTicketsSyncResult.failedNetwork;
     }
   }
 
@@ -192,16 +261,21 @@ class PaymentController extends StateNotifier<PaymentState> {
     await loadAllPayments();
   }
 
-  Future<void> loadPaymentsForDate(DateTime date) async {
+  Future<void> loadPaymentsForDate(DateTime date,
+      {bool showGlobalLoading = true}) async {
     // Calculate start and end of the day
     final start = DateTime(date.year, date.month, date.day);
     final end = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
-    await loadPaymentsByDateRange(start, end);
+    await loadPaymentsByDateRange(start, end,
+        showGlobalLoading: showGlobalLoading);
   }
 
-  Future<void> loadPaymentsByDateRange(DateTime start, DateTime end) async {
-    state = state.copyWith(isLoading: true);
+  Future<void> loadPaymentsByDateRange(DateTime start, DateTime end,
+      {bool showGlobalLoading = true}) async {
+    if (showGlobalLoading) {
+      state = state.copyWith(isLoading: true);
+    }
     try {
       final payments = await ref
           .read(paymentRepositoryProvider)
@@ -209,8 +283,9 @@ class PaymentController extends StateNotifier<PaymentState> {
       state = state.copyWith(
         payments: payments,
         filteredPayments: payments,
-        isLoading: false,
+        isLoading: showGlobalLoading ? false : state.isLoading,
         isOffline: false,
+        error: null,
       );
     } catch (_) {
       // Fall back to filtering the cached all-payments list.
@@ -225,24 +300,89 @@ class PaymentController extends StateNotifier<PaymentState> {
       state = state.copyWith(
         payments: filtered,
         filteredPayments: filtered,
-        isLoading: false,
+        isLoading: showGlobalLoading ? false : state.isLoading,
         isOffline: true,
         error: filtered.isEmpty ? 'Unable to load orders. Check connection.' : null,
       );
     }
   }
 
-  Future<Payment?> createPayment(Payment payment) async {
+  /// Merges [p] into in-memory lists for today so checkout/orders update immediately.
+  void _optimisticMergeToday(Payment p, {required bool fromServer}) {
+    if (!_sameLocalCalendarDay(p.createdAt, DateTime.now())) return;
+    final payments = [
+      p,
+      ...state.payments.where((x) => x.billNumber != p.billNumber),
+    ];
+    final filtered = [
+      p,
+      ...state.filteredPayments.where((x) => x.billNumber != p.billNumber),
+    ];
+    state = state.copyWith(
+      payments: payments,
+      filteredPayments: filtered,
+      isOffline: fromServer ? false : true,
+      error: null,
+    );
+  }
+
+  /// Best-effort: push queued tickets, then refresh today from server (no await on hot path).
+  Future<void> _reconcileAfterOnlineCreate() async {
+    await syncQueuedTicketsNow();
+    await loadPaymentsForDate(DateTime.now(), showGlobalLoading: false);
+  }
+
+  /// Cancels a successful ticket (server marks status `cancelled`). Returns an error message on failure.
+  Future<String?> cancelTicket(Payment payment) async {
+    if (payment.isCancelled) return 'This ticket is already cancelled';
+    if (!payment.isSuccess) return 'Only paid tickets can be cancelled';
+    if (state.isOffline) {
+      return 'You need an internet connection to cancel this ticket';
+    }
+
     try {
-      final createdPayment =
-          await ref.read(paymentRepositoryProvider).createPayment(payment);
+      final repo = ref.read(paymentRepositoryProvider);
+      final updated =
+          await repo.updatePaymentStatus(payment.id, PaymentStatus.cancelled);
+      await repo.mergePaymentIntoLocalCache(updated);
+      _replacePaymentInState(updated);
+      return null;
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      if (body is Map) {
+        final detail = body['detail'];
+        if (detail is String && detail.isNotEmpty) return detail;
+        final err = body['error'];
+        if (err is Map && err['message'] is String) return err['message'] as String;
+      }
+      return e.message ?? e.toString();
+    } catch (e) {
+      return e.toString();
+    }
+  }
 
-      // Flush offline queue, then reload today's payments only so the
-      // Orders screen always defaults to the current day.
-      await flushSyncQueue();
-      await loadPaymentsForDate(DateTime.now());
+  void _replacePaymentInState(Payment updated) {
+    Payment pick(Payment p) => (p.id == updated.id || p.billNumber == updated.billNumber)
+        ? updated
+        : p;
+    state = state.copyWith(
+      payments: state.payments.map(pick).toList(),
+      filteredPayments: state.filteredPayments.map(pick).toList(),
+      error: null,
+    );
+  }
 
-      state = state.copyWith(lastCreatedPayment: createdPayment);
+  Future<Payment?> createPayment(Payment payment) async {
+    final repo = ref.read(paymentRepositoryProvider);
+    state = state.copyWith(error: null);
+
+    try {
+      final createdPayment = await repo.createPayment(payment);
+
+      await repo.mergePaymentIntoLocalCache(createdPayment);
+      _optimisticMergeToday(createdPayment, fromServer: true);
+
+      unawaited(_reconcileAfterOnlineCreate());
       return createdPayment;
     } catch (e) {
       // Detect network / connection failures and queue locally.
@@ -269,16 +409,14 @@ class PaymentController extends StateNotifier<PaymentState> {
             status: PaymentStatus.pending,
             createdAt: payment.createdAt,
           );
-          final newCount = state.pendingCount + 1;
-          state = state.copyWith(
-            lastCreatedPayment: pendingPayment,
-            pendingCount: newCount,
-          );
+          await repo.mergePaymentIntoLocalCache(pendingPayment);
+          _optimisticMergeToday(pendingPayment, fromServer: false);
+          await _refreshPendingCount();
           return pendingPayment;
         }
       }
 
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: _paymentErrorMessage(e));
       return null;
     }
   }

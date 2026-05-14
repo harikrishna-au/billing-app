@@ -9,11 +9,14 @@ import '../../../../data/models/payment_model.dart';
 class PaymentCard extends StatelessWidget {
   final Payment payment;
   final VoidCallback? onTap;
+  /// When set and [payment] is successful, shows overflow menu to cancel the ticket.
+  final VoidCallback? onCancelTicket;
 
   const PaymentCard({
     super.key,
     required this.payment,
     this.onTap,
+    this.onCancelTicket,
   });
 
   @override
@@ -38,12 +41,21 @@ class PaymentCard extends StatelessWidget {
         statusBg = AppColors.error.withValues(alpha: 0.1);
         statusLabel = 'Failed';
         break;
+      case PaymentStatus.cancelled:
+        statusColor = const Color(0xFF92400E);
+        statusBg = const Color(0xFFFFEDD5);
+        statusLabel = 'Cancelled';
+        break;
     }
 
     final isCash = payment.method == PaymentMethod.cash;
-    final formattedTime = DateFormat('hh:mm a').format(payment.createdAt);
+    final isCard = payment.method == PaymentMethod.card;
+    final formattedTime = DateFormat('hh:mm a').format(payment.createdAtLocal);
     final formattedDate =
-        DateFormat('dd MMM yyyy').format(payment.createdAt);
+        DateFormat('dd MMM yyyy').format(payment.createdAtLocal);
+
+    final showCancelMenu =
+        onCancelTicket != null && payment.isSuccess;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -82,7 +94,9 @@ class PaymentCard extends StatelessWidget {
                   child: Icon(
                     isCash
                         ? Icons.payments_rounded
-                        : Icons.qr_code_rounded,
+                        : isCard
+                            ? Icons.credit_card_rounded
+                            : Icons.qr_code_rounded,
                     color: isCash ? AppColors.success : AppColors.primary,
                     size: 22,
                   ),
@@ -148,6 +162,33 @@ class PaymentCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                if (showCancelMenu) ...[
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.more_vert_rounded,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                    onSelected: (value) {
+                      if (value == 'cancel') onCancelTicket!();
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem<String>(
+                        value: 'cancel',
+                        child: Text(
+                          'Cancel ticket',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

@@ -8,13 +8,26 @@ export 'app_error_widget.dart' show ImprovedOfflineBanner;
 class OfflineBanner extends StatelessWidget {
   final String? message;
   final int? pendingCount;
-  const OfflineBanner({super.key, this.message, this.pendingCount});
+  final VoidCallback? onSyncTap;
+
+  const OfflineBanner({
+    super.key,
+    this.message,
+    this.pendingCount,
+    this.onSyncTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final text = pendingCount != null && pendingCount! > 0
-        ? 'Offline — $pendingCount bill${pendingCount == 1 ? '' : 's'} queued to sync'
-        : (message ?? 'Offline — showing cached data');
+    final String text;
+    if (message != null && message!.trim().isNotEmpty) {
+      text = message!.trim();
+    } else if (pendingCount != null && pendingCount! > 0) {
+      text =
+          '$pendingCount bill${pendingCount == 1 ? '' : 's'} queued — tap Sync';
+    } else {
+      text = 'Offline — showing cached data';
+    }
 
     return Container(
       width: double.infinity,
@@ -33,8 +46,13 @@ class OfflineBanner extends StatelessWidget {
               color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.wifi_off_rounded,
-                size: 14, color: Color(0xFF92400E)),
+            child: Icon(
+              pendingCount != null && pendingCount! > 0
+                  ? Icons.cloud_upload_outlined
+                  : Icons.wifi_off_rounded,
+              size: 14,
+              color: Color(0xFF92400E),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -47,7 +65,25 @@ class OfflineBanner extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(Icons.sync_rounded, size: 14, color: Color(0xFF92400E)),
+          if (onSyncTap != null && pendingCount != null && pendingCount! > 0)
+            TextButton(
+              onPressed: onSyncTap,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Sync',
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF92400E),
+                ),
+              ),
+            )
+          else
+            const Icon(Icons.sync_rounded, size: 14, color: Color(0xFF92400E)),
         ],
       ),
     );

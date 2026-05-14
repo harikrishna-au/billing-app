@@ -67,7 +67,7 @@ class ReceiptGenerator {
 
               // Bill Details
               _buildRow('Bill No:', payment.billNumber),
-              _buildRow('Date:', _formatDateTime(payment.createdAt)),
+              _buildRow('Date:', _formatDateTime(payment.createdAt.toLocal())),
 
               pw.SizedBox(height: 8),
               pw.Divider(),

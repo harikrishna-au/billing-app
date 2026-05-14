@@ -35,4 +35,5 @@ const _$PaymentStatusEnumMap = {
   PaymentStatus.success: 'success',
   PaymentStatus.pending: 'pending',
   PaymentStatus.failed: 'failed',
+  PaymentStatus.cancelled: 'cancelled',
 };
