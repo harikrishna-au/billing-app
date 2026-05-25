@@ -13,6 +13,17 @@ class BillNumberGenerator {
 
   BillNumberGenerator(this._prefs);
 
+  /// Strips redundant leading zeros from the numeric suffix (e.g. `WSSBI-AP/000027` → `WSSBI-AP/27`).
+  static String displayTicketNumber(String billNumber) {
+    final i = billNumber.lastIndexOf('/');
+    if (i <= 0 || i >= billNumber.length - 1) return billNumber;
+    final prefix = billNumber.substring(0, i);
+    final suffix = billNumber.substring(i + 1);
+    final n = int.tryParse(suffix);
+    if (n == null) return billNumber;
+    return '$prefix/$n';
+  }
+
   /// Current counter value (does not increment).
   int get currentCounter => _prefs.getInt(_counterKey) ?? 0;
 
