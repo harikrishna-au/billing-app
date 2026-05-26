@@ -21,6 +21,15 @@ class PlutusSmartService {
     return res;
   }
 
+  /// Hardware serial / model from PayDroid (falls back to [PineTerminalConfig]).
+  static Future<Map<String, String>> getTerminalInfo() async {
+    final raw = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'getTerminalInfo',
+    );
+    if (raw == null) return const {};
+    return raw.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+  }
+
   static Future<String?> startPrintJob({required String printJson}) async {
     final res = await _channel.invokeMethod<String>(
       'startPrintJob',

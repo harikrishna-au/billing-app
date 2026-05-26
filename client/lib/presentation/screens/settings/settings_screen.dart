@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/theme/app_colors.dart';
+import '../../../core/constants/pine_terminal_config.dart';
+import '../../../core/constants/plutus_config.dart';
+import '../../../core/services/plutus_smart_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../providers/catalogue_provider.dart';
@@ -173,6 +177,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
 
             const SizedBox(height: 28),
+            _SectionLabel('POS terminal'),
+            const SizedBox(height: 10),
+            _Tile(
+              icon: Icons.point_of_sale_rounded,
+              iconBg: const Color(0xFFE0F2FE),
+              iconColor: const Color(0xFF0369A1),
+              title: 'Pine Labs device',
+              subtitle: 'S/N ${PineTerminalConfig.hardwareSerial}',
+              onTap: () => _showTerminalSheet(context, ref),
+            ),
+
+            const SizedBox(height: 28),
             _SectionLabel('About'),
             const SizedBox(height: 10),
             _Tile(
@@ -180,7 +196,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               iconBg: const Color(0xFFF0FFFE),
               iconColor: const Color(0xFF0D9488),
               title: 'App Info',
-              subtitle: 'Version 1.0.0',
+              subtitle: 'Version 1.0.0 · com.mit',
               onTap: () {},
             ),
 
@@ -239,6 +255,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(14)),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTerminalSheet(BuildContext context, WidgetRef ref) async {
+    Map<String, String> live = const {};
+    try {
+      live = await PlutusSmartService.getTerminalInfo();
+    } catch (_) {}
+
+    final liveSerial = live['serial']?.trim() ?? '';
+    final serial = liveSerial.isNotEmpty
+        ? liveSerial
+        : PineTerminalConfig.hardwareSerial;
+    final billConfig = ref.read(billConfigProvider);
+    final posId = (billConfig.posId?.trim().isNotEmpty == true)
+        ? billConfig.posId!
+        : PineTerminalConfig.posId;
+
+    final summary = PlutusConfig.pineRegistrationSummary;
+
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          20 + MediaQuery.paddingOf(ctx).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Pine Labs terminal',
+              style: GoogleFonts.dmSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _TerminalRow('Serial (S/N)', serial),
+            _TerminalRow('POS ID', posId),
+            _TerminalRow('Model', PineTerminalConfig.model),
+            _TerminalRow('UAT App ID', PlutusConfig.applicationId),
+            _TerminalRow('JIRA', PineTerminalConfig.jiraId),
+            const SizedBox(height: 12),
+            Text(
+              'Send the copied text to Pine Labs so this device is mapped in UAT.',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: summary));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Registration details copied',
+                      style: GoogleFonts.dmSans(),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Copy for Pine Labs email'),
             ),
           ],
         ),
@@ -635,6 +731,44 @@ class _UserCard extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TerminalRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TerminalRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
