@@ -19,6 +19,7 @@ import com.zcs.sdk.SdkResult
 import com.zcs.sdk.print.PrnStrFormat
 import com.zcs.sdk.print.PrnTextStyle
 import android.text.Layout
+import android.os.Build
 import java.util.concurrent.Executors
 
 class MainActivity: FlutterActivity() {
@@ -138,6 +139,9 @@ class MainActivity: FlutterActivity() {
                     }
                     startPlutusIntent(payload, requestCode = 1002, result = result)
                 }
+                "getTerminalInfo" -> {
+                    result.success(readTerminalInfoMap())
+                }
                 else -> result.notImplemented()
             }
         }
@@ -187,6 +191,41 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             pendingPlutusResult = null
             result.error("PLUTUS_INTENT_ERROR", e.localizedMessage, null)
+        }
+    }
+
+    private fun readTerminalInfoMap(): Map<String, String> {
+        val serial = readHardwareSerial()
+        return mapOf(
+            "serial" to serial,
+            "model" to (Build.MODEL ?: ""),
+            "manufacturer" to (Build.MANUFACTURER ?: ""),
+            "paydroidVersion" to readSystemProperty("ro.build.display.id"),
+        )
+    }
+
+    private fun readHardwareSerial(): String {
+        val fromProp = readSystemProperty("ro.serialno")
+        if (fromProp.isNotBlank() && fromProp != "unknown") return fromProp
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Build.getSerial()
+            } else {
+                @Suppress("DEPRECATION")
+                Build.SERIAL
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private fun readSystemProperty(key: String): String {
+        return try {
+            val clazz = Class.forName("android.os.SystemProperties")
+            val get = clazz.getMethod("get", String::class.java)
+            (get.invoke(null, key) as? String).orEmpty()
+        } catch (_: Exception) {
+            ""
         }
     }
 

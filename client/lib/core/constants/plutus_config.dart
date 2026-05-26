@@ -1,3 +1,5 @@
+import 'pine_terminal_config.dart';
+
 class PlutusConfig {
   /// Master switch for Plutus App-to-App flow.
   /// Set to true to force CARD/UPI through Plutus.
@@ -26,5 +28,11 @@ class PlutusConfig {
   );
 
   static bool get isConfigured => enabled && applicationId.trim().isNotEmpty;
+
+  /// Copy-paste block for Pine Labs UAT device registration email.
+  static String get pineRegistrationSummary =>
+      PineTerminalConfig.registrationSummary(
+        plutusApplicationId: applicationId,
+      );
 }
 
