@@ -1,54 +1,93 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 
+/// SmartPOS native printer service using the Android MethodChannel bridge.
 class SmartPosPrinterService {
   static const MethodChannel _channel =
       MethodChannel('com.smartpos.sdk/printer');
-  
-  static bool _sdkInitialized = false;
 
-  /// Initialize the SmartPos SDK (cached - only initializes once)
+  static Future<String?> getSavedPrinterAddress() async {
+    return null;
+  }
+
+  static Future<void> savePrinterAddress(String? address) async {
+    return;
+  }
+
+  /// Connects to the native attached printer bridge.
   Future<bool> initSdk() async {
-    if (_sdkInitialized) return true;
-    
-    try {
-      final String result = await _channel.invokeMethod('initSdk');
-      _sdkInitialized = result == "SDK Initialized Successfully";
-      return _sdkInitialized;
-    } on PlatformException catch (e) {
-      debugPrint("Failed to init SDK: '${e.message}'.");
-      _sdkInitialized = false;
+    if (kIsWeb || !Platform.isAndroid) {
+      debugPrint('SmartPosPrinterService: printing is Android-only');
       return false;
+    }
+    try {
+      await _channel.invokeMethod('initSdk');
+      return true;
+    } on PlatformException catch (e) {
+      throw StateError('SmartPOS SDK init failed: ${e.message ?? e.code}');
     }
   }
 
-  /// Print text with optional formatting
+  /// No-op for SDK printers, kept for call-site compatibility.
+  Future<void> resetPrintSession() async {}
+
+  /// Print one styled line on the attached printer.
   Future<bool> printText({
     required String text,
     int size = 24,
     bool isBold = false,
-    int align = 0, // 0: Left, 1: Center, 2: Right
+    int align = 0,
   }) async {
+    if (kIsWeb || !Platform.isAndroid) {
+      throw StateError('Printing is only supported on Android.');
+    }
+    await initSdk();
     try {
-      final String result = await _channel.invokeMethod('printText', {
+      await _channel.invokeMethod('printText', {
         'text': text,
         'size': size,
         'isBold': isBold,
         'align': align,
       });
-      return result == "Printed Successfully";
+      return true;
     } on PlatformException catch (e) {
-      debugPrint("Failed to print text: '${e.message}'.");
-      return false;
+      throw StateError('Print failed: ${e.message ?? e.code}');
     }
   }
 
-  /// Cut paper (if cutter is available)
+  Future<bool> printLines(List<Map<String, Object?>> lines) async {
+    if (kIsWeb || !Platform.isAndroid) {
+      throw StateError('Printing is only supported on Android.');
+    }
+    await initSdk();
+    try {
+      await _channel.invokeMethod('printLines', {'lines': lines});
+      return true;
+    } on MissingPluginException catch (e) {
+      debugPrint(
+        'SmartPosPrinterService: printLines missing, falling back to printText: $e',
+      );
+      for (final line in lines) {
+        await printText(
+          text: (line['text'] as String?) ?? '',
+          size: (line['size'] as int?) ?? 24,
+          isBold: (line['isBold'] as bool?) ?? false,
+          align: (line['align'] as int?) ?? 0,
+        );
+      }
+      return true;
+    } on PlatformException catch (e) {
+      throw StateError('Print failed: ${e.message ?? e.code}');
+    }
+  }
+
   Future<void> cutPaper() async {
+    if (kIsWeb || !Platform.isAndroid) return;
     try {
       await _channel.invokeMethod('cutPaper');
-    } on PlatformException catch (e) {
-      debugPrint("Failed to cut paper: '${e.message}'.");
+    } catch (e) {
+      debugPrint('SmartPosPrinterService: cutPaper failed: $e');
     }
   }
 }

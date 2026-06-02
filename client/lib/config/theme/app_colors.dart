@@ -36,3 +36,12 @@ class AppColors {
   static const Color online = Color(0xFF2563EB);
   static const Color onlineLight = Color(0xFFEFF6FF);
 }
+
+extension ColorWithValuesCompatibility on Color {
+  Color withValues({double? alpha}) {
+    if (alpha == null) {
+      return this;
+    }
+    return withOpacity(alpha);
+  }
+}
