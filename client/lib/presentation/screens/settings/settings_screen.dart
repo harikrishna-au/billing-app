@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../config/theme/app_colors.dart';
-import '../../../core/constants/pine_terminal_config.dart';
-import '../../../core/constants/plutus_config.dart';
-import '../../../core/services/plutus_smart_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../providers/catalogue_provider.dart';
-import '../../providers/payment_provider.dart';
 import '../../providers/service_provider.dart';
+import 'settings_tiles.dart';
+import 'settings_sheets.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,7 +20,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isReloading = false;
-  bool _isSyncingQueued = false;
 
   Future<void> _reloadAll() async {
     final user = ref.read(authProvider).user;
@@ -43,7 +38,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: GoogleFonts.dmSans(color: Colors.white)),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
             duration: const Duration(seconds: 2),
           ),
@@ -57,38 +53,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: GoogleFonts.dmSans(color: Colors.white)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
       }
     } finally {
       if (mounted) setState(() => _isReloading = false);
-    }
-  }
-
-  Future<void> _syncQueuedTickets() async {
-    if (_isSyncingQueued) return;
-    setState(() => _isSyncingQueued = true);
-    try {
-      final r = await ref.read(paymentProvider.notifier).syncQueuedTicketsNow();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            r.userMessage,
-            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: r == QueuedTicketsSyncResult.success
-              ? AppColors.success
-              : AppColors.textSecondary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isSyncingQueued = false);
     }
   }
 
@@ -118,15 +90,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User card
             if (user != null) ...[
-              _UserCard(username: user.username),
+              SettingsUserCard(username: user.username),
               const SizedBox(height: 28),
             ],
-
-            _SectionLabel('Business'),
+            const SettingsSectionLabel('Business'),
             const SizedBox(height: 10),
-            _Tile(
+            SettingsNavTile(
               icon: Icons.bar_chart_rounded,
               iconBg: const Color(0xFFD1FAE5),
               iconColor: AppColors.success,
@@ -134,75 +104,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'View and print daily sales report',
               onTap: () => context.push('/settings/day-summary'),
             ),
-
-
+            const SizedBox(height: 8),
+            SettingsNavTile(
+              icon: Icons.print_rounded,
+              iconBg: const Color(0xFFE0E7FF),
+              iconColor: const Color(0xFF4F46E5),
+              title: 'Attached printer',
+              subtitle: 'Use the built-in SmartPOS printer',
+              onTap: () => context.push('/settings/printer'),
+            ),
             const SizedBox(height: 28),
-            _SectionLabel('Data'),
+            const SettingsSectionLabel('Data'),
             const SizedBox(height: 10),
-            _ReloadTile(
+            SettingsReloadTile(
               isReloading: _isReloading,
               onTap: _isReloading ? null : _reloadAll,
             ),
-            const SizedBox(height: 8),
-            _Tile(
-              icon: Icons.cloud_upload_outlined,
-              iconBg: const Color(0xFFE0E7FF),
-              iconColor: const Color(0xFF4338CA),
-              title: 'Sync queued tickets',
-              subtitle: _isSyncingQueued
-                  ? 'Syncing…'
-                  : 'Upload offline sales (every 60s while queued, every 5 min, and when network returns)',
-              onTap: _isSyncingQueued ? () {} : _syncQueuedTickets,
-            ),
-
             const SizedBox(height: 28),
-            _SectionLabel('Account'),
+            const SettingsSectionLabel('Account'),
             const SizedBox(height: 10),
-            _Tile(
+            SettingsNavTile(
               icon: Icons.person_outline_rounded,
               iconBg: AppColors.primaryLight,
               iconColor: AppColors.primary,
               title: 'Profile',
               subtitle: 'Manage your account details',
-              onTap: () => _showProfileSheet(context, user?.username ?? '—', user?.id ?? '—'),
+              onTap: () => showSettingsProfileSheet(
+                context,
+                username: user?.username ?? '—',
+                machineId: user?.id ?? '—',
+              ),
             ),
             const SizedBox(height: 8),
-            _Tile(
+            SettingsNavTile(
               icon: Icons.notifications_outlined,
               iconBg: const Color(0xFFFEF3C7),
               iconColor: AppColors.warning,
               title: 'Notifications',
               subtitle: 'Configure alerts and sounds',
-              onTap: () => _showNotificationsSheet(context),
+              onTap: () => showSettingsNotificationsSheet(context),
             ),
-
             const SizedBox(height: 28),
-            _SectionLabel('POS terminal'),
+            const SettingsSectionLabel('About'),
             const SizedBox(height: 10),
-            _Tile(
-              icon: Icons.point_of_sale_rounded,
-              iconBg: const Color(0xFFE0F2FE),
-              iconColor: const Color(0xFF0369A1),
-              title: 'Pine Labs device',
-              subtitle: 'S/N ${PineTerminalConfig.hardwareSerial}',
-              onTap: () => _showTerminalSheet(context, ref),
-            ),
-
-            const SizedBox(height: 28),
-            _SectionLabel('About'),
-            const SizedBox(height: 10),
-            _Tile(
+            SettingsNavTile(
               icon: Icons.info_outline_rounded,
               iconBg: const Color(0xFFF0FFFE),
               iconColor: const Color(0xFF0D9488),
               title: 'App Info',
-              subtitle: 'Version 1.0.0 · com.mit',
+              subtitle: 'Version 1.0.0',
               onTap: () {},
             ),
-
             const SizedBox(height: 36),
-
-            // Logout
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -240,7 +193,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ref.read(authProvider.notifier).logout();
                   }
                 },
-                icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                icon: const Icon(Icons.logout_rounded,
+                    color: AppColors.error, size: 20),
                 label: Text(
                   'Sign Out',
                   style: GoogleFonts.dmSans(
@@ -257,615 +211,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showTerminalSheet(BuildContext context, WidgetRef ref) async {
-    Map<String, String> live = const {};
-    try {
-      live = await PlutusSmartService.getTerminalInfo();
-    } catch (_) {}
-
-    final liveSerial = live['serial']?.trim() ?? '';
-    final serial = liveSerial.isNotEmpty
-        ? liveSerial
-        : PineTerminalConfig.hardwareSerial;
-    final billConfig = ref.read(billConfigProvider);
-    final posId = (billConfig.posId?.trim().isNotEmpty == true)
-        ? billConfig.posId!
-        : PineTerminalConfig.posId;
-
-    final summary = PlutusConfig.pineRegistrationSummary;
-
-    if (!context.mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          16,
-          20,
-          20 + MediaQuery.paddingOf(ctx).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Pine Labs terminal',
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _TerminalRow('Serial (S/N)', serial),
-            _TerminalRow('POS ID', posId),
-            _TerminalRow('Model', PineTerminalConfig.model),
-            _TerminalRow('UAT App ID', PlutusConfig.applicationId),
-            _TerminalRow('JIRA', PineTerminalConfig.jiraId),
-            const SizedBox(height: 12),
-            Text(
-              'Send the copied text to Pine Labs so this device is mapped in UAT.',
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: summary));
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Registration details copied',
-                      style: GoogleFonts.dmSans(),
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.copy_rounded, size: 18),
-              label: const Text('Copy for Pine Labs email'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReloadTile extends StatelessWidget {
-  final bool isReloading;
-  final VoidCallback? onTap;
-
-  const _ReloadTile({required this.isReloading, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: isReloading
-                    ? const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : const Icon(Icons.sync_rounded,
-                        color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reload App Data',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isReloading
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isReloading
-                          ? 'Fetching latest data…'
-                          : 'Sync products & services',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isReloading)
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textLight, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-void _showProfileSheet(BuildContext context, String username, String machineId) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Profile',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _ProfileRow(label: 'Username', value: username),
-          const SizedBox(height: 12),
-          _ProfileRow(label: 'Machine ID', value: machineId),
-          const SizedBox(height: 12),
-          _ProfileRow(label: 'Status', value: 'Active'),
-        ],
-      ),
-    ),
-  );
-}
-
-void _showNotificationsSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: AppColors.surface,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => const _NotificationsSheet(),
-  );
-}
-
-
-
-
-class _ProfileRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _ProfileRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: GoogleFonts.dmSans(
-              fontSize: 13,
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NotificationsSheet extends StatefulWidget {
-  const _NotificationsSheet();
-
-  @override
-  State<_NotificationsSheet> createState() => _NotificationsSheetState();
-}
-
-class _NotificationsSheetState extends State<_NotificationsSheet> {
-  static const _keySound = 'notif_sound_on_payment';
-  static const _keySummary = 'notif_daily_summary';
-
-  bool _soundOnPayment = true;
-  bool _dailySummary = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _soundOnPayment = prefs.getBool(_keySound) ?? true;
-      _dailySummary = prefs.getBool(_keySummary) ?? false;
-    });
-  }
-
-  Future<void> _save(String key, bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Notifications',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _NotifTile(
-            title: 'Sound on payment',
-            subtitle: 'Play a sound when a bill is collected',
-            value: _soundOnPayment,
-            onChanged: (v) {
-              setState(() => _soundOnPayment = v);
-              _save(_keySound, v);
-            },
-          ),
-          const SizedBox(height: 4),
-          _NotifTile(
-            title: 'Daily summary reminder',
-            subtitle: 'Remind you to view the day summary at close',
-            value: _dailySummary,
-            onChanged: (v) {
-              setState(() => _dailySummary = v);
-              _save(_keySummary, v);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotifTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _NotifTile({
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
-            activeTrackColor: AppColors.primaryLight,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UserCard extends StatelessWidget {
-  final String username;
-  const _UserCard({required this.username});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.22),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.person_rounded,
-                color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Logged in as',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  username,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Active',
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TerminalRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _TerminalRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.dmSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label.toUpperCase(),
-      style: GoogleFonts.dmSans(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textLight,
-        letterSpacing: 1.2,
-      ),
-    );
-  }
-}
-
-class _Tile extends StatelessWidget {
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _Tile({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textLight, size: 20),
-            ],
-          ),
         ),
       ),
     );

@@ -3,14 +3,44 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'com.google.zxing' && details.requested.name == 'core') {
+                details.useVersion '3.5.3'
+                details.because 'Single zxing:core across app modules.'
+            }
+        }
+    }
+}
+
+// AGP 8+: library modules must declare `namespace`. Mirror the package from AndroidManifest.xml when available.
+// JDK 21+ warns when dependencies still compile with --release 8; align all Android modules to 17.
+subprojects { sub ->
+    sub.plugins.withId("com.android.library") {
+        sub.android {
+            if (namespace == null || namespace.toString().trim().isEmpty()) {
+                def manifestFile = sub.file("src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    def pkg = new XmlSlurper().parse(manifestFile).'@package'.text()
+                    if (pkg) {
+                        namespace = pkg
+                    }
+                }
+                if ((namespace == null || namespace.toString().trim().isEmpty()) && sub.group != null) {
+                    namespace = sub.group.toString()
+                }
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+    }
 }
 
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(":app")
 }
 
 tasks.register("clean", Delete) {

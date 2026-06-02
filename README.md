@@ -6,6 +6,50 @@
 - Python 3.8+
 - PostgreSQL (via Supabase)
 
+## Dart SDK Setup
+
+### macOS with Homebrew
+
+```bash
+brew tap dart-lang/dart
+brew install dart
+```
+
+If Homebrew is already installed, make sure its bin directory is on your PATH so commands like dart, dart run, and dart format work from any shell session.
+
+To upgrade later:
+
+```bash
+brew upgrade dart
+```
+
+### Windows and Linux
+
+Use the official Dart installation instructions for your platform if you are not on macOS with Homebrew.
+
+## Flutter SDK Setup
+
+### macOS with Homebrew
+
+```bash
+brew install flutter
+```
+
+If Flutter is already installed, make sure the Homebrew bin directory is on your PATH so `flutter`, `flutter pub`, and `flutter run` are available in every shell session.
+
+To verify the install:
+
+```bash
+flutter --version
+```
+
+### Install Client Dependencies
+
+```bash
+cd client
+flutter pub get
+```
+
 ### Setup & Run
 
 ```bash

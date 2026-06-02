@@ -9,10 +9,13 @@ import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 
 import '../../presentation/screens/settings/settings_screen.dart';
+import '../../presentation/screens/settings/bluetooth_printer_settings_screen.dart';
 import '../../presentation/screens/orders/orders_screen.dart';
 import '../../presentation/screens/orders/create/select_items_screen.dart';
-import '../../presentation/screens/orders/create/pos_checkout_screen.dart';
+import '../../presentation/screens/orders/create/review_order_screen.dart';
+import '../../presentation/screens/orders/create/collect_payment_screen.dart';
 import '../../presentation/screens/orders/create/upi_payment_screen.dart';
+import '../../presentation/screens/orders/create/razorpay_payment_screen.dart';
 import '../../presentation/screens/orders/create/bill_screen.dart';
 import '../../presentation/screens/reports/day_summary_screen.dart';
 import '../../presentation/widgets/layout/app_navigation.dart';
@@ -64,47 +67,79 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'review',
-                    builder: (context, state) => const POSCheckoutScreen(),
+                    builder: (context, state) => const ReviewOrderScreen(),
                     parentNavigatorKey: _rootNavigatorKey,
                     routes: [
                       GoRoute(
-                        path: 'upi',
-                        builder: (context, state) {
-                          final amount = double.tryParse(
-                                  state.uri.queryParameters['amount'] ?? '0') ??
-                              0.0;
-                          final invoice = state.uri.queryParameters['invoice'];
-                          return UpiPaymentScreen(
-                            amount: amount,
-                            invoiceNumber: invoice,
-                          );
-                        },
-                        parentNavigatorKey: _rootNavigatorKey,
-                      ),
-                      GoRoute(
-                        path: 'bill',
+                        path: 'collect-payment',
                         builder: (context, state) {
                           final paymentMethod =
                               state.uri.queryParameters['method'] ?? 'cash';
-                          final invoice = state.uri.queryParameters['invoice'];
-                          final amount = double.tryParse(
-                              state.uri.queryParameters['amount'] ?? '');
-                          final dateStr = state.uri.queryParameters['date'];
-                          final date = dateStr != null
-                              ? DateTime.tryParse(dateStr)
-                              : null;
-                          final readOnly =
-                              state.uri.queryParameters['readOnly'] == 'true';
-
-                          return BillScreen(
+                          return CollectPaymentScreen(
                             paymentMethod: paymentMethod,
-                            invoiceNumber: invoice,
-                            amount: amount,
-                            date: date,
-                            readOnly: readOnly,
                           );
                         },
                         parentNavigatorKey: _rootNavigatorKey,
+                        routes: [
+                          GoRoute(
+                            path: 'upi',
+                            builder: (context, state) {
+                              final amount = double.tryParse(
+                                      state.uri.queryParameters['amount'] ??
+                                          '0') ??
+                                  0.0;
+                              final invoice =
+                                  state.uri.queryParameters['invoice'];
+                              return UpiPaymentScreen(
+                                amount: amount,
+                                invoiceNumber: invoice,
+                              );
+                            },
+                            parentNavigatorKey: _rootNavigatorKey,
+                          ),
+                          GoRoute(
+                            path: 'card',
+                            builder: (context, state) {
+                              final amount = double.tryParse(
+                                      state.uri.queryParameters['amount'] ??
+                                          '0') ??
+                                  0.0;
+                              final invoice =
+                                  state.uri.queryParameters['invoice'] ?? '';
+                              return RazorpayPaymentScreen(
+                                amount: amount,
+                                invoiceNumber: invoice,
+                              );
+                            },
+                            parentNavigatorKey: _rootNavigatorKey,
+                          ),
+                          GoRoute(
+                            path: 'bill',
+                            builder: (context, state) {
+                              final paymentMethod =
+                                  state.uri.queryParameters['method'] ?? 'cash';
+                              final invoice =
+                                  state.uri.queryParameters['invoice'];
+                              final amount = double.tryParse(
+                                  state.uri.queryParameters['amount'] ?? '');
+                              final dateStr = state.uri.queryParameters['date'];
+                              final date = dateStr != null
+                                  ? DateTime.tryParse(dateStr)?.toLocal()
+                                  : null;
+                              final readOnly =
+                                  state.uri.queryParameters['readOnly'] == 'true';
+
+                              return BillScreen(
+                                paymentMethod: paymentMethod,
+                                invoiceNumber: invoice,
+                                amount: amount,
+                                date: date,
+                                readOnly: readOnly,
+                              );
+                            },
+                            parentNavigatorKey: _rootNavigatorKey,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -131,6 +166,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'day-summary',
                     builder: (context, state) => const DaySummaryScreen(),
+                    parentNavigatorKey: _rootNavigatorKey,
+                  ),
+                  GoRoute(
+                    path: 'printer',
+                    builder: (context, state) =>
+                        const AttachedPrinterSettingsScreen(),
                     parentNavigatorKey: _rootNavigatorKey,
                   ),
                 ],

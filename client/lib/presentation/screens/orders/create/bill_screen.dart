@@ -3,10 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../config/theme/app_colors.dart';
-import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/utils/print_utils.dart';
+import '../../../../core/utils/bill_number_generator.dart';
+import '../../../../core/network/providers.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/bill_config_provider.dart';
+import '../../../../services/smart_pos_printer_service.dart';
+import 'bill_thermal_print.dart';
+import 'widgets/bill_actions_footer.dart';
+import 'widgets/bill_invoice_card.dart';
+import 'widgets/bill_success_banner.dart';
 
 class BillScreen extends ConsumerStatefulWidget {
   final String? invoiceNumber;
@@ -30,6 +37,8 @@ class BillScreen extends ConsumerStatefulWidget {
 }
 
 class _BillScreenState extends ConsumerState<BillScreen> {
+  final SmartPosPrinterService _printer = SmartPosPrinterService();
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +54,6 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     }
   }
 
-  /// Uses [PrintUtils.printReceipt] so layout matches checkout / UPI / card.
   Future<void> _handlePrint(
     BuildContext context,
     WidgetRef ref,
@@ -54,15 +62,43 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     DateTime date,
     CartState cartState,
   ) async {
-    await PrintUtils.printReceipt(
-      context: context,
-      provider: ProviderScope.containerOf(context, listen: false),
-      billNumber: billNumber,
-      total: total,
-      date: date,
-      cartState: cartState,
-      paymentMethod: widget.paymentMethod,
-    );
+    final tracker = ref.read(printedBillsTrackerProvider);
+
+    try {
+      final config = ref.read(billConfigProvider);
+      final cgstRate = config.cgstPercent / 100;
+      final sgstRate = config.sgstPercent / 100;
+      final taxRate = cgstRate + sgstRate;
+      final taxableAmount = taxRate > 0 ? total / (1 + taxRate) : total;
+      final cgstAmount = taxableAmount * cgstRate;
+      final sgstAmount = taxableAmount * sgstRate;
+      final hasTax = taxRate > 0;
+      final billDisplay = BillNumberGenerator.displayTicketNumber(billNumber);
+      final dateLocal = date.toLocal();
+      final dateStr =
+          '${dateLocal.day.toString().padLeft(2, '0')}/${dateLocal.month.toString().padLeft(2, '0')}/${dateLocal.year}  '
+          '${dateLocal.hour.toString().padLeft(2, '0')}:${dateLocal.minute.toString().padLeft(2, '0')}';
+      await printBillThermalInvoiceAndTicket(
+        printer: _printer,
+        config: config,
+        billDisplay: billDisplay,
+        dateStr: dateStr,
+        cartState: cartState,
+        total: total,
+        taxableAmount: taxableAmount,
+        cgstAmount: cgstAmount,
+        sgstAmount: sgstAmount,
+        hasTax: hasTax,
+        paymentMethod: widget.paymentMethod,
+      );
+
+      await tracker.markAsPrinted(billNumber);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
+      }
+    }
   }
 
   @override
@@ -70,6 +106,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     final cartState = ref.watch(cartProvider);
     final now = (widget.date ?? DateTime.now()).toLocal();
     final invoiceNo = widget.invoiceNumber ?? 'BILL/PENDING';
+    final invoiceDisplay = BillNumberGenerator.displayTicketNumber(invoiceNo);
     final total = widget.amount ?? cartState.totalAmount;
     final isCash = widget.paymentMethod.toLowerCase() == 'cash';
     final isCard = widget.paymentMethod.toLowerCase() == 'card';
@@ -104,530 +141,83 @@ class _BillScreenState extends ConsumerState<BillScreen> {
           },
         ),
         actions: [
-          if (!widget.readOnly) ...[
-            IconButton(
-              icon: const Icon(Icons.share_outlined,
-                  color: AppColors.textSecondary, size: 22),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content:
-                        Text('Share coming soon', style: GoogleFonts.dmSans()),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.print_outlined,
-                  color: AppColors.textSecondary, size: 22),
-              onPressed: () =>
-                  _handlePrint(context, ref, invoiceNo, total, now, cartState),
-            ),
-          ],
+          IconButton(
+            icon: const Icon(Icons.share_outlined,
+                color: AppColors.textSecondary, size: 22),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('Share coming soon', style: GoogleFonts.dmSans()),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.all(16),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.print_outlined,
+                color: AppColors.textSecondary, size: 22),
+            onPressed: () =>
+                _handlePrint(context, ref, invoiceNo, total, now, cartState),
+          ),
           const SizedBox(width: 4),
         ],
         elevation: 0,
         backgroundColor: AppColors.background,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: Column(
-                children: [
-                  // Success banner
-                  _SuccessBanner(
-                      total: total, paymentMethod: widget.paymentMethod)
-                      .animate()
-                      .fadeIn(duration: 200.ms)
-                      .scale(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final hPad = w < 360 ? 16.0 : 20.0;
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 20),
+                  child: Column(
+                    children: [
+                      BillSuccessBanner(
+                        total: total,
+                        isCash: isCash,
+                        screenWidth: w,
+                      ).animate().fadeIn(duration: 200.ms).scale(
                           begin: const Offset(0.96, 0.96),
                           duration: 250.ms,
                           curve: Curves.easeOut),
-
-                  const SizedBox(height: 16),
-
-                  // Invoice card
-                  _InvoiceCard(
-                    invoiceNo: invoiceNo,
-                    now: now,
-                    total: total,
-                    cartState: cartState,
-                    paymentMethod: widget.paymentMethod,
-                    isCash: isCash,
-                    isCard: isCard,
-                  ).animate().fadeIn(duration: 200.ms, delay: 80.ms),
-
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ),
-
-          // Action buttons
-          _ActionsFooter(
-            showPrint: !widget.readOnly,
-            onPrint: () =>
-                _handlePrint(context, ref, invoiceNo, total, now, cartState),
-            onNewOrder: () {
-              ref.read(cartProvider.notifier).clearCart();
-              context.go('/new');
-            },
-            onViewOrders: () {
-              ref.read(cartProvider.notifier).clearCart();
-              context.go('/orders');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccessBanner extends StatelessWidget {
-  final double total;
-  final String paymentMethod;
-
-  const _SuccessBanner({required this.total, required this.paymentMethod});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-      decoration: BoxDecoration(
-        color: AppColors.successLight,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.success,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.success.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child:
-                const Icon(Icons.check_rounded, color: Colors.white, size: 28),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Ticket Booked',
-            style: GoogleFonts.dmSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.success,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            CurrencyFormatter.format(total),
-            style: GoogleFonts.dmSans(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF065F46),
-              letterSpacing: -1,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              PrintUtils.receiptPaymentLabel(paymentMethod),
-              style: GoogleFonts.dmSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InvoiceCard extends StatelessWidget {
-  final String invoiceNo;
-  final DateTime now;
-  final double total;
-  final CartState cartState;
-  final String paymentMethod;
-  final bool isCash;
-  final bool isCard;
-
-  const _InvoiceCard({
-    required this.invoiceNo,
-    required this.now,
-    required this.total,
-    required this.cartState,
-    required this.paymentMethod,
-    required this.isCash,
-    required this.isCard,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'BILL NO',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textLight,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      invoiceNo,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.successLight,
-                    borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 16),
+                      BillInvoiceCard(
+                        displayInvoiceNo: invoiceDisplay,
+                        now: now,
+                        total: total,
+                        cartState: cartState,
+                        isCash: isCash,
+                        isCard: isCard,
+                      ).animate().fadeIn(duration: 200.ms, delay: 80.ms),
+                      SizedBox(height: w < 360 ? 80 : 100),
+                    ],
                   ),
-                  child: Text(
-                    'PAID',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.success,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1, color: AppColors.borderLight),
-
-          // Date & method
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                _MetaChip(
-                  icon: Icons.calendar_today_outlined,
-                  label:
-                      '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
-                ),
-                const SizedBox(width: 10),
-                _MetaChip(
-                  icon: Icons.access_time_rounded,
-                  label:
-                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-                ),
-                const SizedBox(width: 10),
-                _MetaChip(
-                  icon: isCash
-                      ? Icons.payments_rounded
-                      : isCard
-                          ? Icons.credit_card_rounded
-                          : Icons.qr_code_rounded,
-                  label: isCash
-                      ? 'Cash'
-                      : isCard
-                          ? 'Card'
-                          : 'Online',
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(height: 1, color: AppColors.borderLight),
-
-          // Items
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-            child: Text(
-              'ITEMS',
-              style: GoogleFonts.dmSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textLight,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-          ...cartState.items.values.map(
-            (ci) => Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${ci.quantity}x',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ci.product.name,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          '${CurrencyFormatter.format(ci.product.price)} each',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    CurrencyFormatter.format(ci.product.price * ci.quantity),
-                    style: GoogleFonts.dmSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.borderLight),
-
-          // Total
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.format(total),
-                  style: GoogleFonts.dmSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MetaChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.dmSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionsFooter extends StatelessWidget {
-  final bool showPrint;
-  final VoidCallback onPrint;
-  final VoidCallback onNewOrder;
-  final VoidCallback onViewOrders;
-
-  const _ActionsFooter({
-    required this.showPrint,
-    required this.onPrint,
-    required this.onNewOrder,
-    required this.onViewOrders,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Primary: New Order — biggest CTA on this screen
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: onNewOrder,
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: Text(
-                  'New Order',
-                  style: GoogleFonts.dmSans(
-                      fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if (showPrint) ...[
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: OutlinedButton.icon(
-                        onPressed: onPrint,
-                        icon: const Icon(Icons.print_outlined, size: 17),
-                        label: Text(
-                          'Print',
-                          style: GoogleFonts.dmSans(
-                              fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.border),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: OutlinedButton(
-                      onPressed: onViewOrders,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text(
-                        'Orders',
-                        style: GoogleFonts.dmSans(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              BillActionsFooter(
+                showPrint: true,
+                narrow: w < 380,
+                onPrint: () => _handlePrint(
+                    context, ref, invoiceNo, total, now, cartState),
+                onNewOrder: () {
+                  ref.read(cartProvider.notifier).clearCart();
+                  context.go('/new');
+                },
+                onViewOrders: () {
+                  ref.read(cartProvider.notifier).clearCart();
+                  context.go('/orders');
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
