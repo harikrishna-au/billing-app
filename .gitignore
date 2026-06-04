@@ -12,6 +12,8 @@ Thumbs.db
 node_modules/
 build/
 .dart_tool/
+**/.gradle/
+**/.kotlin/
 
 # Local clone / scratch (do not commit)
 .tmp_plutusapp_new/

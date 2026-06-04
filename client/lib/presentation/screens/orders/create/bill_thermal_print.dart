@@ -1,4 +1,6 @@
 import '../../../../data/models/bill_config_model.dart';
+import '../../../../core/constants/plutus_config.dart';
+import '../../../../core/services/plutus_smart_service.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import '../../../providers/cart_provider.dart';
 import 'receipt_layout_spec.dart';
@@ -31,10 +33,8 @@ class _ThermalLine {
 
   static const _ThermalLine blank = _ThermalLine(text: '');
 
-  static _ThermalLine get divider => _ThermalLine(
-        text: _kDivider,
-        align: _kAlignCenter,
-      );
+  static _ThermalLine get divider =>
+      _ThermalLine(text: _kDivider, align: _kAlignCenter);
 }
 
 String _metaRow(String label, String value) {
@@ -112,8 +112,10 @@ List<_ThermalLine> _buildSlip({
   // Combine GSTIN / POS if both exist as per the example
   final gstinStr = (gstin != null && gstin.isNotEmpty) ? 'GSTIN: $gstin' : '';
   final posStr = (posId != null && posId.isNotEmpty) ? 'POS: $posId' : '';
-  final combinedGstPos =
-      [gstinStr, posStr].where((e) => e.isNotEmpty).join(' / ');
+  final combinedGstPos = [
+    gstinStr,
+    posStr,
+  ].where((e) => e.isNotEmpty).join(' / ');
   if (combinedGstPos.isNotEmpty) {
     out.add(_ThermalLine(text: combinedGstPos, align: _kAlignCenter));
   }
@@ -122,12 +124,21 @@ List<_ThermalLine> _buildSlip({
 
   // ── Bill meta ────────────────────────────────────────────────────────────
   out
-    ..add(_ThermalLine(
-        text: _metaRow('Bill No', billNumber), align: _kAlignCenter))
-    ..add(_ThermalLine(
-        text: 'Date: ${_formatDateOnly(dateTime)}', align: _kAlignCenter))
-    ..add(_ThermalLine(
-        text: 'Time: ${_formatTimeOnly(dateTime)}', align: _kAlignCenter));
+    ..add(
+      _ThermalLine(text: _metaRow('Bill No', billNumber), align: _kAlignCenter),
+    )
+    ..add(
+      _ThermalLine(
+        text: 'Date: ${_formatDateOnly(dateTime)}',
+        align: _kAlignCenter,
+      ),
+    )
+    ..add(
+      _ThermalLine(
+        text: 'Time: ${_formatTimeOnly(dateTime)}',
+        align: _kAlignCenter,
+      ),
+    );
 
   out.add(_ThermalLine.divider);
 
@@ -155,22 +166,41 @@ List<_ThermalLine> _buildSlip({
   final sgst = _taxAmount(taxes, 'SGST');
   out
     ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder))
-    ..add(_ThermalLine(
+    ..add(
+      _ThermalLine(
         text: ReceiptLayoutSpec.thermalSummaryRow(
-            'Taxable Value:', subtotal.toStringAsFixed(2))))
-    ..add(_ThermalLine(
+          'Taxable Value:',
+          subtotal.toStringAsFixed(2),
+        ),
+      ),
+    )
+    ..add(
+      _ThermalLine(
         text: ReceiptLayoutSpec.thermalSummaryRow(
-            'CGST:', cgst.toStringAsFixed(2))))
-    ..add(_ThermalLine(
+          'CGST:',
+          cgst.toStringAsFixed(2),
+        ),
+      ),
+    )
+    ..add(
+      _ThermalLine(
         text: ReceiptLayoutSpec.thermalSummaryRow(
-            'SGST:', sgst.toStringAsFixed(2))))
+          'SGST:',
+          sgst.toStringAsFixed(2),
+        ),
+      ),
+    )
     ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder))
-    ..add(_ThermalLine(
-      text: ReceiptLayoutSpec.thermalSummaryRow(
-          'To pay:', total.toStringAsFixed(2)),
-      size: _kSizeTotal,
-      bold: true,
-    ))
+    ..add(
+      _ThermalLine(
+        text: ReceiptLayoutSpec.thermalSummaryRow(
+          'To pay:',
+          total.toStringAsFixed(2),
+        ),
+        size: _kSizeTotal,
+        bold: true,
+      ),
+    )
     ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder));
 
   // ── Footer ───────────────────────────────────────────────────────────────
@@ -202,6 +232,42 @@ Future<void> _sendToPrinter(
   );
 }
 
+List<Map<String, dynamic>> _toPlutusPrintData(List<_ThermalLine> lines) {
+  return lines
+      .map(
+        (line) => <String, dynamic>{
+          'PrintDataType': '0',
+          'PrinterWidth': 24,
+          'IsCenterAligned': line.align == _kAlignCenter,
+          'DataToPrint': line.text,
+          'ImagePath': '0',
+          'ImageData': '0',
+        },
+      )
+      .toList();
+}
+
+Future<void> _sendToPlutusPrinter({
+  required String printRefNo,
+  required List<_ThermalLine> lines,
+  void Function(String message)? onDebug,
+}) async {
+  onDebug?.call('Binding to Pine Labs MasterApp');
+  await PlutusSmartService.bindToService();
+  onDebug?.call('MasterApp bind successful');
+  final printJson = PlutusRequestBuilder.printJob(
+    applicationId: PlutusConfig.applicationId.trim(),
+    versionNo: PlutusConfig.apiVersion,
+    userId:
+        PlutusConfig.userId.trim().isEmpty ? null : PlutusConfig.userId.trim(),
+    printRefNo: printRefNo,
+    data: _toPlutusPrintData(lines),
+  );
+  onDebug?.call('Sending print job $printRefNo (${lines.length} lines)');
+  await PlutusSmartService.startPrintJob(printJson: printJson);
+  onDebug?.call('Print job $printRefNo accepted by MasterApp');
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 Future<void> printBillThermalInvoiceAndTicket({
@@ -216,12 +282,14 @@ Future<void> printBillThermalInvoiceAndTicket({
   required double sgstAmount,
   required bool hasTax,
   required String paymentMethod,
+  void Function(String message)? onDebug,
 }) async {
-  await printer.initSdk();
-
+  onDebug?.call('Preparing invoice and ticket print data');
   final items = cartState.items.values
       .map((it) => (qty: it.quantity, name: it.product.name, amount: it.total))
       .toList();
+  onDebug
+      ?.call('Cart items: ${items.length}, total: ${total.toStringAsFixed(2)}');
 
   final taxes = <String, double>{};
   if (hasTax) {
@@ -244,44 +312,62 @@ Future<void> printBillThermalInvoiceAndTicket({
 
   final orgName = config.orgName.isNotEmpty ? config.orgName : 'INVOICE';
 
-  await _sendToPrinter(
-    printer,
-    _buildSlip(
-      slipTitle: 'INVOICE',
-      orgName: orgName,
-      unitName: config.unitName,
-      gstin: config.gstNumber,
-      posId: config.posId,
-      billNumber: billDisplay,
-      dateTime: parsedDate,
-      items: items,
-      subtotal: taxableAmount,
-      taxes: taxes,
-      total: total,
-      footer: footer,
-    ),
+  final invoiceLines = _buildSlip(
+    slipTitle: 'INVOICE',
+    orgName: orgName,
+    unitName: config.unitName,
+    gstin: config.gstNumber,
+    posId: config.posId,
+    billNumber: billDisplay,
+    dateTime: parsedDate,
+    items: items,
+    subtotal: taxableAmount,
+    taxes: taxes,
+    total: total,
+    footer: footer,
   );
 
-  await printer.cutPaper();
-
-  // ── TICKET (same layout, no tax breakdown, headed as TICKET) ─────────────
-  await _sendToPrinter(
-    printer,
-    _buildSlip(
-      slipTitle: 'TICKET',
-      orgName: orgName,
-      unitName: config.unitName,
-      gstin: null,
-      posId: config.posId,
-      billNumber: billDisplay,
-      dateTime: parsedDate,
-      items: items,
-      subtotal: taxableAmount,
-      taxes: taxes,
-      total: total,
-      footer: footer,
-    ),
+  final ticketLines = _buildSlip(
+    slipTitle: 'TICKET',
+    orgName: orgName,
+    unitName: config.unitName,
+    gstin: null,
+    posId: config.posId,
+    billNumber: billDisplay,
+    dateTime: parsedDate,
+    items: items,
+    subtotal: taxableAmount,
+    taxes: taxes,
+    total: total,
+    footer: footer,
   );
 
+  if (PlutusConfig.isConfigured) {
+    onDebug?.call('Using Pine Labs print path');
+    onDebug?.call('Plutus ApplicationId: ${PlutusConfig.applicationId.trim()}');
+    await _sendToPlutusPrinter(
+      printRefNo: billDisplay,
+      lines: invoiceLines,
+      onDebug: onDebug,
+    );
+    await _sendToPlutusPrinter(
+      printRefNo: '$billDisplay-T',
+      lines: ticketLines,
+      onDebug: onDebug,
+    );
+    onDebug?.call('Invoice and ticket print completed');
+    return;
+  }
+
+  onDebug?.call('Plutus disabled or ApplicationId missing');
+  onDebug?.call('Using direct SmartPOS printer fallback');
+  await printer.initSdk();
+  onDebug?.call('SmartPOS printer SDK initialized');
+  await _sendToPrinter(printer, invoiceLines);
+  onDebug?.call('Invoice sent to direct printer');
   await printer.cutPaper();
+  await _sendToPrinter(printer, ticketLines);
+  onDebug?.call('Ticket sent to direct printer');
+  await printer.cutPaper();
+  onDebug?.call('Invoice and ticket print completed');
 }
