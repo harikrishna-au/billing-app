@@ -9,6 +9,46 @@ import '../../services/smart_pos_printer_service.dart';
 class PrintUtils {
   static final SmartPosPrinterService _printer = SmartPosPrinterService();
 
+  static Future<void> _showPrintDiagnosticsDialog({
+    required BuildContext context,
+    required List<String> lines,
+  }) async {
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Print failed',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              lines.isEmpty
+                  ? 'No print diagnostics captured.'
+                  : lines.join('\n'),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child:
+                const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Shows a centered "Ticket Booked!" overlay, then closes automatically.
   /// Uses [useRootNavigator] so it appears above shell routes (e.g. `/new/review`).
   static Future<void> showTicketBooked(BuildContext context) async {
@@ -46,7 +86,11 @@ class PrintUtils {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: Color(0xFF10B981),
-                    child: Icon(Icons.check_rounded, color: Colors.white, size: 36),
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -105,12 +149,21 @@ class PrintUtils {
           useRootNavigator: true,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 24,
+                ),
                 SizedBox(width: 8),
-                Text('Already Printed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(
+                  'Already Printed',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             content: const Text(
@@ -120,7 +173,10 @@ class PrintUtils {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -128,6 +184,8 @@ class PrintUtils {
       }
       return false;
     }
+
+    final debugLines = <String>['Starting print for bill $billNumber'];
 
     try {
       final localDate = date.toLocal();
@@ -147,7 +205,7 @@ class PrintUtils {
       await printBillThermalInvoiceAndTicket(
         printer: _printer,
         config: config,
-        billNumber: billNumber,
+        billDisplay: billNumber,
         dateStr: dateStr,
         cartState: cartState,
         total: total,
@@ -156,15 +214,15 @@ class PrintUtils {
         sgstAmount: sgstAmount,
         hasTax: hasTax,
         paymentMethod: paymentMethod,
+        onDebug: debugLines.add,
       );
 
       await tracker.markAsPrinted(billNumber);
       return true;
     } catch (e) {
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Print failed: $e')),
-        );
+        debugLines.add('FAILED: $e');
+        await _showPrintDiagnosticsDialog(context: context, lines: debugLines);
       }
       return false;
     }

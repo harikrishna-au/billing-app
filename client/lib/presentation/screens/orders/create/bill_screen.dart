@@ -38,6 +38,46 @@ class BillScreen extends ConsumerStatefulWidget {
 
 class _BillScreenState extends ConsumerState<BillScreen> {
   final SmartPosPrinterService _printer = SmartPosPrinterService();
+  final List<String> _printDebugLines = <String>[];
+  bool _isPrinting = false;
+
+  void _addPrintDebug(String message) {
+    if (!mounted) return;
+    setState(() {
+      final stamp = TimeOfDay.now().format(context);
+      _printDebugLines.add('$stamp - $message');
+    });
+  }
+
+  Future<void> _showPrintDebugDialog(String title) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title:
+            Text(title, style: GoogleFonts.dmSans(fontWeight: FontWeight.w800)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              _printDebugLines.isEmpty
+                  ? 'No print diagnostics captured.'
+                  : _printDebugLines.join('\n'),
+              style: GoogleFonts.robotoMono(fontSize: 12, height: 1.35),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('OK',
+                style: GoogleFonts.dmSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -62,9 +102,16 @@ class _BillScreenState extends ConsumerState<BillScreen> {
     DateTime date,
     CartState cartState,
   ) async {
+    if (_isPrinting) return;
     final tracker = ref.read(printedBillsTrackerProvider);
 
     try {
+      setState(() {
+        _isPrinting = true;
+        _printDebugLines
+          ..clear()
+          ..add('Starting print for bill $billNumber');
+      });
       final config = ref.read(billConfigProvider);
       final cgstRate = config.cgstPercent / 100;
       final sgstRate = config.sgstPercent / 100;
@@ -90,14 +137,18 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         sgstAmount: sgstAmount,
         hasTax: hasTax,
         paymentMethod: widget.paymentMethod,
+        onDebug: _addPrintDebug,
       );
 
       await tracker.markAsPrinted(billNumber);
+      _addPrintDebug('Marked bill as printed');
     } catch (e) {
+      _addPrintDebug('FAILED: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
+        await _showPrintDebugDialog('Print failed');
       }
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
     }
   }
 
@@ -196,6 +247,18 @@ class _BillScreenState extends ConsumerState<BillScreen> {
                         isCash: isCash,
                         isCard: isCard,
                       ).animate().fadeIn(duration: 200.ms, delay: 80.ms),
+                      if (_printDebugLines.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _PrintDiagnosticsPanel(
+                          lines: _printDebugLines,
+                          isPrinting: _isPrinting,
+                          onOpen: () => _showPrintDebugDialog(
+                            _isPrinting
+                                ? 'Printing ticket'
+                                : 'Print diagnostics',
+                          ),
+                        ),
+                      ],
                       SizedBox(height: w < 360 ? 80 : 100),
                     ],
                   ),
@@ -218,6 +281,93 @@ class _BillScreenState extends ConsumerState<BillScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _PrintDiagnosticsPanel extends StatelessWidget {
+  final List<String> lines;
+  final bool isPrinting;
+  final VoidCallback onOpen;
+
+  const _PrintDiagnosticsPanel({
+    required this.lines,
+    required this.isPrinting,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = lines.isEmpty ? '' : lines.last;
+    final failed = latest.contains('FAILED:');
+    final color = failed
+        ? AppColors.error
+        : isPrinting
+            ? AppColors.warning
+            : AppColors.success;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (isPrinting)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(
+                  failed
+                      ? Icons.error_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 18,
+                  color: color,
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isPrinting
+                      ? 'Printing ticket'
+                      : failed
+                          ? 'Print failed'
+                          : 'Print diagnostics',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onOpen,
+                child: Text(
+                  'Details',
+                  style: GoogleFonts.dmSans(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            latest,
+            style: GoogleFonts.robotoMono(
+              fontSize: 11,
+              height: 1.35,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

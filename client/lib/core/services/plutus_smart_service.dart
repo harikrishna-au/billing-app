@@ -13,11 +13,12 @@ class PlutusSmartService {
     await _channel.invokeMethod('bindToService');
   }
 
-  static Future<String?> startTransaction({required String transactionJson}) async {
-    final res = await _channel.invokeMethod<String>(
-      'startTransaction',
-      {'transactionData': transactionJson},
-    );
+  static Future<String?> startTransaction({
+    required String transactionJson,
+  }) async {
+    final res = await _channel.invokeMethod<String>('startTransaction', {
+      'transactionData': transactionJson,
+    });
     return res;
   }
 
@@ -31,15 +32,37 @@ class PlutusSmartService {
   }
 
   static Future<String?> startPrintJob({required String printJson}) async {
-    final res = await _channel.invokeMethod<String>(
-      'startPrintJob',
-      {'printData': printJson},
-    );
+    final res = await _channel.invokeMethod<String>('startPrintJob', {
+      'printData': printJson,
+    });
     return res;
   }
 }
 
 class PlutusRequestBuilder {
+  /// DoPrint (MethodId=1002) print job.
+  static String printJob({
+    required String applicationId,
+    required String versionNo,
+    String? userId,
+    required String printRefNo,
+    required List<Map<String, dynamic>> data,
+  }) {
+    return jsonEncode({
+      'Header': {
+        'ApplicationId': applicationId,
+        if (userId != null && userId.isNotEmpty) 'UserId': userId,
+        'MethodId': '1002',
+        'VersionNo': versionNo,
+      },
+      'Detail': {
+        'PrintRefNo': printRefNo,
+        'SavePrintData': false,
+        'Data': data,
+      },
+    });
+  }
+
   /// DoTransaction (MethodId=1001) sale.
   static String sale({
     required String applicationId,
@@ -119,7 +142,9 @@ class PlutusResponse {
       if (res is! Map) return const PlutusResponse();
       final codeAny = res['ResponseCode'];
       final msgAny = res['ResponseMsg'];
-      final code = (codeAny is int) ? codeAny : int.tryParse(codeAny?.toString() ?? '');
+      final code = (codeAny is int)
+          ? codeAny
+          : int.tryParse(codeAny?.toString() ?? '');
       final msg = msgAny?.toString();
       return PlutusResponse(responseCode: code, responseMsg: msg);
     } catch (_) {
@@ -127,4 +152,3 @@ class PlutusResponse {
     }
   }
 }
-
