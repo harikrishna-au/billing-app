@@ -258,13 +258,19 @@ Future<void> _sendToPlutusPrinter({
   final printJson = PlutusRequestBuilder.printJob(
     applicationId: PlutusConfig.applicationId.trim(),
     versionNo: PlutusConfig.apiVersion,
-    userId:
-        PlutusConfig.userId.trim().isEmpty ? null : PlutusConfig.userId.trim(),
+    userId: PlutusConfig.userId.trim().isEmpty
+        ? null
+        : PlutusConfig.userId.trim(),
     printRefNo: printRefNo,
     data: _toPlutusPrintData(lines),
   );
   onDebug?.call('Sending print job $printRefNo (${lines.length} lines)');
-  await PlutusSmartService.startPrintJob(printJson: printJson);
+  final response = await PlutusSmartService.startPrintJob(printJson: printJson);
+  if (response == null || response.trim().isEmpty) {
+    onDebug?.call('Print job $printRefNo returned empty MasterApp response');
+  } else {
+    onDebug?.call('Print job $printRefNo MasterApp response: $response');
+  }
   onDebug?.call('Print job $printRefNo accepted by MasterApp');
 }
 
@@ -288,8 +294,9 @@ Future<void> printBillThermalInvoiceAndTicket({
   final items = cartState.items.values
       .map((it) => (qty: it.quantity, name: it.product.name, amount: it.total))
       .toList();
-  onDebug
-      ?.call('Cart items: ${items.length}, total: ${total.toStringAsFixed(2)}');
+  onDebug?.call(
+    'Cart items: ${items.length}, total: ${total.toStringAsFixed(2)}',
+  );
 
   final taxes = <String, double>{};
   if (hasTax) {
@@ -307,8 +314,8 @@ Future<void> printBillThermalInvoiceAndTicket({
 
   final footer =
       (config.footerMessage != null && config.footerMessage!.isNotEmpty)
-          ? config.footerMessage!
-          : 'Thank You. Visit Again';
+      ? config.footerMessage!
+      : 'Thank You. Visit Again';
 
   final orgName = config.orgName.isNotEmpty ? config.orgName : 'INVOICE';
 

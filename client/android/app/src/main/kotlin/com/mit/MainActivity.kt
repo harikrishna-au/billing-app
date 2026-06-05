@@ -7,6 +7,8 @@ import android.content.ServiceConnection
 import android.os.Bundle
 import android.util.Log
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.PackageManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -42,13 +44,24 @@ class MainActivity: FlutterActivity() {
     // Plutus service bind state (some terminals require bind before hybrid intent)
     private var isPlutusServiceBound = false
     private var plutusBinder: IBinder? = null
+    private var pendingPlutusBindResult: Result? = null
     private var pendingPlutusResult: Result? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val plutusBindTimeout = Runnable {
+        pendingPlutusBindResult?.let { pending ->
+            pendingPlutusBindResult = null
+            pending.error("SERVICE_NOT_BOUND", "Pine Labs service did not connect within 3 seconds", null)
+        }
+    }
 
     private val plutusServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             Log.d("Plutus", "Service connected: $name")
             plutusBinder = service
             isPlutusServiceBound = true
+            mainHandler.removeCallbacks(plutusBindTimeout)
+            pendingPlutusBindResult?.success("SERVICE_CONNECTED")
+            pendingPlutusBindResult = null
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -153,17 +166,28 @@ class MainActivity: FlutterActivity() {
                 result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp is not installed on this terminal", null)
                 return
             }
+            if (isPlutusServiceBound) {
+                result.success("SERVICE_CONNECTED")
+                return
+            }
+            if (pendingPlutusBindResult != null) {
+                result.error("BIND_IN_PROGRESS", "Pine Labs service binding is already in progress", null)
+                return
+            }
             val intent = Intent().apply {
                 action = PLUTUS_SMART_ACTION
                 setPackage(PLUTUS_SMART_PACKAGE)
             }
+            pendingPlutusBindResult = result
             val ok = bindService(intent, plutusServiceConnection, Context.BIND_AUTO_CREATE)
             if (ok) {
-                result.success("SUCCESS")
+                mainHandler.postDelayed(plutusBindTimeout, 3000)
             } else {
+                pendingPlutusBindResult = null
                 result.error("BIND_FAILED", "Failed to initiate service binding", null)
             }
         } catch (e: Exception) {
+            pendingPlutusBindResult = null
             result.error("BINDING_ERROR", e.localizedMessage, null)
         }
     }
@@ -172,6 +196,10 @@ class MainActivity: FlutterActivity() {
         try {
             if (!isPlutusMasterAppInstalled()) {
                 result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp is not installed on this terminal", null)
+                return
+            }
+            if (!isPlutusServiceBound) {
+                result.error("SERVICE_NOT_BOUND", "Pine Labs service is not connected. Bind before sending HYBRID_REQUEST.", null)
                 return
             }
             // Only allow one pending request at a time (same pattern as the sample repo).
