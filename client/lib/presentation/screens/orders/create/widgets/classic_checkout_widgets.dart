@@ -49,7 +49,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
             'No items in this order.\nGo back to add items.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(
-              fontSize: 14,
+              fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
@@ -73,7 +73,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
                 config.orgName,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                   letterSpacing: 0.4,
@@ -85,7 +85,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               'INVOICE',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
                 letterSpacing: 1.2,
@@ -97,7 +97,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
                 config.unitName!,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textSecondary,
                 ),
@@ -115,7 +115,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
                 ].join(' / '),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.dmSans(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textSecondary,
                 ),
@@ -128,7 +128,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               'Date: $dateStr',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
               ),
@@ -137,7 +137,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               'Time: $timeStr',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
               ),
@@ -163,7 +163,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
                     'To pay : ',
                     textAlign: TextAlign.right,
                     style: GoogleFonts.dmSans(
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
@@ -175,7 +175,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
                     CurrencyFormatter.format(total),
                     textAlign: TextAlign.right,
                     style: GoogleFonts.dmSans(
-                      fontSize: 17,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: AppColors.primary,
                     ),
@@ -198,7 +198,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
             'QTY',
             textAlign: TextAlign.left,
             style: GoogleFonts.dmSans(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
               letterSpacing: 0.4,
@@ -209,7 +209,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
           child: Text(
             'ITEM NAME',
             style: GoogleFonts.dmSans(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
               letterSpacing: 0.4,
@@ -222,7 +222,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
             'PRICE',
             textAlign: TextAlign.right,
             style: GoogleFonts.dmSans(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
               letterSpacing: 0.4,
@@ -245,7 +245,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               '$qty',
               textAlign: TextAlign.left,
               style: GoogleFonts.dmSans(
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -255,7 +255,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
             child: Text(
               name,
               style: GoogleFonts.dmSans(
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -267,7 +267,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               CurrencyFormatter.format(lineTotal),
               textAlign: TextAlign.right,
               style: GoogleFonts.dmSans(
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -290,7 +290,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               '$label :',
               textAlign: TextAlign.right,
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
               ),
@@ -302,7 +302,7 @@ class ClassicCheckoutReceiptCard extends ConsumerWidget {
               CurrencyFormatter.format(amount),
               textAlign: TextAlign.right,
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -365,16 +365,11 @@ class ClassicCheckoutPaymentBar extends StatelessWidget {
               label: 'CARD',
               icon: Icons.credit_card_outlined,
               background: const Color(0xFF3B82F6),
-              onTap: () {
-                if (!hasItems) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Add at least one item to continue')),
-                  );
-                  return;
-                }
-                // Card checkout mocked: no second screen / Razorpay for now.
-              },
+              onTap: () => _pay(context, hasItems, () {
+                context.push(
+                  '/new/review/collect-payment/card?amount=$cartTotal',
+                );
+              }),
             ),
           ),
           const SizedBox(width: 8),
@@ -453,7 +448,7 @@ class _PayTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.dmSans(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       letterSpacing: 0.3,

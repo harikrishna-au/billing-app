@@ -3,20 +3,18 @@ import '../../../../core/constants/plutus_config.dart';
 import '../../../../core/services/plutus_smart_service.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import '../../../providers/cart_provider.dart';
-import 'receipt_layout_spec.dart';
 
-// ─── Thermal receipt layout (single file) ───────────────────────────────────
-// 58/80 mm paper · SmartPOS printText bridge.
+// ─── Thermal receipt layout (Pine Labs Plutus / SmartPOS fallback) ─────────────
+// Effective line width: 24 chars (PrinterWidth: 24 passed to Plutus).
 
-final String _kDivider = ReceiptLayoutSpec.thermalDivider;
-
-const int _kAlignLeft = 0;
+const int _kLineW      = 24;
+const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody = 20;
+const int _kSizeBody   = 20;
 const int _kSizeHeader = 24;
-const int _kSizeTitle = 28;
-const int _kSizeTotal = 24;
+
+const String _kDash = '------------------------'; // 24 dashes
 
 class _ThermalLine {
   final String text;
@@ -26,42 +24,108 @@ class _ThermalLine {
 
   const _ThermalLine({
     required this.text,
-    this.size = _kSizeBody,
-    this.bold = false,
+    this.size  = _kSizeBody,
+    this.bold  = false,
     this.align = _kAlignLeft,
   });
 
   static const _ThermalLine blank = _ThermalLine(text: '');
-
-  static _ThermalLine get divider =>
-      _ThermalLine(text: _kDivider, align: _kAlignCenter);
 }
 
-String _metaRow(String label, String value) {
-  const labelW = 7;
-  final safeLabel = label.length > labelW ? label.substring(0, labelW) : label;
-  return '${safeLabel.padRight(labelW)} : $value';
-}
+// ─── Format helpers ────────────────────────────────────────────────────────────
 
-String _itemHeader() {
-  return ReceiptLayoutSpec.thermalTableHeader();
-}
+String _formatDate(DateTime dt) =>
+    '${dt.day.toString().padLeft(2, '0')}-'
+    '${dt.month.toString().padLeft(2, '0')}-'
+    '${dt.year}';
 
-String _formatDateOnly(DateTime dt) =>
-    '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}';
+String _formatTime(DateTime dt) =>
+    '${dt.hour.toString().padLeft(2, '0')}:'
+    '${dt.minute.toString().padLeft(2, '0')}';
 
-String _formatTimeOnly(DateTime dt) =>
-    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
-
-double _taxAmount(Map<String, double> taxes, String prefix) {
-  for (final entry in taxes.entries) {
-    if (entry.key.toUpperCase().startsWith(prefix)) return entry.value;
+/// Wraps [text] at word boundaries to fit within [width] chars per line.
+List<String> _wrapWords(String text, int width) {
+  if (text.length <= width) return [text];
+  final words = text.split(' ');
+  final lines = <String>[];
+  var current = '';
+  for (final word in words) {
+    final chunk = word.length > width ? word.substring(0, width) : word;
+    if (current.isEmpty) {
+      current = chunk;
+    } else if (current.length + 1 + chunk.length <= width) {
+      current = '$current $chunk';
+    } else {
+      lines.add(current);
+      current = chunk;
+    }
   }
-  return 0;
+  if (current.isNotEmpty) lines.add(current);
+  return lines.isEmpty ? [text.substring(0, width.clamp(0, text.length))] : lines;
 }
 
-List<_ThermalLine> _buildSlip({
-  required String slipTitle,
+/// "KEY   : value" — key padded to [keyW] chars, left-aligned.
+String _kv(String key, String value, {int keyW = 5}) =>
+    '${key.padRight(keyW)} : $value';
+
+/// Label left, value right, total [_kLineW] chars.
+String _summaryRow(String label, String value) {
+  final space = _kLineW - label.length - value.length;
+  if (space <= 0) {
+    final maxL = (_kLineW - value.length - 1).clamp(0, label.length);
+    return '${label.substring(0, maxL)} $value';
+  }
+  return '$label${' ' * space}$value';
+}
+
+/// Normalised payment label for print.
+String _paymentMode(String method) {
+  switch (method.toLowerCase()) {
+    case 'cash':
+      return 'CASH';
+    case 'card':
+      return 'CARD';
+    case 'upi':
+    case 'online':
+      return 'UPI';
+    default:
+      return method.toUpperCase();
+  }
+}
+
+// ─── Item table ────────────────────────────────────────────────────────────────
+
+const int _kQtyW   = 4;
+const int _kNameW  = 14;
+const int _kPriceW = 6;
+
+String _itemsHeader() =>
+    '${'QTY'.padRight(_kQtyW)}${'ITEM'.padRight(_kNameW)}${'PRICE'.padLeft(_kPriceW)}';
+
+List<String> _itemRows(int qty, String name, String price) {
+  final qtyStr   = '${qty}x'.padRight(_kQtyW);
+  final priceStr = price.padLeft(_kPriceW);
+
+  final chunks = <String>[];
+  var rem = name;
+  while (rem.isNotEmpty) {
+    chunks.add(rem.length > _kNameW ? rem.substring(0, _kNameW) : rem);
+    rem = rem.length > _kNameW ? rem.substring(_kNameW) : '';
+  }
+  if (chunks.isEmpty) chunks.add('');
+
+  final rows = <String>[];
+  for (var i = 0; i < chunks.length; i++) {
+    rows.add(i == 0
+        ? '$qtyStr${chunks[i].padRight(_kNameW)}$priceStr'
+        : '${' ' * _kQtyW}${chunks[i].padRight(_kNameW)}');
+  }
+  return rows;
+}
+
+// ─── Slip builders ─────────────────────────────────────────────────────────────
+
+List<_ThermalLine> _buildInvoiceSlip({
   required String orgName,
   String? unitName,
   String? gstin,
@@ -72,141 +136,74 @@ List<_ThermalLine> _buildSlip({
   required double subtotal,
   required Map<String, double> taxes,
   required double total,
+  required String paymentMethod,
   required String footer,
 }) {
   final out = <_ThermalLine>[];
 
-  // ── Top Padding ──────────────────────────────────────────────────────────
+  // ── Header ──────────────────────────────────────────────────────────────────
   out.add(_ThermalLine.blank);
-
-  // ── Header ───────────────────────────────────────────────────────────────
-  final showOrg = orgName.isNotEmpty;
-
-  if (showOrg) {
-    out.add(
-      _ThermalLine(
-        text: orgName,
-        size: _kSizeTitle,
-        bold: true,
-        align: _kAlignCenter,
-      ),
-    );
+  if (orgName.isNotEmpty) {
+    for (final line in _wrapWords(orgName, _kLineW)) {
+      out.add(_ThermalLine(text: line, size: _kSizeBody, bold: true, align: _kAlignCenter));
+    }
   }
-
-  if (slipTitle.isNotEmpty &&
-      orgName.toUpperCase() != slipTitle.toUpperCase()) {
-    out.add(
-      _ThermalLine(
-        text: slipTitle,
-        size: showOrg ? _kSizeHeader : _kSizeTitle,
-        bold: true,
-        align: _kAlignCenter,
-      ),
-    );
-  }
-
+  out.add(const _ThermalLine(
+    text:  'INVOICE',
+    size:  _kSizeHeader,
+    bold:  true,
+    align: _kAlignCenter,
+  ));
   if (unitName != null && unitName.isNotEmpty) {
-    out.add(_ThermalLine(text: unitName, align: _kAlignCenter));
+    for (final line in _wrapWords(unitName, _kLineW)) {
+      out.add(_ThermalLine(text: line, align: _kAlignCenter));
+    }
   }
 
-  // Combine GSTIN / POS if both exist as per the example
-  final gstinStr = (gstin != null && gstin.isNotEmpty) ? 'GSTIN: $gstin' : '';
-  final posStr = (posId != null && posId.isNotEmpty) ? 'POS: $posId' : '';
-  final combinedGstPos = [
-    gstinStr,
-    posStr,
-  ].where((e) => e.isNotEmpty).join(' / ');
-  if (combinedGstPos.isNotEmpty) {
-    out.add(_ThermalLine(text: combinedGstPos, align: _kAlignCenter));
+  // ── Bill metadata ─────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  if (gstin != null && gstin.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
+  if (posId != null && posId.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+  }
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
 
-  out.add(_ThermalLine.divider);
-
-  // ── Bill meta ────────────────────────────────────────────────────────────
-  out
-    ..add(
-      _ThermalLine(text: _metaRow('Bill No', billNumber), align: _kAlignCenter),
-    )
-    ..add(
-      _ThermalLine(
-        text: 'Date: ${_formatDateOnly(dateTime)}',
-        align: _kAlignCenter,
-      ),
-    )
-    ..add(
-      _ThermalLine(
-        text: 'Time: ${_formatTimeOnly(dateTime)}',
-        align: _kAlignCenter,
-      ),
-    );
-
-  out.add(_ThermalLine.divider);
-
-  // ── Line items ───────────────────────────────────────────────────────────
-  out
-    ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalTableBorder))
-    ..add(_ThermalLine(text: _itemHeader(), bold: true))
-    ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalTableBorder));
-
+  // ── Items ──────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
-    final priceStr = it.amount.toStringAsFixed(2);
-    for (final row in ReceiptLayoutSpec.thermalItemRows(
-      qty: it.qty,
-      item: it.name,
-      price: priceStr,
-    )) {
+    for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
       out.add(_ThermalLine(text: row));
     }
   }
 
-  out.add(_ThermalLine(text: ReceiptLayoutSpec.thermalTableBorder));
+  // ── Tax summary — full breakdown for invoice ──────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  if (taxes.isNotEmpty) {
+    out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2))));
+    for (final entry in taxes.entries) {
+      out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2))));
+    }
+    out.add(const _ThermalLine(text: _kDash));
+  }
 
-  // ── Tax summary table ────────────────────────────────────────────────────
-  final cgst = _taxAmount(taxes, 'CGST');
-  final sgst = _taxAmount(taxes, 'SGST');
-  out
-    ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder))
-    ..add(
-      _ThermalLine(
-        text: ReceiptLayoutSpec.thermalSummaryRow(
-          'Taxable Value:',
-          subtotal.toStringAsFixed(2),
-        ),
-      ),
-    )
-    ..add(
-      _ThermalLine(
-        text: ReceiptLayoutSpec.thermalSummaryRow(
-          'CGST:',
-          cgst.toStringAsFixed(2),
-        ),
-      ),
-    )
-    ..add(
-      _ThermalLine(
-        text: ReceiptLayoutSpec.thermalSummaryRow(
-          'SGST:',
-          sgst.toStringAsFixed(2),
-        ),
-      ),
-    )
-    ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder))
-    ..add(
-      _ThermalLine(
-        text: ReceiptLayoutSpec.thermalSummaryRow(
-          'To pay:',
-          total.toStringAsFixed(2),
-        ),
-        size: _kSizeTotal,
-        bold: true,
-      ),
-    )
-    ..add(_ThermalLine(text: ReceiptLayoutSpec.thermalSummaryBorder));
+  // ── Total + payment ───────────────────────────────────────────────────────
+  out.add(_ThermalLine(
+    text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
+    bold: true,
+  ));
+  final mode = _paymentMode(paymentMethod);
+  if (mode.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
+  }
 
-  // ── Footer ───────────────────────────────────────────────────────────────
+  // ── Footer ────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter));
-
-  // ── Bottom Padding (for paper tear-off margin) ───────────────────────────
   out
     ..add(_ThermalLine.blank)
     ..add(_ThermalLine.blank);
@@ -214,36 +211,125 @@ List<_ThermalLine> _buildSlip({
   return out;
 }
 
+// Ticket = Invoice layout with "TICKET" title and no CGST/SGST lines.
+List<_ThermalLine> _buildTicketSlip({
+  required String orgName,
+  String? unitName,
+  String? gstin,
+  String? posId,
+  required String billNumber,
+  required DateTime dateTime,
+  required List<({int qty, String name, double amount})> items,
+  required double subtotal,
+  required Map<String, double> taxes,
+  required double total,
+  required String paymentMethod,
+  required String footer,
+}) {
+  final out = <_ThermalLine>[];
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  out.add(_ThermalLine.blank);
+  if (orgName.isNotEmpty) {
+    for (final line in _wrapWords(orgName, _kLineW)) {
+      out.add(_ThermalLine(
+        text:  line,
+        size:  _kSizeBody,
+        bold:  true,
+        align: _kAlignCenter,
+      ));
+    }
+  }
+  out.add(const _ThermalLine(
+    text:  'TICKET',
+    size:  _kSizeHeader,
+    bold:  true,
+    align: _kAlignCenter,
+  ));
+  if (unitName != null && unitName.isNotEmpty) {
+    for (final line in _wrapWords(unitName, _kLineW)) {
+      out.add(_ThermalLine(text: line, align: _kAlignCenter));
+    }
+  }
+
+  // ── Bill metadata ─────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  if (gstin != null && gstin.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
+  }
+  if (posId != null && posId.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+  }
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
+
+  // ── Items ──────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  out.add(_ThermalLine(text: _itemsHeader(), bold: true));
+  for (final it in items) {
+    for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
+      out.add(_ThermalLine(text: row));
+    }
+  }
+
+  // ── Summary — Subtotal only (no CGST/SGST) ───────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  if (taxes.isNotEmpty) {
+    out.add(_ThermalLine(
+      text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
+    ));
+    out.add(const _ThermalLine(text: _kDash));
+  }
+
+  // ── Total + payment ───────────────────────────────────────────────────────
+  out.add(_ThermalLine(
+    text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
+    bold: true,
+  ));
+  final mode = _paymentMode(paymentMethod);
+  if (mode.isNotEmpty) {
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
+  }
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
+  out.add(_ThermalLine(text: footer, align: _kAlignCenter));
+  out
+    ..add(_ThermalLine.blank)
+    ..add(_ThermalLine.blank);
+
+  return out;
+}
+
+// ─── Plutus / SmartPOS transport ──────────────────────────────────────────────
+
 Future<void> _sendToPrinter(
   SmartPosPrinterService printer,
   List<_ThermalLine> lines,
 ) async {
   await printer.printLines(
     lines
-        .map(
-          (line) => <String, Object?>{
-            'text': line.text,
-            'size': line.size,
-            'isBold': line.bold,
-            'align': line.align,
-          },
-        )
+        .map((line) => <String, Object?>{
+              'text':   line.text,
+              'size':   line.size,
+              'isBold': line.bold,
+              'align':  line.align,
+            })
         .toList(),
   );
 }
 
 List<Map<String, dynamic>> _toPlutusPrintData(List<_ThermalLine> lines) {
   return lines
-      .map(
-        (line) => <String, dynamic>{
-          'PrintDataType': '0',
-          'PrinterWidth': 24,
-          'IsCenterAligned': line.align == _kAlignCenter,
-          'DataToPrint': line.text,
-          'ImagePath': '0',
-          'ImageData': '0',
-        },
-      )
+      .map((line) => <String, dynamic>{
+            'PrintDataType':   '0',
+            'PrinterWidth':    _kLineW,
+            'IsCenterAligned': line.align == _kAlignCenter,
+            'DataToPrint':     line.text,
+            'ImagePath':       '0',
+            'ImageData':       '0',
+          })
       .toList();
 }
 
@@ -257,12 +343,12 @@ Future<void> _sendToPlutusPrinter({
   onDebug?.call('MasterApp bind successful');
   final printJson = PlutusRequestBuilder.printJob(
     applicationId: PlutusConfig.applicationId.trim(),
-    versionNo: PlutusConfig.apiVersion,
-    userId: PlutusConfig.userId.trim().isEmpty
+    versionNo:     PlutusConfig.apiVersion,
+    userId:        PlutusConfig.userId.trim().isEmpty
         ? null
         : PlutusConfig.userId.trim(),
-    printRefNo: printRefNo,
-    data: _toPlutusPrintData(lines),
+    printRefNo:    printRefNo,
+    data:          _toPlutusPrintData(lines),
   );
   onDebug?.call('Sending print job $printRefNo (${lines.length} lines)');
   final response = await PlutusSmartService.startPrintJob(printJson: printJson);
@@ -274,13 +360,13 @@ Future<void> _sendToPlutusPrinter({
   onDebug?.call('Print job $printRefNo accepted by MasterApp');
 }
 
-// ─── Public API ─────────────────────────────────────────────────────────────
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 Future<void> printBillThermalInvoiceAndTicket({
   required SmartPosPrinterService printer,
   required BillConfig config,
   required String billDisplay,
-  required String dateStr,
+  required DateTime dateTime,
   required CartState cartState,
   required double total,
   required double taxableAmount,
@@ -294,9 +380,7 @@ Future<void> printBillThermalInvoiceAndTicket({
   final items = cartState.items.values
       .map((it) => (qty: it.quantity, name: it.product.name, amount: it.total))
       .toList();
-  onDebug?.call(
-    'Cart items: ${items.length}, total: ${total.toStringAsFixed(2)}',
-  );
+  onDebug?.call('Cart items: ${items.length}, total: ${total.toStringAsFixed(2)}');
 
   final taxes = <String, double>{};
   if (hasTax) {
@@ -304,49 +388,40 @@ Future<void> printBillThermalInvoiceAndTicket({
     taxes['SGST (${config.sgstPercent.toStringAsFixed(0)}%)'] = sgstAmount;
   }
 
-  DateTime parsedDate;
-  try {
-    final dpart = dateStr.split('  ').first.replaceAll('/', '-');
-    parsedDate = DateTime.parse(dpart);
-  } catch (_) {
-    parsedDate = DateTime.now();
-  }
-
-  final footer =
+  final rawFooter =
       (config.footerMessage != null && config.footerMessage!.isNotEmpty)
-      ? config.footerMessage!
-      : 'Thank You. Visit Again';
+          ? config.footerMessage!
+          : 'Thank you. Visit again!';
+  final footer = '|$rawFooter|';
 
-  final orgName = config.orgName.isNotEmpty ? config.orgName : 'INVOICE';
-
-  final invoiceLines = _buildSlip(
-    slipTitle: 'INVOICE',
-    orgName: orgName,
-    unitName: config.unitName,
-    gstin: config.gstNumber,
-    posId: config.posId,
-    billNumber: billDisplay,
-    dateTime: parsedDate,
-    items: items,
-    subtotal: taxableAmount,
-    taxes: taxes,
-    total: total,
-    footer: footer,
+  final invoiceLines = _buildInvoiceSlip(
+    orgName:       config.orgName,
+    unitName:      config.unitName,
+    gstin:         config.gstNumber,
+    posId:         config.posId,
+    billNumber:    billDisplay,
+    dateTime:      dateTime,
+    items:         items,
+    subtotal:      taxableAmount,
+    taxes:         taxes,
+    total:         total,
+    paymentMethod: paymentMethod,
+    footer:        footer,
   );
 
-  final ticketLines = _buildSlip(
-    slipTitle: 'TICKET',
-    orgName: orgName,
-    unitName: config.unitName,
-    gstin: null,
-    posId: config.posId,
-    billNumber: billDisplay,
-    dateTime: parsedDate,
-    items: items,
-    subtotal: taxableAmount,
-    taxes: taxes,
-    total: total,
-    footer: footer,
+  final ticketLines = _buildTicketSlip(
+    orgName:       config.orgName,
+    unitName:      config.unitName,
+    gstin:         config.gstNumber,
+    posId:         config.posId,
+    billNumber:    billDisplay,
+    dateTime:      dateTime,
+    items:         items,
+    subtotal:      taxableAmount,
+    taxes:         taxes,
+    total:         total,
+    paymentMethod: paymentMethod,
+    footer:        footer,
   );
 
   if (PlutusConfig.isConfigured) {
@@ -354,27 +429,55 @@ Future<void> printBillThermalInvoiceAndTicket({
     onDebug?.call('Plutus ApplicationId: ${PlutusConfig.applicationId.trim()}');
     await _sendToPlutusPrinter(
       printRefNo: billDisplay,
-      lines: invoiceLines,
-      onDebug: onDebug,
+      lines:      invoiceLines,
+      onDebug:    onDebug,
     );
     await _sendToPlutusPrinter(
       printRefNo: '$billDisplay-T',
-      lines: ticketLines,
-      onDebug: onDebug,
+      lines:      ticketLines,
+      onDebug:    onDebug,
     );
     onDebug?.call('Invoice and ticket print completed');
     return;
   }
 
-  onDebug?.call('Plutus disabled or ApplicationId missing');
-  onDebug?.call('Using direct SmartPOS printer fallback');
+  onDebug?.call('Plutus disabled — using SmartPOS fallback');
   await printer.initSdk();
-  onDebug?.call('SmartPOS printer SDK initialized');
   await _sendToPrinter(printer, invoiceLines);
-  onDebug?.call('Invoice sent to direct printer');
   await printer.cutPaper();
   await _sendToPrinter(printer, ticketLines);
-  onDebug?.call('Ticket sent to direct printer');
   await printer.cutPaper();
   onDebug?.call('Invoice and ticket print completed');
+}
+
+// ─── Public summary-print helper ──────────────────────────────────────────────
+
+/// Simple record for a single thermal print line used by summary reports.
+typedef ThermalPrintLine = ({String text, int size, bool bold, int align});
+
+/// Print a batch of lines via Pine Labs Plutus (when configured) or SmartPOS fallback.
+/// Used by transaction/sales/day-summary reports that don't go through _buildInvoiceSlip.
+Future<void> printThermalLineBatch({
+  required SmartPosPrinterService printer,
+  required String printRefNo,
+  required List<ThermalPrintLine> lines,
+  void Function(String)? onDebug,
+}) async {
+  final thermalLines = lines
+      .map((l) => _ThermalLine(text: l.text, size: l.size, bold: l.bold, align: l.align))
+      .toList();
+
+  if (PlutusConfig.isConfigured) {
+    onDebug?.call('Routing batch print via Plutus ($printRefNo)');
+    await _sendToPlutusPrinter(
+      printRefNo: printRefNo,
+      lines:      thermalLines,
+      onDebug:    onDebug,
+    );
+  } else {
+    onDebug?.call('Routing batch print via SmartPOS ($printRefNo)');
+    await printer.initSdk();
+    await _sendToPrinter(printer, thermalLines);
+    await printer.cutPaper();
+  }
 }
