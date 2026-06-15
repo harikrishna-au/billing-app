@@ -35,8 +35,9 @@ class UpiPaymentQrCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -56,7 +57,7 @@ class UpiPaymentQrCard extends StatelessWidget {
                     Text(
                       'UPI',
                       style: GoogleFonts.dmSans(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF7C3AED),
                       ),
@@ -72,7 +73,7 @@ class UpiPaymentQrCard extends StatelessWidget {
             Text(
               merchantName,
               style: GoogleFonts.dmSans(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
               ),
@@ -83,7 +84,7 @@ class UpiPaymentQrCard extends StatelessWidget {
           Text(
             upiId,
             style: GoogleFonts.dmSans(
-              fontSize: 13,
+              fontSize: 11,
               color: AppColors.textSecondary,
             ),
           ),
@@ -118,7 +119,7 @@ class UpiPaymentQrCard extends StatelessWidget {
           Text(
             'Scan with any UPI app to pay',
             style: GoogleFonts.dmSans(
-              fontSize: 13,
+              fontSize: 11,
               color: AppColors.textSecondary,
             ),
           ),
@@ -135,7 +136,8 @@ class UpiPaymentQrCard extends StatelessWidget {
               _UpiAppPill('BHIM'),
             ],
           ),
-        ],
+          ],
+        ),
       ),
     ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.15, end: 0);
   }
@@ -157,7 +159,7 @@ class _UpiAppPill extends StatelessWidget {
       child: Text(
         name,
         style: GoogleFonts.dmSans(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
           color: AppColors.textSecondary,
         ),
@@ -188,7 +190,7 @@ class UpiNotConfiguredBanner extends StatelessWidget {
           Text(
             'UPI not configured',
             style: GoogleFonts.dmSans(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF9A3412),
             ),
@@ -197,7 +199,7 @@ class UpiNotConfiguredBanner extends StatelessWidget {
           Text(
             'UPI ID has not been set for this machine. Contact your administrator to configure it.',
             style: GoogleFonts.dmSans(
-              fontSize: 13,
+              fontSize: 11,
               color: const Color(0xFF9A3412),
             ),
             textAlign: TextAlign.center,
