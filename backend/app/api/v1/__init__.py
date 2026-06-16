@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, dashboard, machines, services, payments, logs, analytics, sync, alerts, config, locations, razorpay
+from app.api.v1 import auth, dashboard, machines, services, payments, logs, analytics, sync, alerts, config, locations, razorpay, superadmin
 
 router = APIRouter()
 
@@ -17,6 +17,7 @@ router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
 router.include_router(config.router, prefix="/config", tags=["Config"])
 router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 router.include_router(razorpay.router, prefix="/payments", tags=["Razorpay"])
+router.include_router(superadmin.router, prefix="/superadmin", tags=["Superadmin"])
 
 api_router = router
 __all__ = ["api_router"]

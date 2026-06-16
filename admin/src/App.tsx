@@ -13,6 +13,7 @@ import MachinePayments from "./pages/MachinePayments";
 import MachineLogs from "./pages/MachineLogs";
 import Alerts from "./pages/Alerts";
 import BillSettings from "./pages/BillSettings";
+import SuperAdmin from "./pages/SuperAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/clients/:id/logs" element={<MachineLogs />} />
           <Route path="/clients/:id/catalog-logs" element={<MachineLogs />} />
           <Route path="/clients/:id/bill-settings" element={<BillSettings />} />
+          <Route path="/superadmin" element={<SuperAdmin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

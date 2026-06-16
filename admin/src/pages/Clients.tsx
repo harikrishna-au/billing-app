@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { machinesApi, locationsApi, type Machine as MachineType, type LocationType } from "@/lib/api";
+import { machinesApi, locationsApi, machineUpiRequestApi, type Machine as MachineType, type LocationType } from "@/lib/api";
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -38,7 +38,9 @@ const Clients = () => {
     password: ""
   });
   const [editingMachine, setEditingMachine] = useState<MachineType | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", upi_id: "", password: "" });
+  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", password: "" });
+  const [upiRequestMachine, setUpiRequestMachine] = useState<MachineType | null>(null);
+  const [newUpiId, setNewUpiId] = useState("");
 
   // Location management state
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
@@ -99,6 +101,21 @@ const Clients = () => {
     },
     onError: (error: any) => {
       const detail = error?.response?.data?.detail || error?.message || "Failed to update machine";
+      toast({ title: "Error", description: detail, variant: "destructive" });
+    },
+  });
+
+  // UPI change request mutation
+  const upiRequestMutation = useMutation({
+    mutationFn: ({ machineId, upiId }: { machineId: string; upiId: string }) =>
+      machineUpiRequestApi.submit(machineId, upiId),
+    onSuccess: () => {
+      toast({ title: "UPI Request Submitted", description: "Your request has been sent to the superadmin for approval." });
+      setUpiRequestMachine(null);
+      setNewUpiId("");
+    },
+    onError: (error: any) => {
+      const detail = error?.response?.data?.detail || "Failed to submit UPI change request";
       toast({ title: "Error", description: detail, variant: "destructive" });
     },
   });
@@ -173,7 +190,6 @@ const Clients = () => {
       name: machine.name,
       location: machine.location,
       location_id: machine.location_id ?? "",
-      upi_id: machine.upi_id ?? "",
       password: "",
     });
     setEditingMachine(machine);
@@ -186,7 +202,6 @@ const Clients = () => {
       name: editForm.name || undefined,
       location: editForm.location || undefined,
       location_id: editForm.location_id || undefined,
-      upi_id: editForm.upi_id || undefined,
     };
     if (editForm.password) data.password = editForm.password;
     updateMutation.mutate({ id: editingMachine.id, data });
@@ -371,16 +386,25 @@ const Clients = () => {
                 )}
               </div>
               <div>
-                <Label htmlFor="edit-upi">UPI ID (machine-level override)</Label>
-                <Input
-                  id="edit-upi"
-                  value={editForm.upi_id}
-                  onChange={(e) => setEditForm({ ...editForm, upi_id: e.target.value })}
-                  placeholder="merchant@upi (overrides location UPI if set)"
-                  className="bg-secondary/50"
-                />
+                <Label>UPI ID</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <p className="flex-1 text-sm font-mono px-3 py-2 rounded-md bg-secondary/30 border border-border text-muted-foreground truncate">
+                    {editingMachine?.upi_id || <span className="italic opacity-50">not set</span>}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setUpiRequestMachine(editingMachine);
+                      setNewUpiId(editingMachine?.upi_id ?? "");
+                    }}
+                  >
+                    Request Change
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  If this machine has a location with a UPI ID, the location's UPI ID takes priority.
+                  UPI changes require superadmin approval.
                 </p>
               </div>
               <Separator />
@@ -405,6 +429,52 @@ const Clients = () => {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* UPI Change Request Dialog */}
+        <Dialog open={!!upiRequestMachine} onOpenChange={(open) => !open && setUpiRequestMachine(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Request UPI Change</DialogTitle>
+              <DialogDescription>
+                Submit a request to change the UPI ID for{" "}
+                <strong>{upiRequestMachine?.name}</strong>. A superadmin must approve it before it takes effect.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Current UPI ID</Label>
+                <p className="text-sm font-mono px-3 py-2 rounded-md bg-secondary/30 border border-border text-muted-foreground mt-1">
+                  {upiRequestMachine?.upi_id || <span className="italic opacity-50">not set</span>}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="new-upi-id">New UPI ID</Label>
+                <Input
+                  id="new-upi-id"
+                  value={newUpiId}
+                  onChange={(e) => setNewUpiId(e.target.value)}
+                  placeholder="merchant@upi"
+                  className="bg-secondary/50 mt-1"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setUpiRequestMachine(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="glow"
+                  disabled={!newUpiId.trim() || upiRequestMutation.isPending}
+                  onClick={() =>
+                    upiRequestMutation.mutate({ machineId: upiRequestMachine!.id, upiId: newUpiId.trim() })
+                  }
+                >
+                  {upiRequestMutation.isPending ? "Submitting..." : "Submit Request"}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 

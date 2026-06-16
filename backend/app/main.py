@@ -172,6 +172,36 @@ async def startup_event():
                 conn.commit()
                 print("✅ Migration: added location_id column to machines table")
 
+            # UPI change requests table
+            if "upi_change_requests" not in existing_tables:
+                conn.execute(text("""
+                    CREATE TABLE upi_change_requests (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        machine_id UUID NOT NULL REFERENCES machines(id),
+                        requested_by UUID NOT NULL REFERENCES users(id),
+                        old_upi_id VARCHAR(255),
+                        new_upi_id VARCHAR(255) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        superadmin_note TEXT,
+                        resolved_by UUID REFERENCES users(id),
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        resolved_at TIMESTAMPTZ
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: created upi_change_requests table")
+
+            # Superadmin role: ensure SQLEnum allows the new value (Postgres-specific)
+            user_cols_info = inspector.get_columns("users")
+            role_col = next((c for c in user_cols_info if c["name"] == "role"), None)
+            if role_col and "superadmin" not in str(role_col.get("type", "")):
+                try:
+                    conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'superadmin' BEFORE 'admin'"))
+                    conn.commit()
+                    print("✅ Migration: added superadmin to userrole enum")
+                except Exception:
+                    pass  # SQLite or enum already has the value
+
         print(f"✅ {settings.APP_NAME} v{settings.APP_VERSION} started successfully")
     except Exception as e:
         print(f"⚠️  Database connection failed at startup: {e}")
