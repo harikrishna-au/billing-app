@@ -153,6 +153,9 @@ const Login = () => {
     if (!clerkLoaded || !signIn || !signUp) return;
     setIsLoading(true);
     try {
+      // Pre-flight: reject unknown emails before touching Clerk
+      await authApi.checkEmail(magicEmail);
+
       // Try sign in first (returning user)
       await (signIn as any).create({
         strategy: "email_link",
