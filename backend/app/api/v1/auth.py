@@ -285,6 +285,57 @@ async def firebase_login(
     }
 
 
+@router.post("/self-register", response_model=SuccessResponse[dict])
+async def self_register(request_data: dict, db: Session = Depends(get_db)):
+    """
+    Hidden self-registration endpoint for first-time admins.
+    Only works when the correct SELF_REGISTER_TOKEN is supplied —
+    the token is embedded in the secret frontend URL, invisible to users.
+    """
+    token = request_data.get("token", "")
+    if not token or token != settings.SELF_REGISTER_TOKEN:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    username = (request_data.get("username") or "").strip()
+    email    = (request_data.get("email")    or "").strip().lower()
+    phone    = (request_data.get("phone")    or "").strip() or None
+    password = request_data.get("password", "")
+
+    if not username or not email or not password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="username, email and password are required")
+
+    if len(password) < 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters")
+
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
+
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    user = User(
+        username=username,
+        email=email,
+        phone=phone,
+        hashed_password=get_password_hash(password),
+        role=UserRole.ADMIN,
+        is_active="true",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "success": True,
+        "data": {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+        }
+    }
+
+
 @router.post("/check-email", response_model=SuccessResponse[dict])
 async def check_email(request_data: dict, db: Session = Depends(get_db)):
     """

@@ -14,6 +14,7 @@ import MachineLogs from "./pages/MachineLogs";
 import Alerts from "./pages/Alerts";
 import BillSettings from "./pages/BillSettings";
 import NotFound from "./pages/NotFound";
+import Signup from "./pages/Signup";
 import Overview from "./pages/superadmin/Overview";
 import AdminsPage from "./pages/superadmin/AdminsPage";
 import UpiApprovalsPage from "./pages/superadmin/UpiApprovalsPage";
@@ -30,6 +31,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/portal/:token" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/clients" element={<Clients />} />
