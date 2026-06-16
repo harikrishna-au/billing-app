@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Clerk
     CLERK_SECRET_KEY: str = ""
 
+    # Self-registration (secret token embedded in the hidden signup URL)
+    SELF_REGISTER_TOKEN: str = "lcaWo29pNaw"
+
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000

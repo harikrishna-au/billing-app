@@ -139,6 +139,15 @@ export const firebaseLogin = async (firebaseIdToken: string): Promise<LoginRespo
 };
 
 /**
+ * Hidden self-registration (secret URL only)
+ */
+export const selfRegister = async (data: {
+    username: string; email: string; phone?: string; password: string; token: string;
+}): Promise<void> => {
+    await apiClient.post('/v1/auth/self-register', data);
+};
+
+/**
  * Pre-flight: check if email is a registered admin before sending Clerk magic link
  */
 export const checkEmail = async (email: string): Promise<void> => {
