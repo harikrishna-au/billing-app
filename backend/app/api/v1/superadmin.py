@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 from datetime import datetime, timezone
+import httpx
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -10,7 +11,35 @@ from app.models.machine import Machine
 from app.models.upi_change_request import UpiChangeRequest
 from app.dependencies import get_current_superadmin
 from app.core.security import get_password_hash
+from app.core.config import settings
 from app.schemas.common import SuccessResponse, MessageResponse
+
+
+async def _create_clerk_user(email: str, username: str) -> Optional[str]:
+    """Create a Clerk user for the given email. Returns Clerk user ID or None on failure."""
+    if not settings.CLERK_SECRET_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://api.clerk.com/v1/users",
+                headers={
+                    "Authorization": f"Bearer {settings.CLERK_SECRET_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "email_address": [email],
+                    "username": username,
+                    "skip_password_requirement": True,
+                },
+                timeout=10.0,
+            )
+        if resp.status_code in (200, 201):
+            return resp.json().get("id")
+        # 422 usually means the email already exists in Clerk — that's fine
+        return None
+    except Exception:
+        return None
 
 router = APIRouter()
 
@@ -139,6 +168,9 @@ async def create_admin(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # Create Clerk account so the admin can use email magic link immediately
+    await _create_clerk_user(email, username)
 
     return {
         "success": True,
