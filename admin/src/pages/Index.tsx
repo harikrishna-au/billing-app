@@ -5,11 +5,20 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const session = localStorage.getItem("adminSession");
-    if (session) {
-      navigate("/dashboard");
-    } else {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
       navigate("/login");
+      return;
+    }
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user?.role === "superadmin") {
+        navigate("/superadmin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch {
+      navigate("/dashboard");
     }
   }, [navigate]);
 

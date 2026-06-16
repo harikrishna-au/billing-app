@@ -84,7 +84,8 @@ const Login = () => {
       const response = await authApi.login({ username, password });
       if (response.success) {
         toast({ title: "Welcome back!", description: `Logged in as ${response.data.user.username}` });
-        navigate("/dashboard");
+        const role = response.data.user.role;
+        navigate(role === "superadmin" ? "/superadmin" : "/dashboard");
       }
     } catch (error: any) {
       toast({
