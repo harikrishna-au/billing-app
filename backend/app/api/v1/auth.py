@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from typing import Union
 import httpx
 import json
@@ -9,7 +9,7 @@ from app.database import get_db
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token, get_password_hash
 from app.core.config import settings
 from app.core.logger import log_auth_success, log_auth_failure, log_token_refresh, log_logout
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.machine import Machine
 from app.schemas.auth import LoginRequest, TokenResponse, TokenRefreshRequest, TokenRefreshResponse
 from app.utils.alert_service import resolve_machine_alerts, create_alert_if_not_exists
@@ -21,6 +21,52 @@ from app.dependencies import get_current_user
 router = APIRouter()
 
 # Force reload
+
+
+@router.post("/bootstrap-superadmin", response_model=SuccessResponse[dict])
+async def bootstrap_superadmin(body: dict, db: Session = Depends(get_db)):
+    """
+    One-time endpoint to create the very first superadmin account.
+    Returns 403 once any superadmin already exists — cannot be used again.
+    """
+    already_exists = db.query(User).filter(User.role == UserRole.SUPERADMIN).first()
+    if already_exists:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A superadmin already exists. This endpoint is disabled."
+        )
+
+    username = (body.get("username") or "").strip()
+    email    = (body.get("email")    or "").strip()
+    password = (body.get("password") or "")
+
+    if not username or not email or not password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="username, email and password are required")
+
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken")
+
+    user = User(
+        username=username,
+        email=email,
+        hashed_password=get_password_hash(password),
+        role=UserRole.SUPERADMIN,
+        is_active="true",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "success": True,
+        "data": {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "message": "Superadmin created. This endpoint is now permanently disabled."
+        }
+    }
 
 
 @router.post("/login", response_model=SuccessResponse[dict])
@@ -304,7 +350,7 @@ async def machine_login(
     
     # Update machine status to online and last_sync
     machine.status = "online"
-    machine.last_sync = datetime.utcnow()
+    machine.last_sync = datetime.now(timezone.utc)
 
     try:
         db.commit()
@@ -370,36 +416,64 @@ async def refresh_token(
             detail="Invalid token type"
         )
     
-    # Get user
-    user_id = payload.get("sub")
-    if not user_id:
+    # Get entity ID from token
+    entity_id = payload.get("sub")
+    if not entity_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload"
         )
-    
-    user = db.query(User).filter(User.id == user_id).first()
+
+    token_entity_type = payload.get("type")  # "machine" or absent (user)
+
+    # Handle machine refresh tokens
+    if token_entity_type == "machine":
+        machine = db.query(Machine).filter(Machine.id == entity_id).first()
+        if not machine:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Machine not found"
+            )
+        access_token = create_access_token(
+            data={
+                "sub": str(machine.id),
+                "username": machine.username,
+                "type": "machine",
+                "machine_id": str(machine.id),
+            }
+        )
+        log_token_refresh(str(machine.id))
+        return {
+            "success": True,
+            "data": {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            }
+        }
+
+    user = db.query(User).filter(User.id == entity_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
+
     # Check if user is active
     if user.is_active != "true":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
-    
+
     # Create new access token
     access_token = create_access_token(
         data={"sub": str(user.id), "username": user.username, "role": user.role}
     )
-    
+
     # Log token refresh
     log_token_refresh(str(user.id))
-    
+
     return {
         "success": True,
         "data": {
@@ -448,7 +522,7 @@ async def get_current_user_info(
     if isinstance(current_user, Machine):
         # Update machine status to online whenever the app calls /me
         current_user.status = "online"
-        current_user.last_sync = datetime.utcnow()
+        current_user.last_sync = datetime.now(timezone.utc)
         try:
             db.commit()
         except Exception:
