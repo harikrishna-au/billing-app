@@ -285,6 +285,121 @@ async def firebase_login(
     }
 
 
+@router.post("/clerk-login", response_model=SuccessResponse[dict])
+async def clerk_login(
+    request_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate admin via Clerk email magic link.
+    Accepts a Clerk session JWT, verifies it against Clerk's JWKS,
+    fetches the user's email from Clerk's API, then issues our own JWT.
+    """
+    token = request_data.get("clerk_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="clerk_token is required")
+
+    if not settings.CLERK_SECRET_KEY:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Clerk not configured")
+
+    try:
+        from jose import jwt as jose_jwt, JWTError
+
+        # Decode without verification to get the issuer for the JWKS URL
+        unverified_claims = jose_jwt.get_unverified_claims(token)
+        iss = unverified_claims.get("iss", "")
+        if not iss:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: missing issuer")
+
+        # Fetch JWKS from Clerk
+        async with httpx.AsyncClient() as client:
+            jwks_resp = await client.get(f"{iss}/.well-known/jwks.json", timeout=10.0)
+
+        if jwks_resp.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not fetch Clerk JWKS")
+
+        jwks = jwks_resp.json()
+
+        # Verify signature and decode claims
+        claims = jose_jwt.decode(
+            token, jwks,
+            algorithms=["RS256"],
+            options={"verify_aud": False}
+        )
+
+        clerk_user_id = claims.get("sub")
+        if not clerk_user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: no user ID")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid Clerk token: {e}")
+
+    # Fetch the user's email from Clerk's Backend API
+    try:
+        async with httpx.AsyncClient() as client:
+            user_resp = await client.get(
+                f"https://api.clerk.com/v1/users/{clerk_user_id}",
+                headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
+                timeout=10.0,
+            )
+
+        if user_resp.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not fetch user from Clerk")
+
+        clerk_user = user_resp.json()
+        primary_email_id = clerk_user.get("primary_email_address_id")
+        email = next(
+            (ea["email_address"] for ea in clerk_user.get("email_addresses", [])
+             if ea["id"] == primary_email_id),
+            None
+        )
+
+        if not email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No email address on Clerk account")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Clerk user lookup failed: {e}")
+
+    # Find admin by email in our DB
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No admin account found for this email. Contact your superadmin."
+        )
+
+    if user.is_active != "true":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive")
+
+    # Issue our JWT
+    access_token = create_access_token(
+        data={"sub": str(user.id), "username": user.username, "role": user.role}
+    )
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    log_auth_success(user.username, None)
+
+    return {
+        "success": True,
+        "data": {
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            },
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    }
+
+
 @router.post("/machine-login", response_model=SuccessResponse[dict])
 async def machine_login(
     credentials: LoginRequest,
