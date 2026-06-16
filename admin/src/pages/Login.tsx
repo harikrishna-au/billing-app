@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
+import { useSignIn, useSignUp, useClerk, useAuth } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,7 @@ const Login = () => {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const clerk = useClerk();
+  const { getToken } = useAuth();
 
   const clerkLoaded = signInLoaded && signUpLoaded;
 
@@ -47,9 +48,19 @@ const Login = () => {
 
     const finish = async (createdSessionId: string) => {
       await clerk.setActive({ session: createdSessionId });
-      await new Promise((r) => setTimeout(r, 200));
-      const clerkToken = await clerk.session?.getToken();
-      if (!clerkToken) throw new Error("Could not get Clerk session token");
+
+      // Retry getting the token — session propagation can take a moment
+      let clerkToken: string | null = null;
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 300));
+        clerkToken = await getToken().catch(() => null);
+        if (clerkToken) break;
+      }
+
+      if (!clerkToken) {
+        throw new Error("Session token unavailable — please try again");
+      }
+
       const response = await authApi.clerkLogin(clerkToken);
       if (response.success) {
         sessionStorage.removeItem("clerk_email_flow");
@@ -59,12 +70,15 @@ const Login = () => {
     };
 
     const onError = (err: any) => {
-      toast({
-        title: "Link expired or invalid",
-        description: err?.errors?.[0]?.message || "Request a new magic link",
-        variant: "destructive",
-      });
+      const msg =
+        err?.errors?.[0]?.longMessage ||
+        err?.errors?.[0]?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Something went wrong";
+      toast({ title: "Sign-in failed", description: msg, variant: "destructive" });
       setStep("email");
+      window.history.replaceState({}, "", window.location.pathname);
     };
 
     if (flow === "signup") {
