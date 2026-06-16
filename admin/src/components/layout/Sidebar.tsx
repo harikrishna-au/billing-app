@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Monitor, AlertTriangle, LogOut } from "lucide-react";
+import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "@/lib/api";
 
@@ -21,10 +21,14 @@ const Sidebar = () => {
     retry: false,
   });
 
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const isSuperAdmin = storedUser?.role === "superadmin";
+
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Monitor, label: "Blaze Machines", path: "/clients" },
     { icon: AlertTriangle, label: "System Alerts", path: "/alerts", badge: unresolvedCount },
+    ...(isSuperAdmin ? [{ icon: ShieldCheck, label: "Super Admin", path: "/superadmin" }] : []),
   ];
 
   return (

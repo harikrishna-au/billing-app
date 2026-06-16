@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
 from app.models.service import Service
+from app.models.upi_change_request import UpiChangeRequest
 from app.dependencies import get_current_user
 from app.core.security import get_password_hash
 from app.schemas.machine import MachineCreate, MachineUpdate, MachineResponse, MachineStatusUpdate
@@ -331,8 +332,8 @@ async def update_machine(
     if machine_data.password is not None:
         machine.hashed_password = get_password_hash(machine_data.password)
 
-    if machine_data.upi_id is not None:
-        machine.upi_id = machine_data.upi_id.strip() or None
+    # upi_id changes must go through the superadmin approval flow (/machines/{id}/upi-request)
+    # Any upi_id supplied here is intentionally ignored.
 
     if machine_data.location_id is not None:
         machine.location_id = machine_data.location_id or None
@@ -407,17 +408,18 @@ async def update_machine_status(
     Returns:
         Updated machine details
     """
-    machine = db.query(Machine).filter(
-        Machine.id == machine_id,
-        Machine.user_id == current_user.id  # Verify ownership
-    ).first()
-    
+    # Machine tokens authenticate as themselves; admin tokens own machines via user_id.
+    if isinstance(current_user, Machine):
+        machine = db.query(Machine).filter(Machine.id == machine_id, Machine.id == current_user.id).first()
+    else:
+        machine = db.query(Machine).filter(Machine.id == machine_id, Machine.user_id == current_user.id).first()
+
     if not machine:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
     # Update fields if provided
     if status_data.status is not None:
         machine.status = status_data.status
@@ -503,6 +505,66 @@ async def delete_machine(
         "success": True,
         "message": "Machine deleted successfully"
     }
+
+# ─── UPI change request ───────────────────────────────────────────────────────
+
+@router.post("/{machine_id}/upi-request", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
+async def request_upi_change(
+    machine_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin submits a UPI ID change request for superadmin approval."""
+    if isinstance(current_user, Machine):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Machine tokens cannot submit UPI requests")
+
+    new_upi_id = (body.get("new_upi_id") or "").strip()
+    if not new_upi_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="new_upi_id is required")
+
+    machine = db.query(Machine).filter(
+        Machine.id == machine_id, Machine.user_id == current_user.id
+    ).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
+
+    # Only one pending request per machine at a time
+    existing = db.query(UpiChangeRequest).filter(
+        UpiChangeRequest.machine_id == machine_id,
+        UpiChangeRequest.status == "pending",
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A pending UPI change request already exists for this machine",
+        )
+
+    req = UpiChangeRequest(
+        machine_id=machine.id,
+        requested_by=current_user.id,
+        old_upi_id=machine.upi_id,
+        new_upi_id=new_upi_id,
+    )
+    db.add(req)
+    try:
+        db.commit()
+        db.refresh(req)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return {
+        "success": True,
+        "data": {
+            "request_id": str(req.id),
+            "machine_id": str(req.machine_id),
+            "old_upi_id": req.old_upi_id,
+            "new_upi_id": req.new_upi_id,
+            "status": req.status,
+        },
+    }
+
 
 # ─── Excel / CSV bulk import for service catalog ───────────────────────────
 

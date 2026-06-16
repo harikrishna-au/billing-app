@@ -12,3 +12,5 @@ export { configApi } from './config';
 export type { BillConfig, BillConfigUpdate } from './config';
 export { locationsApi } from './locations';
 export type { Location as LocationType, LocationCreate, LocationUpdate } from './locations';
+export { superadminApi, machineUpiRequestApi } from './superadmin';
+export type { AdminSummary, AdminDetail, SuperMachine, UpiRequest } from './superadmin';

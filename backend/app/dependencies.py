@@ -121,13 +121,13 @@ async def get_current_admin_user(
 ) -> User:
     """
     Dependency to ensure current user is an admin.
-    
+
     Args:
         current_user: Current user from token
-        
+
     Returns:
         Admin user object
-        
+
     Raises:
         HTTPException: If user is not an admin
     """
@@ -135,5 +135,17 @@ async def get_current_admin_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
+        )
+    return current_user
+
+
+async def get_current_superadmin(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """Dependency to ensure current user is a superadmin."""
+    if not isinstance(current_user, User) or current_user.role != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superadmin access required"
         )
     return current_user
