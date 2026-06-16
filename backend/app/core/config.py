@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""  # full service account JSON as a single-line string
 
+    # Clerk
+    CLERK_SECRET_KEY: str = ""
+
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000

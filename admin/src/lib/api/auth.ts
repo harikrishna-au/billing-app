@@ -139,6 +139,23 @@ export const firebaseLogin = async (firebaseIdToken: string): Promise<LoginRespo
 };
 
 /**
+ * Login via Clerk email magic link
+ */
+export const clerkLogin = async (clerkToken: string): Promise<LoginResponse> => {
+    const response = await apiClient.post<LoginResponse>('/v1/auth/clerk-login', {
+        clerk_token: clerkToken,
+    });
+
+    if (response.data.success) {
+        localStorage.setItem('access_token', response.data.data.token);
+        localStorage.setItem('refresh_token', response.data.data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+    }
+
+    return response.data;
+};
+
+/**
  * Check if user is authenticated
  */
 export const isAuthenticated = (): boolean => {
