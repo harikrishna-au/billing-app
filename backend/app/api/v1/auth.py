@@ -325,6 +325,26 @@ async def self_register(request_data: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # Create Clerk account so they can use email magic link straight away
+    if settings.CLERK_SECRET_KEY:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.clerk.com/v1/users",
+                    headers={
+                        "Authorization": f"Bearer {settings.CLERK_SECRET_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "email_address": [email],
+                        "username": username,
+                        "skip_password_requirement": True,
+                    },
+                    timeout=10.0,
+                )
+        except Exception:
+            pass  # Clerk account creation is best-effort; DB account is what matters
+
     return {
         "success": True,
         "data": {
