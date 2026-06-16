@@ -13,8 +13,11 @@ import MachinePayments from "./pages/MachinePayments";
 import MachineLogs from "./pages/MachineLogs";
 import Alerts from "./pages/Alerts";
 import BillSettings from "./pages/BillSettings";
-import SuperAdmin from "./pages/SuperAdmin";
 import NotFound from "./pages/NotFound";
+import Overview from "./pages/superadmin/Overview";
+import AdminsPage from "./pages/superadmin/AdminsPage";
+import UpiApprovalsPage from "./pages/superadmin/UpiApprovalsPage";
+import MachinesPage from "./pages/superadmin/MachinesPage";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +39,11 @@ const App = () => (
           <Route path="/clients/:id/logs" element={<MachineLogs />} />
           <Route path="/clients/:id/catalog-logs" element={<MachineLogs />} />
           <Route path="/clients/:id/bill-settings" element={<BillSettings />} />
-          <Route path="/superadmin" element={<SuperAdmin />} />
+          {/* Superadmin portal — completely separate from admin panel */}
+          <Route path="/superadmin" element={<Overview />} />
+          <Route path="/superadmin/admins" element={<AdminsPage />} />
+          <Route path="/superadmin/upi-approvals" element={<UpiApprovalsPage />} />
+          <Route path="/superadmin/machines" element={<MachinesPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

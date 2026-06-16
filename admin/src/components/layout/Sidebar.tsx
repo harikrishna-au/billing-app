@@ -1,35 +1,63 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck, Users, CreditCard } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "@/lib/api";
+import { superadminApi } from "@/lib/api/superadmin";
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminSession");
-    navigate("/");
-  };
-
-  // Poll unresolved alert count every 60 s for the badge
-  const { data: unresolvedCount = 0 } = useQuery({
-    queryKey: ['unresolved-count'],
-    queryFn: dashboardApi.getUnresolvedCount,
-    refetchInterval: 60_000,
-    // Don't throw if the user isn't logged in yet
-    retry: false,
-  });
-
   const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
   const isSuperAdmin = storedUser?.role === "superadmin";
 
-  const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Monitor, label: "Blaze Machines", path: "/clients" },
-    { icon: AlertTriangle, label: "System Alerts", path: "/alerts", badge: unresolvedCount },
-    ...(isSuperAdmin ? [{ icon: ShieldCheck, label: "Super Admin", path: "/superadmin" }] : []),
+  const handleLogout = () => {
+    localStorage.removeItem("adminSession");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  // Admin: poll unresolved alert count
+  const { data: unresolvedCount = 0 } = useQuery({
+    queryKey: ["unresolved-count"],
+    queryFn: dashboardApi.getUnresolvedCount,
+    refetchInterval: 60_000,
+    retry: false,
+    enabled: !isSuperAdmin,
+  });
+
+  // Superadmin: poll pending UPI count
+  const { data: pendingUpiCount = 0 } = useQuery({
+    queryKey: ["sa-pending-count"],
+    queryFn: async () => {
+      const reqs = await superadminApi.listUpiRequests("pending");
+      return reqs.length;
+    },
+    refetchInterval: 30_000,
+    enabled: isSuperAdmin,
+  });
+
+  const adminNavItems = [
+    { icon: LayoutDashboard, label: "Dashboard",     path: "/dashboard" },
+    { icon: Monitor,         label: "Blaze Machines", path: "/clients" },
+    { icon: AlertTriangle,   label: "System Alerts",  path: "/alerts", badge: unresolvedCount },
   ];
+
+  const superadminNavItems = [
+    { icon: LayoutDashboard, label: "Overview",      path: "/superadmin" },
+    { icon: Users,           label: "Admins",        path: "/superadmin/admins" },
+    { icon: CreditCard,      label: "UPI Approvals", path: "/superadmin/upi-approvals", badge: pendingUpiCount },
+    { icon: Monitor,         label: "All Machines",  path: "/superadmin/machines" },
+  ];
+
+  const navItems = isSuperAdmin ? superadminNavItems : adminNavItems;
+
+  const isActive = (path: string) => {
+    if (path === "/superadmin") return location.pathname === "/superadmin";
+    return location.pathname === path || location.pathname.startsWith(path + "/");
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-60 border-r border-sidebar-border bg-sidebar">
@@ -50,7 +78,7 @@ const Sidebar = () => {
               MIT Admin
             </span>
             <span className="mt-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-              Control Panel
+              {isSuperAdmin ? "Super Admin" : "Control Panel"}
             </span>
           </div>
         </div>
@@ -61,24 +89,27 @@ const Sidebar = () => {
             Navigation
           </p>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+            const active = isActive(item.path);
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`sidebar-item group ${isActive ? "active" : ""}`}
+                className={`sidebar-item group ${active ? "active" : ""}`}
               >
                 <item.icon
-                  className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
-                    }`}
+                  className={`h-4 w-4 shrink-0 transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground group-hover:text-sidebar-foreground"
+                  }`}
                 />
                 <span className="truncate flex-1">{item.label}</span>
                 {item.badge != null && item.badge > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                  <span className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white ${
+                    isSuperAdmin ? "bg-amber-500" : "bg-red-500"
+                  }`}>
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
-                {isActive && !item.badge && (
+                {active && !(item.badge && item.badge > 0) && (
                   <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
                 )}
               </Link>
@@ -88,6 +119,15 @@ const Sidebar = () => {
 
         {/* Footer */}
         <div className="border-t border-sidebar-border px-3 py-4">
+          {isSuperAdmin && storedUser?.username && (
+            <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/40">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold uppercase text-primary shrink-0">
+                {storedUser.username[0]}
+              </div>
+              <span className="text-xs font-medium text-muted-foreground truncate">{storedUser.username}</span>
+              <ShieldCheck className="h-3 w-3 text-primary/60 ml-auto shrink-0" />
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="sidebar-item w-full hover:bg-destructive/10 hover:text-destructive group"
