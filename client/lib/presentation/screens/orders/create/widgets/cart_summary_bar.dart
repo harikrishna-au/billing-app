@@ -40,7 +40,7 @@ class CartSummaryBar extends StatelessWidget {
                   Text(
                     '$totalItems item${totalItems == 1 ? '' : 's'}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
@@ -49,7 +49,7 @@ class CartSummaryBar extends StatelessWidget {
                   Text(
                     CurrencyFormatter.format(totalAmount),
                     style: GoogleFonts.dmSans(
-                      fontSize: 22,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                       letterSpacing: -0.5,
@@ -76,7 +76,7 @@ class CartSummaryBar extends StatelessWidget {
                     Text(
                       'Review',
                       style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),

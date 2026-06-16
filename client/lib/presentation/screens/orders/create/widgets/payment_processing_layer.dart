@@ -35,7 +35,7 @@ class PaymentProcessingLayer extends StatelessWidget {
                   Text(
                     'Processing payment…',
                     style: GoogleFonts.dmSans(
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),

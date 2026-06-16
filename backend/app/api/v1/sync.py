@@ -1,9 +1,9 @@
 """
 Sync endpoints for client app offline data synchronization.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from app.database import get_db
@@ -71,7 +71,7 @@ async def sync_push(
                 amount=payment_data.amount,
                 method=payment_data.method,
                 status=payment_data.status,
-                created_at=payment_data.created_at or datetime.utcnow()
+                created_at=payment_data.created_at or datetime.now(timezone.utc)
             )
             
             db.add(payment)
@@ -82,7 +82,7 @@ async def sync_push(
             continue
     
     # Update machine last_sync and bill_counter (take the max so we never go backwards)
-    machine.last_sync = datetime.utcnow()
+    machine.last_sync = datetime.now(timezone.utc)
     machine.bill_counter = max(machine.bill_counter or 0, sync_data.client_bill_counter)
 
     try:
@@ -107,7 +107,7 @@ async def sync_push(
 
 @router.post("/pull", response_model=SuccessResponse[SyncPullResponse])
 async def sync_pull(
-    machine_id: str,
+    machine_id: str = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -152,7 +152,7 @@ async def sync_pull(
     ]
     
     # Update machine last_sync
-    machine.last_sync = datetime.utcnow()
+    machine.last_sync = datetime.now(timezone.utc)
     
     try:
         db.commit()

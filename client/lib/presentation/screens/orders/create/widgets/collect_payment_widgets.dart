@@ -88,7 +88,7 @@ class CollectPaymentAmountCard extends StatelessWidget {
                 Text(
                   label,
                   style: GoogleFonts.dmSans(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: Colors.white.withValues(alpha: 0.95),
                     letterSpacing: 0.8,
@@ -101,7 +101,7 @@ class CollectPaymentAmountCard extends StatelessWidget {
           Text(
             'Amount to collect',
             style: GoogleFonts.dmSans(
-              fontSize: 13,
+              fontSize: 11,
               color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
@@ -159,7 +159,7 @@ class CollectPaymentItemsSummary extends StatelessWidget {
                   'Order summary',
                   textAlign: TextAlign.right,
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
@@ -169,7 +169,7 @@ class CollectPaymentItemsSummary extends StatelessWidget {
                   icon: const Icon(Icons.edit_outlined, size: 15),
                   label: Text('Edit',
                       style: GoogleFonts.dmSans(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
+                          fontSize: 11, fontWeight: FontWeight.w600)),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     padding: EdgeInsets.zero,
@@ -199,7 +199,7 @@ class CollectPaymentItemsSummary extends StatelessWidget {
                     CurrencyFormatter.format(total),
                     textAlign: TextAlign.right,
                     style: GoogleFonts.dmSans(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: AppColors.primary,
                       letterSpacing: -0.3,
@@ -210,7 +210,7 @@ class CollectPaymentItemsSummary extends StatelessWidget {
                     'Total',
                     textAlign: TextAlign.right,
                     style: GoogleFonts.dmSans(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
@@ -263,7 +263,7 @@ class CollectPaymentLineRow extends StatelessWidget {
             child: Text(name,
                 textAlign: TextAlign.right,
                 style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary),
                 maxLines: 1,
@@ -272,7 +272,7 @@ class CollectPaymentLineRow extends StatelessWidget {
           Text(CurrencyFormatter.format(price),
               textAlign: TextAlign.right,
               style: GoogleFonts.dmSans(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textSecondary)),
         ],
@@ -305,7 +305,7 @@ class CollectPaymentCashNote extends StatelessWidget {
             child: Text(
               'By confirming, you acknowledge that you have received ${CurrencyFormatter.format(amount)} in cash.',
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 color: const Color(0xFF92400E),
                 height: 1.5,
                 fontWeight: FontWeight.w500,

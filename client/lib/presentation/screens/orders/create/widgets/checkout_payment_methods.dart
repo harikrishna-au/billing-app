@@ -46,7 +46,7 @@ class CheckoutPaymentMethods extends StatelessWidget {
                 Expanded(
                   child: Text(
                     lastError!,
-                    style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 13),
+                    style: GoogleFonts.dmSans(color: AppColors.error, fontSize: 11),
                   ),
                 ),
                 IconButton(
@@ -159,7 +159,7 @@ class _PaymentButton extends StatelessWidget {
                       label,
                       style: GoogleFonts.dmSans(
                         color: Colors.white,
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.3,
                       ),

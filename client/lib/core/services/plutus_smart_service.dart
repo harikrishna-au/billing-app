@@ -2,13 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
-/// Plutus Smart App-to-App integration (Hybrid Intent flow).
+/// Plutus Smart integration via Messenger IPC.
 ///
-/// Android side is implemented in `MainActivity.kt` under MethodChannel `PLUTUS-API`.
+/// Android side binds to `com.pinelabs.masterapp.SERVER`, sends MASTERAPPREQUEST,
+/// and receives MASTERAPPRESPONSE — exactly as shown in the Pine Labs reference sample.
 class PlutusSmartService {
   static const MethodChannel _channel = MethodChannel('PLUTUS-API');
 
-  /// Best-effort bind (some devices require it before HYBRID_REQUEST works).
+  /// Warm-up bind to Pine Labs MasterApp service.
   static Future<void> bindToService() async {
     await _channel.invokeMethod('bindToService');
   }
@@ -40,6 +41,12 @@ class PlutusSmartService {
 }
 
 class PlutusRequestBuilder {
+  /// Sanitize a reference number for Pine Labs: keep only alphanumeric chars
+  /// and hyphens. The slash in our internal format (e.g. "1014596/27") is
+  /// replaced with a hyphen so Pine Labs doesn't reject the field.
+  static String _sanitizeRef(String ref) =>
+      ref.replaceAll('/', '-').replaceAll(RegExp(r'[^A-Za-z0-9\-]'), '');
+
   /// DoPrint (MethodId=1002) print job.
   static String printJob({
     required String applicationId,
@@ -51,13 +58,13 @@ class PlutusRequestBuilder {
     return jsonEncode({
       'Header': {
         'ApplicationId': applicationId,
-        if (userId != null && userId.isNotEmpty) 'UserId': userId,
+        'UserId': (userId != null && userId.isNotEmpty) ? userId : '',
         'MethodId': '1002',
         'VersionNo': versionNo,
       },
       'Detail': {
-        'PrintRefNo': printRefNo,
-        'SavePrintData': false,
+        'PrintRefNo': _sanitizeRef(printRefNo),
+        'SavePrintData': true,
         'Data': data,
       },
     });
@@ -75,13 +82,13 @@ class PlutusRequestBuilder {
     return jsonEncode({
       'Header': {
         'ApplicationId': applicationId,
-        if (userId != null) 'UserId': userId,
+        'UserId': (userId != null && userId.isNotEmpty) ? userId : '',
         'MethodId': '1001',
         'VersionNo': versionNo,
       },
       'Detail': {
         'TransactionType': transactionType,
-        'BillingRefNo': billingRefNo,
+        'BillingRefNo': _sanitizeRef(billingRefNo),
         'PaymentAmount': paymentAmountPaise,
       },
     });

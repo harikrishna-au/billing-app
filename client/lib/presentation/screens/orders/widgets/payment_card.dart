@@ -9,14 +9,11 @@ import '../../../../data/models/payment_model.dart';
 class PaymentCard extends StatelessWidget {
   final Payment payment;
   final VoidCallback? onTap;
-  /// When set and [payment] is successful, shows overflow menu to cancel the ticket.
-  final VoidCallback? onCancelTicket;
 
   const PaymentCard({
     super.key,
     required this.payment,
     this.onTap,
-    this.onCancelTicket,
   });
 
   @override
@@ -53,9 +50,6 @@ class PaymentCard extends StatelessWidget {
     final formattedTime = DateFormat('hh:mm a').format(payment.createdAtLocal);
     final formattedDate =
         DateFormat('dd MMM yyyy').format(payment.createdAtLocal);
-
-    final showCancelMenu =
-        onCancelTicket != null && payment.isSuccess;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -111,7 +105,7 @@ class PaymentCard extends StatelessWidget {
                       Text(
                         payment.billNumber,
                         style: GoogleFonts.dmSans(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                           letterSpacing: -0.1,
@@ -121,7 +115,7 @@ class PaymentCard extends StatelessWidget {
                       Text(
                         '$formattedDate  •  $formattedTime',
                         style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppColors.textLight,
                           fontWeight: FontWeight.w400,
                         ),
@@ -137,7 +131,7 @@ class PaymentCard extends StatelessWidget {
                     Text(
                       CurrencyFormatter.format(payment.amount),
                       style: GoogleFonts.dmSans(
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                         letterSpacing: -0.3,
@@ -154,7 +148,7 @@ class PaymentCard extends StatelessWidget {
                       child: Text(
                         statusLabel,
                         style: GoogleFonts.dmSans(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: statusColor,
                         ),
@@ -163,32 +157,6 @@ class PaymentCard extends StatelessWidget {
                   ],
                 ),
 
-                if (showCancelMenu) ...[
-                  const SizedBox(width: 4),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(
-                      Icons.more_vert_rounded,
-                      color: AppColors.textSecondary,
-                      size: 22,
-                    ),
-                    onSelected: (value) {
-                      if (value == 'cancel') onCancelTicket!();
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem<String>(
-                        value: 'cancel',
-                        child: Text(
-                          'Cancel ticket',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),

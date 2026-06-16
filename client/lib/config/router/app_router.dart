@@ -15,7 +15,7 @@ import '../../presentation/screens/orders/create/select_items_screen.dart';
 import '../../presentation/screens/orders/create/review_order_screen.dart';
 import '../../presentation/screens/orders/create/collect_payment_screen.dart';
 import '../../presentation/screens/orders/create/upi_payment_screen.dart';
-import '../../presentation/screens/orders/create/razorpay_payment_screen.dart';
+import '../../presentation/screens/orders/create/card_payment_screen.dart';
 import '../../presentation/screens/orders/create/bill_screen.dart';
 import '../../presentation/screens/reports/day_summary_screen.dart';
 import '../../presentation/widgets/layout/app_navigation.dart';
@@ -104,12 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                                       state.uri.queryParameters['amount'] ??
                                           '0') ??
                                   0.0;
-                              final invoice =
-                                  state.uri.queryParameters['invoice'] ?? '';
-                              return RazorpayPaymentScreen(
-                                amount: amount,
-                                invoiceNumber: invoice,
-                              );
+                              return CardPaymentScreen(amount: amount);
                             },
                             parentNavigatorKey: _rootNavigatorKey,
                           ),

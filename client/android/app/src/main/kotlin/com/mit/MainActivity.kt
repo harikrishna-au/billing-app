@@ -4,12 +4,17 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.os.Bundle
-import android.util.Log
-import android.os.IBinder
-import android.os.Handler
-import android.os.Looper
 import android.content.pm.PackageManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.Message
+import android.os.Messenger
+import android.os.RemoteException
+import android.text.Layout
+import android.util.Log
+import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -20,242 +25,275 @@ import com.zcs.sdk.Sys
 import com.zcs.sdk.SdkResult
 import com.zcs.sdk.print.PrnStrFormat
 import com.zcs.sdk.print.PrnTextStyle
-import android.text.Layout
-import android.os.Build
 import java.util.concurrent.Executors
 
-class MainActivity: FlutterActivity() {
+class MainActivity : FlutterActivity() {
+
+    // ── Channel names ────────────────────────────────────────────────────────
     private val PRINTER_CHANNEL = "com.smartpos.sdk/printer"
-    private val PLUTUS_CHANNEL = "PLUTUS-API"
+    private val PLUTUS_CHANNEL  = "PLUTUS-API"
 
-    // Plutus Smart (MasterApp) integration constants (Hybrid Intent flow)
-    private val PLUTUS_SMART_ACTION = "com.pinelabs.masterapp.SERVER"
+    // ── Pine Labs MasterApp constants ────────────────────────────────────────
+    private val PLUTUS_SMART_ACTION  = "com.pinelabs.masterapp.SERVER"
     private val PLUTUS_SMART_PACKAGE = "com.pinelabs.masterapp"
-    private val PLUTUS_HYBRID_ACTION = "com.pinelabs.masterapp.HYBRID_REQUEST"
-    private val PLUTUS_REQUEST_KEY = "REQUEST_DATA"
-    private val PLUTUS_RESPONSE_KEY = "RESPONSE_DATA"
+    private val REQUEST_KEY          = "MASTERAPPREQUEST"
+    private val RESPONSE_KEY         = "MASTERAPPRESPONSE"
+    private val MSG_CODE             = 1001   // Pine Labs Messenger message code
 
+    // ── SmartPOS direct-printer state ────────────────────────────────────────
     private lateinit var mDriverManager: DriverManager
     private lateinit var mSys: Sys
     private lateinit var mPrinter: Printer
     private var isSdkInitialized = false
     private val executor = Executors.newSingleThreadExecutor()
 
-    // Plutus service bind state (some terminals require bind before hybrid intent)
-    private var isPlutusServiceBound = false
-    private var plutusBinder: IBinder? = null
-    private var pendingPlutusBindResult: Result? = null
-    private var pendingPlutusResult: Result? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val plutusBindTimeout = Runnable {
-        pendingPlutusBindResult?.let { pending ->
-            pendingPlutusBindResult = null
-            pending.error("SERVICE_NOT_BOUND", "Pine Labs service did not connect within 3 seconds", null)
+    // ── Active Plutus Messenger request ─────────────────────────────────────
+    // Only one request (transaction OR print) is allowed at a time.
+    private var pendingResult:   Result? = null
+    private var pendingPayload:  String? = null
+    private var pendingLabel:    String  = ""
+    private var mServerMessenger: Messenger? = null
+    private var isServiceBound = false
+
+    // ── Per-request ServiceConnection ───────────────────────────────────────
+    // A fresh connection is created for every transaction / print call so there
+    // is no stale-binding risk between calls (mirrors the reference sample exactly).
+    private var activeServiceConnection: ServiceConnection? = null
+
+    private fun buildServiceConnection(): ServiceConnection {
+        return object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                Log.d("Plutus", "MASTERAPP service connected ($pendingLabel)")
+                mServerMessenger = Messenger(service)
+                isServiceBound   = true
+
+                val payload = pendingPayload
+                val pending = pendingResult
+                if (payload != null && pending != null) {
+                    sendViaMessenger(payload, pending)
+                } else {
+                    Log.w("Plutus", "Service connected but no pending request — unbinding")
+                    pending?.error("NO_PAYLOAD", "No payload queued", null)
+                    resetAndUnbind()
+                }
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                Log.d("Plutus", "MASTERAPP service disconnected ($pendingLabel)")
+                mServerMessenger = null
+                isServiceBound   = false
+            }
         }
     }
 
-    private val plutusServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            Log.d("Plutus", "Service connected: $name")
-            plutusBinder = service
-            isPlutusServiceBound = true
-            mainHandler.removeCallbacks(plutusBindTimeout)
-            pendingPlutusBindResult?.success("SERVICE_CONNECTED")
-            pendingPlutusBindResult = null
-        }
+    // ── Incoming response handler ─────────────────────────────────────────────
+    private inner class PlutusResponseHandler : Handler(Looper.getMainLooper()) {
+        override fun handleMessage(msg: Message) {
+            val value = msg.data.getString(RESPONSE_KEY)
+            Log.d("Plutus", "MASTERAPPRESPONSE ($pendingLabel): $value")
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            Log.d("Plutus", "Service disconnected: $name")
-            plutusBinder = null
-            isPlutusServiceBound = false
+            val pending = pendingResult
+            resetAndUnbind()
+
+            if (pending == null) {
+                Log.w("Plutus", "MASTERAPPRESPONSE: no pending result to resolve — ignored")
+                return
+            }
+            if (value.isNullOrBlank()) {
+                Log.w("Plutus", "MASTERAPPRESPONSE: empty — MasterApp may have failed")
+                pending.error("EMPTY_RESPONSE", "MasterApp returned empty response for $pendingLabel", null)
+            } else {
+                pending.success(value)
+            }
         }
     }
 
+    // ── Core Messenger send ───────────────────────────────────────────────────
+    private fun sendViaMessenger(payload: String, result: Result) {
+        val server = mServerMessenger
+        if (server == null) {
+            result.error("NO_MESSENGER", "Server messenger is null", null)
+            resetAndUnbind()
+            return
+        }
+        try {
+            Log.d("Plutus", "MASTERAPPREQUEST ($pendingLabel): $payload")
+            val msg = Message.obtain(null, MSG_CODE)
+            val data = Bundle()
+            data.putString(REQUEST_KEY, payload)
+            msg.data    = data
+            msg.replyTo = Messenger(PlutusResponseHandler())
+            server.send(msg)
+        } catch (e: RemoteException) {
+            Log.e("Plutus", "Messenger send failed", e)
+            result.error("SEND_FAILED", e.localizedMessage, null)
+            resetAndUnbind()
+        }
+    }
+
+    // ── Start a Messenger request (transaction or print) ──────────────────────
+    private fun startMessengerRequest(payload: String, label: String, result: Result) {
+        if (!isPlutusMasterAppInstalled()) {
+            result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp is not installed", null)
+            return
+        }
+        if (pendingResult != null) {
+            result.error("BUSY", "Another Plutus request ($pendingLabel) is already in progress", null)
+            return
+        }
+
+        pendingResult  = result
+        pendingPayload = payload
+        pendingLabel   = label
+
+        val conn = buildServiceConnection()
+        activeServiceConnection = conn
+
+        val intent = Intent().apply {
+            action = PLUTUS_SMART_ACTION
+            setPackage(PLUTUS_SMART_PACKAGE)
+        }
+        Log.d("Plutus", "Binding MasterApp service for $label")
+        val ok = bindService(intent, conn, Context.BIND_AUTO_CREATE)
+        if (!ok) {
+            Log.e("Plutus", "bindService returned false for $label")
+            result.error("BIND_FAILED", "Could not bind to Pine Labs MasterApp", null)
+            resetAndUnbind()
+        }
+    }
+
+    private fun resetAndUnbind() {
+        pendingResult  = null
+        pendingPayload = null
+        pendingLabel   = ""
+        mServerMessenger = null
+        if (isServiceBound) {
+            activeServiceConnection?.let {
+                try { unbindService(it) } catch (_: Exception) {}
+            }
+            isServiceBound = false
+        }
+        activeServiceConnection = null
+    }
+
+    // ── Flutter engine setup ──────────────────────────────────────────────────
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // ── Printer channel (existing) ───────────────────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PRINTER_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "initSdk" -> {
-                    executor.execute {
-                        initSdk()
-                        runOnUiThread {
-                            if (isSdkInitialized) {
-                                result.success("SDK Initialized Successfully")
-                            } else {
-                                result.error("SDK_INIT_FAILED", "Failed to initialize SDK", null)
-                            }
-                        }
-                    }
-                }
-                "printText" -> {
-                    val text = call.argument<String>("text")
-                    val size = call.argument<Int>("size") ?: 24
-                    val isBold = call.argument<Boolean>("isBold") ?: false
-                    val align = call.argument<Int>("align") ?: 0
-
-                    executor.execute {
-                        if (!isSdkInitialized) initSdk()
-                        if (!isSdkInitialized) {
+        // ── SmartPOS direct printer channel ──────────────────────────────────
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PRINTER_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "initSdk" -> {
+                        executor.execute {
+                            initSdk()
                             runOnUiThread {
-                                result.error("SDK_NOT_INIT", "SDK not initialized", null)
-                            }
-                            return@execute
-                        }
-                        val printStatus = printText(text, size, isBold, align)
-                        runOnUiThread {
-                            if (printStatus == SdkResult.SDK_OK) {
-                                result.success("Printed Successfully")
-                            } else {
-                                result.error("PRINT_FAILED", "Printing failed with status: $printStatus", null)
+                                if (isSdkInitialized)
+                                    result.success("SDK Initialized Successfully")
+                                else
+                                    result.error("SDK_INIT_FAILED", "Failed to initialize SDK", null)
                             }
                         }
                     }
-                }
-                "cutPaper" -> {
-                    executor.execute {
-                        if (!isSdkInitialized) initSdk()
-                        runOnUiThread {
-                            if (!isSdkInitialized || !::mPrinter.isInitialized) {
-                                result.error("SDK_NOT_INIT", "SDK not initialized", null)
-                                return@runOnUiThread
+                    "printText" -> {
+                        val text   = call.argument<String>("text")
+                        val size   = call.argument<Int>("size") ?: 24
+                        val isBold = call.argument<Boolean>("isBold") ?: false
+                        val align  = call.argument<Int>("align") ?: 0
+                        executor.execute {
+                            if (!isSdkInitialized) initSdk()
+                            if (!isSdkInitialized) {
+                                runOnUiThread {
+                                    result.error("SDK_NOT_INIT", "SDK not initialized", null)
+                                }
+                                return@execute
                             }
-                            mPrinter.openPrnCutter(1.toByte())
-                            result.success(true)
+                            val status = printText(text, size, isBold, align)
+                            runOnUiThread {
+                                if (status == SdkResult.SDK_OK)
+                                    result.success("Printed Successfully")
+                                else
+                                    result.error("PRINT_FAILED", "Status: $status", null)
+                            }
                         }
                     }
-                }
-                else -> {
-                    result.notImplemented()
-                }
-            }
-        }
-
-        // ── Plutus Smart channel (new) ──────────────────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLUTUS_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "bindToService" -> bindToPlutusService(result)
-                "startTransaction" -> {
-                    val payload = call.argument<String>("transactionData")
-                    if (payload.isNullOrBlank()) {
-                        result.error("INVALID_ARGS", "Missing transactionData", null)
-                        return@setMethodCallHandler
+                    "cutPaper" -> {
+                        executor.execute {
+                            if (!isSdkInitialized) initSdk()
+                            runOnUiThread {
+                                if (!isSdkInitialized || !::mPrinter.isInitialized) {
+                                    result.error("SDK_NOT_INIT", "SDK not initialized", null)
+                                    return@runOnUiThread
+                                }
+                                mPrinter.openPrnCutter(1.toByte())
+                                result.success(true)
+                            }
+                        }
                     }
-                    startPlutusIntent(payload, requestCode = 1001, result = result)
+                    else -> result.notImplemented()
                 }
-                "startPrintJob" -> {
-                    val payload = call.argument<String>("printData")
-                    if (payload.isNullOrBlank()) {
-                        result.error("INVALID_ARGS", "Missing printData", null)
-                        return@setMethodCallHandler
+            }
+
+        // ── Pine Labs Plutus channel ──────────────────────────────────────────
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLUTUS_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+
+                    // Warm-up bind — Flutter calls this before a transaction/print
+                    // to establish the service connection early. We reuse the same
+                    // Messenger IPC flow: bind → resolve immediately on connect.
+                    "bindToService" -> {
+                        if (!isPlutusMasterAppInstalled()) {
+                            result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp not installed", null)
+                            return@setMethodCallHandler
+                        }
+                        // Bind a temporary connection just to warm up; resolve as soon
+                        // as onServiceConnected fires, then unbind immediately.
+                        val warmupConn = object : ServiceConnection {
+                            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                                Log.d("Plutus", "Warm-up bind connected")
+                                result.success("SERVICE_CONNECTED")
+                                try { unbindService(this) } catch (_: Exception) {}
+                            }
+                            override fun onServiceDisconnected(name: ComponentName?) {}
+                        }
+                        val intent = Intent().apply {
+                            action = PLUTUS_SMART_ACTION
+                            setPackage(PLUTUS_SMART_PACKAGE)
+                        }
+                        val ok = bindService(intent, warmupConn, Context.BIND_AUTO_CREATE)
+                        if (!ok) {
+                            Log.w("Plutus", "Warm-up bind failed — non-fatal")
+                            result.success("SERVICE_TIMEOUT")
+                        }
                     }
-                    startPlutusIntent(payload, requestCode = 1002, result = result)
+
+                    "startTransaction" -> {
+                        val payload = call.argument<String>("transactionData")
+                        if (payload.isNullOrBlank()) {
+                            result.error("INVALID_ARGS", "Missing transactionData", null)
+                            return@setMethodCallHandler
+                        }
+                        startMessengerRequest(payload, "transaction", result)
+                    }
+
+                    "startPrintJob" -> {
+                        val payload = call.argument<String>("printData")
+                        if (payload.isNullOrBlank()) {
+                            result.error("INVALID_ARGS", "Missing printData", null)
+                            return@setMethodCallHandler
+                        }
+                        startMessengerRequest(payload, "print", result)
+                    }
+
+                    "getTerminalInfo" -> result.success(readTerminalInfoMap())
+
+                    else -> result.notImplemented()
                 }
-                "getTerminalInfo" -> {
-                    result.success(readTerminalInfoMap())
-                }
-                else -> result.notImplemented()
             }
-        }
     }
 
-    private fun bindToPlutusService(result: Result) {
-        try {
-            if (!isPlutusMasterAppInstalled()) {
-                result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp is not installed on this terminal", null)
-                return
-            }
-            if (isPlutusServiceBound) {
-                result.success("SERVICE_CONNECTED")
-                return
-            }
-            if (pendingPlutusBindResult != null) {
-                result.error("BIND_IN_PROGRESS", "Pine Labs service binding is already in progress", null)
-                return
-            }
-            val intent = Intent().apply {
-                action = PLUTUS_SMART_ACTION
-                setPackage(PLUTUS_SMART_PACKAGE)
-            }
-            pendingPlutusBindResult = result
-            val ok = bindService(intent, plutusServiceConnection, Context.BIND_AUTO_CREATE)
-            if (ok) {
-                mainHandler.postDelayed(plutusBindTimeout, 3000)
-            } else {
-                pendingPlutusBindResult = null
-                result.error("BIND_FAILED", "Failed to initiate service binding", null)
-            }
-        } catch (e: Exception) {
-            pendingPlutusBindResult = null
-            result.error("BINDING_ERROR", e.localizedMessage, null)
-        }
-    }
-
-    private fun startPlutusIntent(payload: String, requestCode: Int, result: Result) {
-        try {
-            if (!isPlutusMasterAppInstalled()) {
-                result.error("PLUTUS_NOT_INSTALLED", "Pine Labs MasterApp is not installed on this terminal", null)
-                return
-            }
-            if (!isPlutusServiceBound) {
-                result.error("SERVICE_NOT_BOUND", "Pine Labs service is not connected. Bind before sending HYBRID_REQUEST.", null)
-                return
-            }
-            // Only allow one pending request at a time (same pattern as the sample repo).
-            if (pendingPlutusResult != null) {
-                result.error("BUSY", "Another Plutus request is already in progress", null)
-                return
-            }
-            pendingPlutusResult = result
-
-            val intent = Intent(PLUTUS_HYBRID_ACTION).apply {
-                setPackage(PLUTUS_SMART_PACKAGE)
-                putExtra(PLUTUS_REQUEST_KEY, payload)
-                // Some builds read the caller package name explicitly.
-                putExtra("packageName", applicationContext.packageName)
-            }
-            startActivityForResult(intent, requestCode)
-        } catch (e: Exception) {
-            pendingPlutusResult = null
-            result.error("PLUTUS_INTENT_ERROR", e.localizedMessage, null)
-        }
-    }
-
-    private fun readTerminalInfoMap(): Map<String, String> {
-        val serial = readHardwareSerial()
-        return mapOf(
-            "serial" to serial,
-            "model" to (Build.MODEL ?: ""),
-            "manufacturer" to (Build.MANUFACTURER ?: ""),
-            "paydroidVersion" to readSystemProperty("ro.build.display.id"),
-        )
-    }
-
-    private fun readHardwareSerial(): String {
-        val fromProp = readSystemProperty("ro.serialno")
-        if (fromProp.isNotBlank() && fromProp != "unknown") return fromProp
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Build.getSerial()
-            } else {
-                @Suppress("DEPRECATION")
-                Build.SERIAL
-            }
-        } catch (_: Exception) {
-            ""
-        }
-    }
-
-    private fun readSystemProperty(key: String): String {
-        return try {
-            val clazz = Class.forName("android.os.SystemProperties")
-            val get = clazz.getMethod("get", String::class.java)
-            (get.invoke(null, key) as? String).orEmpty()
-        } catch (_: Exception) {
-            ""
-        }
-    }
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun isPlutusMasterAppInstalled(): Boolean {
         return try {
@@ -266,26 +304,49 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun readTerminalInfoMap(): Map<String, String> {
+        val serial = readHardwareSerial()
+        return mapOf(
+            "serial"          to serial,
+            "model"           to Build.MODEL,
+            "manufacturer"    to Build.MANUFACTURER,
+            "paydroidVersion" to readSystemProperty("ro.build.display.id"),
+        )
+    }
+
+    private fun readHardwareSerial(): String {
+        val fromProp = readSystemProperty("ro.serialno")
+        if (fromProp.isNotBlank() && fromProp != "unknown") return fromProp
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Build.getSerial()
+            else @Suppress("DEPRECATION") Build.SERIAL
+        } catch (_: Exception) { "" }
+    }
+
+    private fun readSystemProperty(key: String): String {
+        return try {
+            val clazz = Class.forName("android.os.SystemProperties")
+            val get   = clazz.getMethod("get", String::class.java)
+            (get.invoke(null, key) as? String).orEmpty()
+        } catch (_: Exception) { "" }
+    }
+
+    // ── SmartPOS SDK ──────────────────────────────────────────────────────────
+
     private fun initSdk() {
         if (isSdkInitialized) return
-
         mDriverManager = DriverManager.getInstance()
-        mSys = mDriverManager.baseSysDevice
-
-        // Power on the printer hardware first, then wait for UART to become ready.
+        mSys           = mDriverManager.baseSysDevice
         mSys.sysPowerOn()
         try { Thread.sleep(2000) } catch (e: InterruptedException) { e.printStackTrace() }
-
         var status = mSys.sdkInit()
         if (status != SdkResult.SDK_OK) {
-            // One more retry after an additional wait.
             try { Thread.sleep(1500) } catch (e: InterruptedException) { e.printStackTrace() }
             status = mSys.sdkInit()
         }
-
         if (status == SdkResult.SDK_OK) {
             isSdkInitialized = true
-            mPrinter = mDriverManager.printer
+            mPrinter         = mDriverManager.printer
         } else {
             Log.e("SmartPos", "Failed to init SDK: $status")
         }
@@ -293,53 +354,22 @@ class MainActivity: FlutterActivity() {
 
     private fun printText(text: String?, size: Int, isBold: Boolean, align: Int): Int {
         if (text == null) return -1
-
-        var printStatus = mPrinter.printerStatus
-        if (printStatus == SdkResult.SDK_PRN_STATUS_PAPEROUT) {
-            return SdkResult.SDK_PRN_STATUS_PAPEROUT
-        }
-
+        val printStatus = mPrinter.printerStatus
+        if (printStatus == SdkResult.SDK_PRN_STATUS_PAPEROUT) return printStatus
         val format = PrnStrFormat()
         format.textSize = size
-        format.style = if (isBold) PrnTextStyle.BOLD else PrnTextStyle.NORMAL
-
-        when (align) {
-            0 -> format.ali = Layout.Alignment.ALIGN_NORMAL
-            1 -> format.ali = Layout.Alignment.ALIGN_CENTER
-            2 -> format.ali = Layout.Alignment.ALIGN_OPPOSITE
-            else -> format.ali = Layout.Alignment.ALIGN_NORMAL
+        format.style    = if (isBold) PrnTextStyle.BOLD else PrnTextStyle.NORMAL
+        format.ali      = when (align) {
+            1    -> Layout.Alignment.ALIGN_CENTER
+            2    -> Layout.Alignment.ALIGN_OPPOSITE
+            else -> Layout.Alignment.ALIGN_NORMAL
         }
-
         mPrinter.setPrintAppendString(text, format)
-        printStatus = mPrinter.setPrintStart()
-        return printStatus
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 1001 && requestCode != 1002) return
-
-        val pending = pendingPlutusResult ?: return
-        try {
-            if (resultCode == RESULT_OK && data != null) {
-                val responseData = data.getStringExtra(PLUTUS_RESPONSE_KEY)
-                pending.success(responseData)
-            } else {
-                val msg = if (requestCode == 1001) "Transaction failed" else "Print job failed"
-                pending.error("FAILED", msg, null)
-            }
-        } catch (e: Exception) {
-            pending.error("ERROR", e.localizedMessage, null)
-        } finally {
-            pendingPlutusResult = null
-        }
+        return mPrinter.setPrintStart()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isPlutusServiceBound) {
-            unbindService(plutusServiceConnection)
-            isPlutusServiceBound = false
-        }
+        resetAndUnbind()
     }
 }

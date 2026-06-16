@@ -122,7 +122,7 @@ class _NavItem extends StatelessWidget {
             Text(
               label,
               style: GoogleFonts.dmSans(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? AppColors.primary : AppColors.textLight,
               ),

@@ -76,7 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Settings',
           style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
-            fontSize: 22,
+            fontSize: 19,
             letterSpacing: -0.5,
             color: AppColors.textPrimary,
           ),
@@ -167,10 +167,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           borderRadius: BorderRadius.circular(20)),
                       title: Text('Sign out?',
                           style: GoogleFonts.dmSans(
-                              fontWeight: FontWeight.w700, fontSize: 17)),
+                              fontWeight: FontWeight.w700, fontSize: 15)),
                       content: Text('You will need to sign in again.',
                           style: GoogleFonts.dmSans(
-                              color: AppColors.textSecondary, fontSize: 14)),
+                              color: AppColors.textSecondary, fontSize: 12)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
