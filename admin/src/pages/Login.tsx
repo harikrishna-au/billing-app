@@ -26,6 +26,12 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Capture __clerk_ticket on first render — ClerkProvider strips it from
+  // the URL during its own init, so by the time clerkLoaded=true it's gone.
+  const [initialTicket] = useState(() =>
+    new URLSearchParams(window.location.search).get("__clerk_ticket")
+  );
+
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const clerk = useClerk();
@@ -37,8 +43,9 @@ const Login = () => {
   useEffect(() => {
     if (!clerkLoaded || !signIn || !signUp) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const ticket = params.get("__clerk_ticket");
+    // Use the pre-captured ticket — ClerkProvider strips __clerk_ticket from
+    // window.location.search during its init, before this effect fires.
+    const ticket = initialTicket;
     if (!ticket) return;
 
     window.history.replaceState({}, "", window.location.pathname);
@@ -98,7 +105,7 @@ const Login = () => {
         })
         .catch(onError);
     }
-  }, [clerkLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, initialTicket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Phone OTP ──
   const handleSendOtp = async (e: React.FormEvent) => {
