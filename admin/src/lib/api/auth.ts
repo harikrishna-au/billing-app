@@ -139,6 +139,13 @@ export const firebaseLogin = async (firebaseIdToken: string): Promise<LoginRespo
 };
 
 /**
+ * Pre-flight: check if email is a registered admin before sending Clerk magic link
+ */
+export const checkEmail = async (email: string): Promise<void> => {
+    await apiClient.post('/v1/auth/check-email', { email });
+};
+
+/**
  * Login via Clerk email magic link
  */
 export const clerkLogin = async (clerkToken: string): Promise<LoginResponse> => {

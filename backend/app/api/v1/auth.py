@@ -285,6 +285,26 @@ async def firebase_login(
     }
 
 
+@router.post("/check-email", response_model=SuccessResponse[dict])
+async def check_email(request_data: dict, db: Session = Depends(get_db)):
+    """
+    Pre-flight check before sending a Clerk magic link.
+    Returns 200 if the email belongs to an active admin, 404 otherwise.
+    Does NOT reveal whether it's a role/status issue — generic message only.
+    """
+    email = (request_data.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="email is required")
+
+    user = db.query(User).filter(User.email == email, User.is_active == "true").first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This email is not registered. Contact your superadmin to get access."
+        )
+    return {"success": True, "data": {"allowed": True}}
+
+
 @router.post("/clerk-login", response_model=SuccessResponse[dict])
 async def clerk_login(
     request_data: dict,
