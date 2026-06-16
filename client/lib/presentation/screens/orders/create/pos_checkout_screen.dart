@@ -62,7 +62,7 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         title: Text(
           'Checkout',
           style: GoogleFonts.dmSans(
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
           ),
@@ -385,11 +385,11 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Cancel transaction?',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 17),
+          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 15),
         ),
         content: Text(
           'This will discard the current order and clear your cart.',
-          style: GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 14),
+          style: GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 12),
         ),
         actions: [
           TextButton(

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -13,6 +12,7 @@ import '../../providers/bill_config_provider.dart';
 import '../../widgets/shimmer_loader.dart';
 import '../../widgets/app_error_widget.dart';
 import '../../../services/smart_pos_printer_service.dart';
+import 'create/bill_thermal_print.dart';
 import 'widgets/payment_card.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
@@ -92,11 +92,11 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               const SizedBox(height: 16),
               Text('Print Summary',
                   style: GoogleFonts.dmSans(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
+                      fontSize: 14, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(DateFormat('dd MMM yyyy').format(_selectedDate),
                   style: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.textSecondary)),
+                      fontSize: 11, color: AppColors.textSecondary)),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -155,49 +155,53 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       final failedCard   = sum(failedList.where((p) => p.method == PaymentMethod.card));
 
       final dateStr    = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
       final terminal   = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
       String fmt(double v) => v.toStringAsFixed(2);
 
-      final printer = SmartPosPrinterService();
-      await printer.initSdk();
+      final lines = <ThermalPrintLine>[];
+      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+          lines.add((text: text, size: size, bold: bold, align: align));
 
-      if (config.orgName.isNotEmpty) {
-        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
-      }
-      await printer.printText(text: 'TRANSACTION SUMMARY', size: 22, isBold: true, align: 1);
-      if (config.unitName?.isNotEmpty == true) {
-        await printer.printText(text: config.unitName!, size: 20, align: 1);
-      }
-      await printer.printText(text: 'Sale Date : $dateStr', size: 20, align: 0);
-      await printer.printText(text: 'Terminal  : $terminal', size: 20, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-      await printer.printText(text: 'RECEIPT          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
+      ln('TRANSACTION SUMMARY', size: 22, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
+      ln('Sale Date : $dateStr');
+      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
+      ln('------------------------', align: 1);
+      ln('BILL         AMOUNT', bold: true);
+      ln('------------------------', align: 1);
 
       for (final p in payments) {
-        await printer.printText(text: p.billNumber, size: 20, align: 0);
+        ln(p.billNumber);
         final m = p.method == PaymentMethod.cash ? 'Cash' : p.method == PaymentMethod.upi ? 'UPI' : 'Card';
-        await printer.printText(text: '${m.padRight(20)}1${fmt(p.amount).padLeft(10)}', size: 20, align: 0);
+        ln('  ${m.padRight(5)}${fmt(p.amount).padLeft(15)}');
       }
 
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-      await printer.printText(text: 'SUCCESS TOTAL TRANSACTIONS :${successList.length.toString().padLeft(3)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS TOTAL TICKETS      :${successList.length.toString().padLeft(3)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS TOTAL AMOUNT       : ${fmt(successTotal)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS-CASH AMOUNT        : ${fmt(successCash)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS-UPI  AMOUNT        : ${fmt(successUpi)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS-CARD AMOUNT        : ${fmt(successCard)}', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'FAILED TOTAL TRANSACTIONS  :${failedList.length.toString().padLeft(3)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED TOTAL AMOUNT        : ${fmt(failedTotal)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED-CASH AMOUNT         : ${fmt(failedCash)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED-UPI  AMOUNT         : ${fmt(failedUpi)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED-CARD AMOUNT         : ${fmt(failedCard)}', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
-      await printer.printText(text: '\n\n', size: 20, align: 1);
-      await printer.cutPaper();
+      void stat(String label, String val) =>
+          ln('${label.padRight(13)}:${val.padLeft(10)}');
+
+      ln('------------------------', align: 1);
+      stat('SUCC TX', successList.length.toString());
+      stat('SUCC AMT', fmt(successTotal));
+      stat('SUCC CASH', fmt(successCash));
+      stat('SUCC UPI', fmt(successUpi));
+      stat('SUCC CARD', fmt(successCard));
+      ln('');
+      stat('FAIL TX', failedList.length.toString());
+      stat('FAIL AMT', fmt(failedTotal));
+      stat('FAIL CASH', fmt(failedCash));
+      stat('FAIL UPI', fmt(failedUpi));
+      stat('FAIL CARD', fmt(failedCard));
+      ln('');
+      ln('Prtd: $printedStr');
+      ln('\n\n', align: 1);
+
+      await printThermalLineBatch(
+        printer: SmartPosPrinterService(),
+        printRefNo: 'TXSUM-${dateStr.replaceAll('-', '')}',
+        lines: lines,
+      );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Print failed: $e')));
     } finally {
@@ -232,66 +236,67 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       final failCardAmt = sum(cardFailedList);
 
       final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr   = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
-      final startDateStr = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.first.createdAtLocal);
-      final endDateStr   = DateFormat('dd-MM-yyyy HH:mm:ss').format(sorted.last.createdAtLocal);
+      final printedStr   = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
+      final startDateStr = DateFormat('dd-MM-yy HH:mm').format(sorted.first.createdAtLocal);
+      final endDateStr   = DateFormat('dd-MM-yy HH:mm').format(sorted.last.createdAtLocal);
       final terminal     = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
       String fmt(double v) => v.toStringAsFixed(2);
-      String cnt(int n, double v) => n > 0 ? '${n.toString().padLeft(2)}  ${fmt(v)}' : '';
 
-      final printer = SmartPosPrinterService();
-      await printer.initSdk();
+      final lines = <ThermalPrintLine>[];
+      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+          lines.add((text: text, size: size, bold: bold, align: align));
 
-      if (config.orgName.isNotEmpty) {
-        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
-      }
-      await printer.printText(text: 'SALES SUMMARY', size: 22, isBold: true, align: 1);
-      if (config.unitName?.isNotEmpty == true) {
-        await printer.printText(text: config.unitName!, size: 20, align: 1);
-      }
-      await printer.printText(text: 'Sale Date  : $dateStr', size: 20, align: 0);
-      await printer.printText(text: 'Terminal   : $terminal', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Starting Date      : $startDateStr', size: 20, align: 0);
-      await printer.printText(text: 'Ending Date        : $endDateStr', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Starting Ticket No : ${sorted.first.billNumber}', size: 20, align: 0);
-      await printer.printText(text: 'Ending Ticket No   : ${sorted.last.billNumber}', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'ITEM          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
+      ln('SALES SUMMARY', size: 22, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
+      ln('Sale Date  : $dateStr');
+      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
+      ln('');
+      ln('Start: $startDateStr');
+      ln('End:   $endDateStr');
+      ln('');
+      ln('From: ${sorted.first.billNumber}');
+      ln('To:   ${sorted.last.billNumber}');
+      ln('');
+      ln('ITEM  CNT    AMOUNT', bold: true);
+      ln('------------------------', align: 1);
 
-      Future<void> block(String label, List<Payment> sg, List<Payment> fg) async {
-        if (sg.isEmpty && fg.isEmpty) return;
-        final total   = sum(sg) + sum(fg);
+      void stat(String label, String val) =>
+          ln('${label.padRight(13)}:${val.padLeft(10)}');
+      void block(String label, List<Payment> sg, List<Payment> fg) {
         final tickets = sg.length + fg.length;
-        await printer.printText(text: '${label.padRight(14)}${tickets.toString().padLeft(4)}  ${fmt(total)}', size: 20, align: 0);
-        await printer.printText(text: 'Cash :       ${label == "CASH" ? cnt(cashSuccess.length, cashAmt) : ""}', size: 20, align: 0);
-        await printer.printText(text: 'Success-Upi :${label == "UPI"  ? cnt(upiSuccess.length,  upiAmt)  : ""}', size: 20, align: 0);
-        await printer.printText(text: 'Success-Card :${label == "CARD" ? cnt(cardSuccess.length, cardAmt) : ""}', size: 20, align: 0);
-        await printer.printText(text: 'Failed-Upi : ${label == "UPI"  && upiFailedList.isNotEmpty  ? cnt(upiFailedList.length,  failUpiAmt)  : ""}', size: 20, align: 0);
-        await printer.printText(text: 'Failed-Card :${label == "CARD" && cardFailedList.isNotEmpty ? cnt(cardFailedList.length, failCardAmt) : ""}', size: 20, align: 0);
-        await printer.printText(text: '', size: 20, align: 0);
+        if (tickets == 0) return;
+        final total = sum(sg) + sum(fg);
+        ln('${label.padRight(5)} ${tickets.toString().padLeft(3)} ${fmt(total).padLeft(11)}');
+        if (fg.isNotEmpty) {
+          ln('  FAIL ${fg.length.toString().padLeft(3)} ${fmt(sum(fg)).padLeft(11)}');
+        }
+        ln('');
       }
 
-      await block('CASH', cashSuccess, []);
-      await block('UPI',  upiSuccess,  upiFailedList);
-      await block('CARD', cardSuccess, cardFailedList);
+      block('CASH', cashSuccess, []);
+      block('UPI',  upiSuccess,  upiFailedList);
+      block('CARD', cardSuccess, cardFailedList);
 
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-      await printer.printText(text: 'TRANS. AMOUNT :  ${fmt(transTotal).padLeft(16)}', size: 22, isBold: true, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'CASH :         ${cashSuccess.length.toString().padLeft(3)}    ${fmt(cashAmt).padLeft(10)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS - UPI :${upiSuccess.length.toString().padLeft(3)}    ${fmt(upiAmt).padLeft(10)}', size: 20, align: 0);
-      await printer.printText(text: 'SUCCESS - CARD :${cardSuccess.length.toString().padLeft(2)}    ${fmt(cardAmt).padLeft(10)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED - UPI : ${upiFailedList.length.toString().padLeft(3)}    ${fmt(failUpiAmt).padLeft(10)}', size: 20, align: 0);
-      await printer.printText(text: 'FAILED - CARD :${cardFailedList.length.toString().padLeft(3)}    ${fmt(failCardAmt).padLeft(10)}', size: 20, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-      await printer.printText(text: 'FINAL RECEIVED AMOUNT : ${fmt(transTotal).padLeft(10)}', size: 22, isBold: true, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
-      await printer.printText(text: '\n\n', size: 20, align: 1);
-      await printer.cutPaper();
+      ln('------------------------', align: 1);
+      stat('TRANS AMT', fmt(transTotal));
+      ln('');
+      stat('CASH AMT', fmt(cashAmt));
+      stat('SUCC UPI AMT', fmt(upiAmt));
+      stat('SUCC CARD AMT', fmt(cardAmt));
+      stat('FAIL UPI AMT', fmt(failUpiAmt));
+      stat('FAIL CARD AMT', fmt(failCardAmt));
+      ln('------------------------', align: 1);
+      ln('FINAL AMT    :${fmt(transTotal).padLeft(10)}', size: 22, bold: true);
+      ln('');
+      ln('Prtd: $printedStr');
+      ln('\n\n', align: 1);
+
+      await printThermalLineBatch(
+        printer: SmartPosPrinterService(),
+        printRefNo: 'SALE-${dateStr.replaceAll('-', '')}',
+        lines: lines,
+      );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Print failed: $e')));
     } finally {
@@ -319,78 +324,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     if (picked != null) _loadFor(picked);
   }
 
-  Future<void> _confirmCancelTicket(BuildContext context, Payment payment) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Cancel this ticket?',
-          style: GoogleFonts.dmSans(fontWeight: FontWeight.w700, fontSize: 17),
-        ),
-        content: Text(
-          '${payment.billNumber} — ${CurrencyFormatter.format(payment.amount)}\n\n'
-          'This marks the sale as cancelled. It cannot be undone from the POS.',
-          style: GoogleFonts.dmSans(color: AppColors.textSecondary, fontSize: 14, height: 1.35),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Keep',
-              style: GoogleFonts.dmSans(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(
-              'Cancel ticket',
-              style: GoogleFonts.dmSans(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-
-    final err = await ref.read(paymentProvider.notifier).cancelTicket(payment);
-    if (!context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    if (err != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(err, style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600)),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ticket cancelled',
-            style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(paymentProvider);
@@ -408,7 +341,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           'Orders',
           style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
-            fontSize: 22,
+            fontSize: 19,
             letterSpacing: -0.5,
             color: AppColors.textPrimary,
           ),
@@ -495,7 +428,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 Text(
                   isToday ? "Today's transactions" : 'Transactions',
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
                     letterSpacing: 0.2,
@@ -526,7 +459,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         Text(
                           DateFormat('dd MMM yyyy').format(_selectedDate),
                           style: GoogleFonts.dmSans(
-                            fontSize: 13,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
                           ),
@@ -554,20 +487,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         itemCount: payments.length,
                         itemBuilder: (context, index) {
                           final p = payments[index];
-                          final billUri = Uri(
-                            path: '/new/review/bill',
-                            queryParameters: {
-                              'method': p.methodDisplay,
-                              'invoice': p.billNumber,
-                              'amount': p.amount.toString(),
-                              'date': p.createdAt.toUtc().toIso8601String(),
-                              'readOnly': 'true',
-                            },
-                          );
                           return PaymentCard(
                             payment: p,
-                            onTap: () => context.push(billUri.toString()),
-                            onCancelTicket: () => _confirmCancelTicket(context, p),
                           )
                               .animate()
                               .fadeIn(
@@ -636,7 +557,7 @@ class _SummaryCard extends StatelessWidget {
                       'Total collected',
                       style: GoogleFonts.dmSans(
                         color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -657,7 +578,7 @@ class _SummaryCard extends StatelessWidget {
                         : Text(
                             CurrencyFormatter.format(total),
                             style: GoogleFonts.dmSans(
-                              fontSize: 26,
+                              fontSize: 23,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                               letterSpacing: -0.7,
@@ -679,7 +600,7 @@ class _SummaryCard extends StatelessWidget {
                     Text(
                       isLoading ? '—' : '$count',
                       style: GoogleFonts.dmSans(
-                        fontSize: 22,
+                        fontSize: 19,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1,
@@ -689,7 +610,7 @@ class _SummaryCard extends StatelessWidget {
                     Text(
                       'bills',
                       style: GoogleFonts.dmSans(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: Colors.white.withValues(alpha: 0.8),
                         fontWeight: FontWeight.w500,
                       ),
@@ -785,7 +706,7 @@ class _BreakdownChip extends StatelessWidget {
                 Text(
                   amount,
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                     height: 1.2,
@@ -833,7 +754,7 @@ class _EmptyState extends StatelessWidget {
             style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w700,
-              fontSize: 15,
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: 5),
@@ -841,7 +762,7 @@ class _EmptyState extends StatelessWidget {
             'for ${DateFormat('dd MMM yyyy').format(date)}',
             style: GoogleFonts.dmSans(
               color: AppColors.textLight,
-              fontSize: 13,
+              fontSize: 11,
             ),
           ),
         ],

@@ -28,7 +28,7 @@ class CheckoutBillReceipt extends StatelessWidget {
               Text(
                 'NEW ORDER',
                 style: GoogleFonts.dmSans(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                   letterSpacing: 1.2,
@@ -38,7 +38,7 @@ class CheckoutBillReceipt extends StatelessWidget {
               Text(
                 'Date: ${DateFormat('dd-MM-yyyy').format(DateTime.now())}',
                 style: GoogleFonts.dmSans(
-                  fontSize: 13,
+                  fontSize: 11,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -46,7 +46,7 @@ class CheckoutBillReceipt extends StatelessWidget {
               Text(
                 'Time: ${DateFormat('HH:mm:ss').format(DateTime.now())}',
                 style: GoogleFonts.dmSans(
-                  fontSize: 13,
+                  fontSize: 11,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -137,7 +137,7 @@ class CheckoutBillReceipt extends StatelessWidget {
 
   TextStyle _tableHeaderStyle() {
     return GoogleFonts.dmSans(
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: FontWeight.w700,
       color: AppColors.textSecondary,
       letterSpacing: 0.5,
@@ -146,7 +146,7 @@ class CheckoutBillReceipt extends StatelessWidget {
 
   TextStyle _tableRowStyle() {
     return GoogleFonts.dmSans(
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: FontWeight.w500,
       color: AppColors.textPrimary,
     );

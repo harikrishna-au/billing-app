@@ -116,7 +116,7 @@ class AppErrorWidget extends StatelessWidget {
             Text(
               _title,
               style: GoogleFonts.dmSans(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
                 letterSpacing: -0.3,
@@ -129,7 +129,7 @@ class AppErrorWidget extends StatelessWidget {
             Text(
               _message,
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 12,
                 color: AppColors.textSecondary,
                 height: 1.5,
               ),
@@ -146,7 +146,7 @@ class AppErrorWidget extends StatelessWidget {
                   label: Text(
                     'Try Again',
                     style: GoogleFonts.dmSans(
-                        fontSize: 14, fontWeight: FontWeight.w700),
+                        fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -229,7 +229,7 @@ class InlineErrorBanner extends StatelessWidget {
             child: Text(
               _isNetwork ? 'No internet — bill saved offline' : _message,
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 color: color,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -304,7 +304,7 @@ class ImprovedOfflineBanner extends StatelessWidget {
             child: Text(
               text,
               style: GoogleFonts.dmSans(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF78350F),
               ),
@@ -321,7 +321,7 @@ class ImprovedOfflineBanner extends StatelessWidget {
               child: Text(
                 'Sync',
                 style: GoogleFonts.dmSans(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF92400E),
                 ),

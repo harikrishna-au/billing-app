@@ -73,7 +73,7 @@ class OrderCard extends StatelessWidget {
                         Text(
                           'Order #${order.id}',
                           style: GoogleFonts.dmSans(
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
@@ -104,7 +104,7 @@ class OrderCard extends StatelessWidget {
                         Text(
                           CurrencyFormatter.format(order.totalAmount),
                           style: GoogleFonts.dmSans(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
@@ -126,7 +126,7 @@ class OrderCard extends StatelessWidget {
                 Text(
                   formattedDate,
                   style: GoogleFonts.dmSans(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -158,7 +158,7 @@ class OrderCard extends StatelessWidget {
                           Text(
                             _getItemSummary(order.items),
                             style: GoogleFonts.dmSans(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
@@ -169,7 +169,7 @@ class OrderCard extends StatelessWidget {
                           Text(
                             'Client: ${order.clientName}',
                             style: GoogleFonts.dmSans(
-                              fontSize: 13,
+                              fontSize: 11,
                               color: const Color(0xFF64748B), // Slate 500
                             ),
                           ),

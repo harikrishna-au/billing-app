@@ -9,9 +9,13 @@ import '../../services/smart_pos_printer_service.dart';
 class PrintUtils {
   static final SmartPosPrinterService _printer = SmartPosPrinterService();
 
-  static Future<void> _showPrintDiagnosticsDialog({
+  /// Shows a scrollable, copyable diagnostics dialog with every captured log
+  /// line. Used by all payment flows so the operator can see exactly what the
+  /// Pine Labs MasterApp reported (bind status, request, ResponseCode, errors).
+  static Future<void> showPrintDiagnostics({
     required BuildContext context,
     required List<String> lines,
+    String title = 'Print failed',
   }) async {
     if (!context.mounted) return;
     await showDialog<void>(
@@ -19,9 +23,9 @@ class PrintUtils {
       useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Print failed',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -188,7 +192,6 @@ class PrintUtils {
     final debugLines = <String>['Starting print for bill $billNumber'];
 
     try {
-      final localDate = date.toLocal();
       final config = provider.read(billConfigProvider);
       final cgstRate = config.cgstPercent / 100;
       final sgstRate = config.sgstPercent / 100;
@@ -198,15 +201,11 @@ class PrintUtils {
       final sgstAmount = taxableAmount * sgstRate;
       final hasTax = taxRate > 0;
 
-      final dateStr =
-          '${localDate.day.toString().padLeft(2, '0')}/${localDate.month.toString().padLeft(2, '0')}/${localDate.year}  '
-          '${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
-
       await printBillThermalInvoiceAndTicket(
         printer: _printer,
         config: config,
         billDisplay: billNumber,
-        dateStr: dateStr,
+        dateTime: date,
         cartState: cartState,
         total: total,
         taxableAmount: taxableAmount,
@@ -222,7 +221,7 @@ class PrintUtils {
     } catch (e) {
       if (context != null && context.mounted) {
         debugLines.add('FAILED: $e');
-        await _showPrintDiagnosticsDialog(context: context, lines: debugLines);
+        await showPrintDiagnostics(context: context, lines: debugLines);
       }
       return false;
     }

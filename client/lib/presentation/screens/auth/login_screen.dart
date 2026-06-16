@@ -86,7 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'MIT',
                       style: GoogleFonts.dmSans(
-                        fontSize: 56,
+                        fontSize: 48,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary,
                         letterSpacing: -2,
@@ -97,7 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'Blazerun Technologies',
                       style: GoogleFonts.dmSans(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary,
                         letterSpacing: 1.0,
@@ -121,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Welcome back',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
-                        fontSize: 26,
+                        fontSize: 23,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                         letterSpacing: -0.5,
@@ -133,7 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Sign in to your POS terminal',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
                         color: AppColors.textSecondary,
                       ),
@@ -211,7 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(
                               'Server is warming up, please wait…',
                               style: GoogleFonts.dmSans(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: AppColors.textSecondary,
                               ),
                             ),
@@ -233,7 +233,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Text(
       text,
       style: GoogleFonts.dmSans(
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
         letterSpacing: 0.1,
@@ -304,7 +304,7 @@ class _AnimatedFieldState extends State<_AnimatedField> {
         obscureText: widget.obscureText,
         validator: widget.validator,
         style: GoogleFonts.dmSans(
-          fontSize: 15,
+          fontSize: 13,
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w500,
         ),
@@ -386,7 +386,7 @@ class _LoginButton extends StatelessWidget {
                     Text(
                       'Sign In',
                       style: GoogleFonts.dmSans(
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),

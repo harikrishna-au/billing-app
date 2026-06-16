@@ -5,6 +5,7 @@ import '../../../data/models/payment_model.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../../services/smart_pos_printer_service.dart';
+import '../orders/create/bill_thermal_print.dart';
 
 class DaySummaryScreen extends ConsumerStatefulWidget {
   const DaySummaryScreen({super.key});
@@ -82,88 +83,58 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final failedCard = sum(failedList.where((p) => p.method == PaymentMethod.card));
 
       final dateStr = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
       final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
           ? config.unitName!
           : config.orgName;
 
       String fmt(double v) => v.toStringAsFixed(2);
 
-      final printer = SmartPosPrinterService();
-      await printer.initSdk();
+      final lines = <ThermalPrintLine>[];
+      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+          lines.add((text: text, size: size, bold: bold, align: align));
 
-      // ── Header ─────────────────────────────────────────────────────────
-      if (config.orgName.isNotEmpty) {
-        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
-      }
-      await printer.printText(text: 'TRANSACTION SUMMARY', size: 22, isBold: true, align: 1);
-      if (config.unitName != null && config.unitName!.isNotEmpty) {
-        await printer.printText(text: config.unitName!, size: 20, align: 1);
-      }
-      await printer.printText(text: 'Sale Date : $dateStr', size: 20, align: 0);
-      await printer.printText(text: 'Terminal  : $terminal', size: 20, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-      // ── Receipt list ───────────────────────────────────────────────────
-      await printer.printText(
-          text: 'RECEIPT          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
+      ln('TRANSACTION SUMMARY', size: 22, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
+      ln('Sale Date : $dateStr');
+      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
+      ln('------------------------', align: 1);
+      ln('BILL         AMOUNT', bold: true);
+      ln('------------------------', align: 1);
 
       for (final p in payments) {
-        await printer.printText(text: p.billNumber, size: 20, align: 0);
+        ln(p.billNumber);
         final method = p.method == PaymentMethod.cash
             ? 'Cash'
-            : p.method == PaymentMethod.upi
-                ? 'UPI'
-                : 'Card';
-        final amtPadded = fmt(p.amount).padLeft(10);
-        await printer.printText(
-            text: '${method.padRight(20)}1$amtPadded', size: 20, align: 0);
+            : p.method == PaymentMethod.upi ? 'UPI' : 'Card';
+        ln('  ${method.padRight(5)}${fmt(p.amount).padLeft(15)}');
       }
 
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      void stat(String label, String val) =>
+          ln('${label.padRight(13)}:${val.padLeft(10)}');
 
-      // ── Success totals ─────────────────────────────────────────────────
-      await printer.printText(
-          text: 'SUCCESS TOTAL TRANSACTIONS :${successList.length.toString().padLeft(3)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS TOTAL TICKETS      :${successList.length.toString().padLeft(3)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS TOTAL AMOUNT       : ${fmt(successTotal)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS-CASH AMOUNT        : ${fmt(successCash)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS-UPI  AMOUNT        : ${fmt(successUpi)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS-CARD AMOUNT        : ${fmt(successCard)}',
-          size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
+      ln('------------------------', align: 1);
+      stat('SUCC TX', successList.length.toString());
+      stat('SUCC AMT', fmt(successTotal));
+      stat('SUCC CASH', fmt(successCash));
+      stat('SUCC UPI', fmt(successUpi));
+      stat('SUCC CARD', fmt(successCard));
+      ln('');
+      stat('FAIL TX', failedList.length.toString());
+      stat('FAIL AMT', fmt(failedTotal));
+      stat('FAIL CASH', fmt(failedCash));
+      stat('FAIL UPI', fmt(failedUpi));
+      stat('FAIL CARD', fmt(failedCard));
+      ln('');
+      ln('Prtd: $printedStr');
+      ln('\n\n', align: 1);
 
-      // ── Failed totals ──────────────────────────────────────────────────
-      await printer.printText(
-          text: 'FAILED TOTAL TRANSACTIONS  :${failedList.length.toString().padLeft(3)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED TOTAL AMOUNT        : ${fmt(failedTotal)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED-CASH AMOUNT         : ${fmt(failedCash)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED-UPI  AMOUNT         : ${fmt(failedUpi)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED-CARD AMOUNT         : ${fmt(failedCard)}',
-          size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
-      await printer.printText(text: '\n\n', size: 20, align: 1);
-      await printer.cutPaper();
+      await printThermalLineBatch(
+        printer: SmartPosPrinterService(),
+        printRefNo: 'TXSUM-${dateStr.replaceAll('-', '')}',
+        lines: lines,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -211,104 +182,70 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final failedCardAmt = sum(cardFailedList);
 
       final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr   = DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
-      final startDateStr = DateFormat('dd-MM-yyyy HH:mm:ss').format(startingDate);
-      final endDateStr   = DateFormat('dd-MM-yyyy HH:mm:ss').format(endingDate);
+      final printedStr   = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
+      final startDateStr = DateFormat('dd-MM-yy HH:mm').format(startingDate);
+      final endDateStr   = DateFormat('dd-MM-yy HH:mm').format(endingDate);
       final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
           ? config.unitName!
           : config.orgName;
 
       String fmt(double v) => v.toStringAsFixed(2);
-      String cnt(int n, double v) =>
-          n > 0 ? '${n.toString().padLeft(2)}  ${fmt(v)}' : '';
 
-      final printer = SmartPosPrinterService();
-      await printer.initSdk();
+      final lines = <ThermalPrintLine>[];
+      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+          lines.add((text: text, size: size, bold: bold, align: align));
 
-      // ── Header ─────────────────────────────────────────────────────────
-      if (config.orgName.isNotEmpty) {
-        await printer.printText(text: config.orgName, size: 26, isBold: true, align: 1);
-      }
-      await printer.printText(text: 'SALES SUMMARY', size: 22, isBold: true, align: 1);
-      if (config.unitName != null && config.unitName!.isNotEmpty) {
-        await printer.printText(text: config.unitName!, size: 20, align: 1);
-      }
-      await printer.printText(text: 'Sale Date  : $dateStr', size: 20, align: 0);
-      await printer.printText(text: 'Terminal   : $terminal', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Starting Date      : $startDateStr', size: 20, align: 0);
-      await printer.printText(text: 'Ending Date        : $endDateStr', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Starting Ticket No : $firstTicket', size: 20, align: 0);
-      await printer.printText(text: 'Ending Ticket No   : $lastTicket', size: 20, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
+      ln('SALES SUMMARY', size: 22, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
+      ln('Sale Date  : $dateStr');
+      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
+      ln('');
+      ln('Start: $startDateStr');
+      ln('End:   $endDateStr');
+      ln('');
+      ln('From: $firstTicket');
+      ln('To:   $lastTicket');
+      ln('');
+      ln('ITEM  CNT    AMOUNT', bold: true);
+      ln('------------------------', align: 1);
 
-      // ── Item/method section ────────────────────────────────────────────
-      await printer.printText(
-          text: 'ITEM          TICKETS  AMOUNT', size: 20, isBold: true, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-
-      // Helper to print one method-group block
-      Future<void> printMethodBlock(
-          String label, List<Payment> successGroup, List<Payment> failedGroup) async {
-        final total = sum(successGroup) + sum(failedGroup);
-        final tickets = successGroup.length + failedGroup.length;
+      void stat(String label, String val) =>
+          ln('${label.padRight(13)}:${val.padLeft(10)}');
+      void block(String label, List<Payment> sg, List<Payment> fg) {
+        final tickets = sg.length + fg.length;
         if (tickets == 0) return;
-        await printer.printText(
-            text: '${label.padRight(14)}${tickets.toString().padLeft(4)}  ${fmt(total)}',
-            size: 20, align: 0);
-        await printer.printText(
-            text: 'Cash :       ${label == "CASH" ? cnt(cashSuccess.length, cashAmt) : ""}',
-            size: 20, align: 0);
-        await printer.printText(
-            text: 'Success-Upi :${label == "UPI" ? cnt(upiSuccess.length, upiAmt) : ""}',
-            size: 20, align: 0);
-        await printer.printText(
-            text: 'Success-Card :${label == "CARD" ? cnt(cardSuccess.length, cardAmt) : ""}',
-            size: 20, align: 0);
-        await printer.printText(
-            text: 'Failed-Upi : ${label == "UPI" && upiFailedList.isNotEmpty ? cnt(upiFailedList.length, failedUpiAmt) : ""}',
-            size: 20, align: 0);
-        await printer.printText(
-            text: 'Failed-Card :${label == "CARD" && cardFailedList.isNotEmpty ? cnt(cardFailedList.length, failedCardAmt) : ""}',
-            size: 20, align: 0);
-        await printer.printText(text: '', size: 20, align: 0);
+        final total = sum(sg) + sum(fg);
+        ln('${label.padRight(5)} ${tickets.toString().padLeft(3)} ${fmt(total).padLeft(11)}');
+        if (fg.isNotEmpty) {
+          ln('  FAIL ${fg.length.toString().padLeft(3)} ${fmt(sum(fg)).padLeft(11)}');
+        }
+        ln('');
       }
 
-      await printMethodBlock('CASH', cashSuccess, []);
-      await printMethodBlock('UPI',  upiSuccess,  upiFailedList);
-      await printMethodBlock('CARD', cardSuccess, cardFailedList);
+      block('CASH', cashSuccess, []);
+      block('UPI',  upiSuccess,  upiFailedList);
+      block('CARD', cardSuccess, cardFailedList);
 
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
+      ln('------------------------', align: 1);
+      stat('TRANS AMT', fmt(transTotal));
+      ln('');
+      stat('CASH AMT', fmt(cashAmt));
+      stat('SUCC UPI AMT', fmt(upiAmt));
+      stat('SUCC CARD AMT', fmt(cardAmt));
+      stat('FAIL UPI AMT', fmt(failedUpiAmt));
+      stat('FAIL CARD AMT', fmt(failedCardAmt));
+      ln('------------------------', align: 1);
+      ln('FINAL AMT    :${fmt(transTotal).padLeft(10)}', size: 22, bold: true);
+      ln('');
+      ln('Prtd: $printedStr');
+      ln('\n\n', align: 1);
 
-      // ── Totals footer ──────────────────────────────────────────────────
-      await printer.printText(
-          text: 'TRANS. AMOUNT :  ${fmt(transTotal).padLeft(16)}',
-          size: 22, isBold: true, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(
-          text: 'CASH :         ${cashSuccess.length.toString().padLeft(3)}    ${fmt(cashAmt).padLeft(10)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS - UPI :${upiSuccess.length.toString().padLeft(3)}    ${fmt(upiAmt).padLeft(10)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'SUCCESS - CARD :${cardSuccess.length.toString().padLeft(2)}    ${fmt(cardAmt).padLeft(10)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED - UPI : ${upiFailedList.length.toString().padLeft(3)}    ${fmt(failedUpiAmt).padLeft(10)}',
-          size: 20, align: 0);
-      await printer.printText(
-          text: 'FAILED - CARD :${cardFailedList.length.toString().padLeft(3)}    ${fmt(failedCardAmt).padLeft(10)}',
-          size: 20, align: 0);
-      await printer.printText(text: '--------------------------------', size: 20, align: 1);
-      await printer.printText(
-          text: 'FINAL RECEIVED AMOUNT : ${fmt(transTotal).padLeft(10)}',
-          size: 22, isBold: true, align: 0);
-      await printer.printText(text: '', size: 20, align: 0);
-      await printer.printText(text: 'Printed on : $printedStr', size: 20, align: 0);
-      await printer.printText(text: '\n\n', size: 20, align: 1);
-      await printer.cutPaper();
+      await printThermalLineBatch(
+        printer: SmartPosPrinterService(),
+        printRefNo: 'SALE-${dateStr.replaceAll('-', '')}',
+        lines: lines,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -449,7 +386,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                               Text(
                                 'No payments for this date',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -564,7 +501,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: Colors.grey[700],
                   fontWeight: FontWeight.w500,
                 ),
@@ -575,7 +512,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -585,7 +522,7 @@ class _StatCard extends StatelessWidget {
             Text(
               subtitle!,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: Colors.grey[600],
               ),
             ),
@@ -621,7 +558,7 @@ class _PaymentListItem extends StatelessWidget {
         ),
         subtitle: Text(
           DateFormat('hh:mm a').format(payment.createdAtLocal),
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          style: TextStyle(color: Colors.grey[600], fontSize: 11),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -631,13 +568,13 @@ class _PaymentListItem extends StatelessWidget {
               '₹${payment.amount.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
               ),
             ),
             Text(
               payment.methodDisplay,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: Colors.grey[600],
               ),
             ),

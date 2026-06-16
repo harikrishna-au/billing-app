@@ -70,7 +70,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
             Text(
               'Confirm Payment',
               style: GoogleFonts.dmSans(
-                fontSize: 22,
+                fontSize: 19,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -81,7 +81,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
             Text(
               'Please confirm the payment details',
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -101,7 +101,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
                   Text(
                     'Amount to Pay',
                     style: GoogleFonts.dmSans(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
@@ -114,7 +114,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
                       Text(
                         '₹',
                         style: GoogleFonts.dmSans(
-                          fontSize: 28,
+                          fontSize: 25,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
                         ),
@@ -162,7 +162,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
                   Text(
                     'Payment Method: ${_getMethodLabel()}',
                     style: GoogleFonts.dmSans(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
@@ -188,7 +188,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
                       child: Text(
                         'Cancel',
                         style: GoogleFonts.dmSans(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -219,7 +219,7 @@ class ConfirmPaymentDialog extends StatelessWidget {
                           : Text(
                               'Confirm',
                               style: GoogleFonts.dmSans(
-                                fontSize: 15,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

@@ -59,7 +59,7 @@ class OfflineBanner extends StatelessWidget {
             child: Text(
               text,
               style: GoogleFonts.dmSans(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF78350F),
               ),
@@ -76,7 +76,7 @@ class OfflineBanner extends StatelessWidget {
               child: Text(
                 'Sync',
                 style: GoogleFonts.dmSans(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF92400E),
                 ),

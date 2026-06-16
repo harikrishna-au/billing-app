@@ -64,7 +64,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
               _printDebugLines.isEmpty
                   ? 'No print diagnostics captured.'
                   : _printDebugLines.join('\n'),
-              style: GoogleFonts.robotoMono(fontSize: 12, height: 1.35),
+              style: GoogleFonts.robotoMono(fontSize: 11, height: 1.35),
             ),
           ),
         ),
@@ -121,15 +121,11 @@ class _BillScreenState extends ConsumerState<BillScreen> {
       final sgstAmount = taxableAmount * sgstRate;
       final hasTax = taxRate > 0;
       final billDisplay = BillNumberGenerator.displayTicketNumber(billNumber);
-      final dateLocal = date.toLocal();
-      final dateStr =
-          '${dateLocal.day.toString().padLeft(2, '0')}/${dateLocal.month.toString().padLeft(2, '0')}/${dateLocal.year}  '
-          '${dateLocal.hour.toString().padLeft(2, '0')}:${dateLocal.minute.toString().padLeft(2, '0')}';
       await printBillThermalInvoiceAndTicket(
         printer: _printer,
         config: config,
         billDisplay: billDisplay,
-        dateStr: dateStr,
+        dateTime: date.toLocal(),
         cartState: cartState,
         total: total,
         taxableAmount: taxableAmount,
@@ -168,7 +164,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         title: Text(
           'Invoice',
           style: GoogleFonts.dmSans(
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
           ),
@@ -343,7 +339,7 @@ class _PrintDiagnosticsPanel extends StatelessWidget {
                           ? 'Print failed'
                           : 'Print diagnostics',
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
@@ -362,7 +358,7 @@ class _PrintDiagnosticsPanel extends StatelessWidget {
           Text(
             latest,
             style: GoogleFonts.robotoMono(
-              fontSize: 11,
+              fontSize: 10,
               height: 1.35,
               color: AppColors.textSecondary,
             ),

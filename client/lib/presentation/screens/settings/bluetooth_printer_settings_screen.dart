@@ -60,7 +60,7 @@ class _AttachedPrinterSettingsScreenState
           'Attached printer',
           style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
-            fontSize: 20,
+            fontSize: 18,
             letterSpacing: -0.4,
             color: AppColors.textPrimary,
           ),
@@ -74,7 +74,7 @@ class _AttachedPrinterSettingsScreenState
           Text(
             'This machine uses the built-in attached printer. No Bluetooth pairing is required.',
             style: GoogleFonts.dmSans(
-              fontSize: 14,
+              fontSize: 12,
               height: 1.45,
               color: AppColors.textSecondary,
             ),
@@ -94,7 +94,7 @@ class _AttachedPrinterSettingsScreenState
                 Text(
                   'Printer mode',
                   style: GoogleFonts.dmSans(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textLight,
                     letterSpacing: 1.2,
@@ -104,7 +104,7 @@ class _AttachedPrinterSettingsScreenState
                 Text(
                   'Native SmartPOS attached printer',
                   style: GoogleFonts.dmSans(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
@@ -113,7 +113,7 @@ class _AttachedPrinterSettingsScreenState
                 Text(
                   'The app sends print jobs directly to the device printer bridge.',
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -133,7 +133,7 @@ class _AttachedPrinterSettingsScreenState
           Text(
             'Use this screen to confirm the embedded printer is responding. Orders will print through the same native bridge.',
             style: GoogleFonts.dmSans(
-              fontSize: 12,
+              fontSize: 11,
               height: 1.35,
               color: AppColors.textSecondary,
             ),

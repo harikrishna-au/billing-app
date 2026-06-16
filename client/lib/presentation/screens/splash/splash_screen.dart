@@ -97,7 +97,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 Text(
                   'Blazerun Technologies',
                   style: GoogleFonts.dmSans(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: Colors.white.withValues(alpha: 0.75),
                     letterSpacing: 1.2,

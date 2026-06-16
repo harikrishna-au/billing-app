@@ -10,7 +10,8 @@ import '../../../../data/models/payment_model.dart';
 import '../../../providers/bill_config_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
-import 'checkout_pdf_print.dart';
+import '../../../../services/smart_pos_printer_service.dart';
+import 'bill_thermal_print.dart';
 import 'widgets/classic_checkout_widgets.dart';
 
 enum _CashOverlay { none, loading, success }
@@ -50,7 +51,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
       final total = cartState.totalAmount;
       final billConfig = ref.read(billConfigProvider);
       final billGen = ref.read(billNumberServiceProvider);
-      final billNumber = await billGen.peekNext(
+      final billNumber = billGen.generatePreview(
         posId: billConfig.posId,
       );
 
@@ -75,7 +76,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
       }
 
       // Permanently consume the bill number
-      await billGen.commitNext();
+      await billGen.confirmBillNumber(posId: billConfig.posId);
 
       final tracker = ref.read(printedBillsTrackerProvider);
       if (tracker.hasBeenPrinted(billNumber)) {
@@ -100,9 +101,11 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
         final taxableAmount = taxRate > 0 ? total / (1 + taxRate) : total;
         final cgstAmount = taxableAmount * cgstRate;
         final sgstAmount = taxableAmount * sgstRate;
+        final hasTax = taxRate > 0;
         final billDisplay = BillNumberGenerator.displayTicketNumber(billNumber);
         final dateLocal = DateTime.now().toLocal();
-        final printed = await printCheckoutReceiptPdf(
+        await printBillThermalInvoiceAndTicket(
+          printer: SmartPosPrinterService(),
           config: config,
           billDisplay: billDisplay,
           dateTime: dateLocal,
@@ -111,11 +114,10 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
           taxableAmount: taxableAmount,
           cgstAmount: cgstAmount,
           sgstAmount: sgstAmount,
+          hasTax: hasTax,
+          paymentMethod: 'cash',
         );
-
-        if (printed) {
-          await tracker.markAsPrinted(billNumber);
-        }
+        await tracker.markAsPrinted(billNumber);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -167,7 +169,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
                       Text(
                         'Booked',
                         style: GoogleFonts.dmSans(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textPrimary,
                         ),
@@ -200,7 +202,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
             title: Text(
               'Checkout',
               style: GoogleFonts.dmSans(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),

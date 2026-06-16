@@ -64,7 +64,7 @@ class SelectItemCard extends StatelessWidget {
                     Text(
                       item.name,
                       style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
@@ -75,7 +75,7 @@ class SelectItemCard extends StatelessWidget {
                     Text(
                       CurrencyFormatter.format(item.price),
                       style: GoogleFonts.dmSans(
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: isSelected
                             ? AppColors.primary
@@ -137,7 +137,7 @@ class _AddButton extends StatelessWidget {
             Text(
               'Add',
               style: GoogleFonts.dmSans(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
@@ -179,7 +179,7 @@ class _QuantityCounter extends StatelessWidget {
               '$quantity',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),

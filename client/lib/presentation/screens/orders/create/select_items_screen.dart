@@ -76,7 +76,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
           'New Order',
           style: GoogleFonts.dmSans(
             fontWeight: FontWeight.w800,
-            fontSize: 17,
+            fontSize: 15,
             letterSpacing: -0.3,
           ),
         ),
@@ -134,7 +134,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
                   setState(() {});
                 },
                 style: GoogleFonts.dmSans(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -142,7 +142,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
                   hintText: 'Search products & services...',
                   hintStyle: GoogleFonts.dmSans(
                     color: AppColors.textLight,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 14),
@@ -242,7 +242,7 @@ class _EmptyState extends StatelessWidget {
             style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
-              fontSize: 15,
+              fontSize: 13,
             ),
           ),
           if (hasQuery)
@@ -252,7 +252,7 @@ class _EmptyState extends StatelessWidget {
                 'Try a different keyword',
                 style: GoogleFonts.dmSans(
                   color: AppColors.textLight,
-                  fontSize: 13,
+                  fontSize: 11,
                 ),
               ),
             ),
@@ -288,7 +288,7 @@ class _ErrorState extends StatelessWidget {
             style: GoogleFonts.dmSans(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
-              fontSize: 15,
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: 16),
