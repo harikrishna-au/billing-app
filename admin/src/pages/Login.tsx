@@ -14,8 +14,13 @@ type Step = "phone" | "otp" | "password" | "email" | "email_sent" | "email_verif
 
 const REDIRECT_URL = `${window.location.origin}/login`;
 
+// Read ticket synchronously before any module-level effects run
+const INITIAL_TICKET = new URLSearchParams(window.location.search).get("__clerk_ticket");
+
 const Login = () => {
-  const [step, setStep] = useState<Step>("phone");
+  // Jump straight to the spinner if a ticket is in the URL
+  const [step, setStep] = useState<Step>(INITIAL_TICKET ? "email_verifying" : "phone");
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [username, setUsername] = useState("");
@@ -25,12 +30,6 @@ const Login = () => {
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Capture __clerk_ticket on first render — ClerkProvider strips it from
-  // the URL during its own init, so by the time clerkLoaded=true it's gone.
-  const [initialTicket] = useState(() =>
-    new URLSearchParams(window.location.search).get("__clerk_ticket")
-  );
 
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
@@ -43,8 +42,6 @@ const Login = () => {
   useEffect(() => {
     if (!clerkLoaded || !signIn || !signUp) return;
 
-    const ticket = initialTicket;
-
     // Helper: exchange an active Clerk session for our own JWT
     const finishWithToken = async () => {
       let clerkToken: string | null = null;
@@ -53,11 +50,10 @@ const Login = () => {
         clerkToken = await getToken().catch(() => null);
         if (clerkToken) break;
       }
-      if (!clerkToken) throw new Error("Session token unavailable — please try again");
+      if (!clerkToken) throw new Error("Could not get session token — please try the link again");
       const response = await authApi.clerkLogin(clerkToken);
       if (response.success) {
         sessionStorage.removeItem("clerk_email_flow");
-        toast({ title: "Welcome back!", description: `Signed in as ${response.data.user.username}` });
         navigate(response.data.user.role === "superadmin" ? "/superadmin" : "/dashboard");
       }
     };
@@ -69,24 +65,20 @@ const Login = () => {
         err?.response?.data?.detail ||
         err?.message ||
         "Something went wrong";
-      toast({ title: "Sign-in failed", description: msg, variant: "destructive" });
-      setStep("email");
+      console.error("[magic-link] error:", err);
+      setVerifyError(msg);
     };
 
-    // Case A: Clerk already has a session (ClerkProvider auto-completed the magic link
-    // before we could read __clerk_ticket, OR user already had an active Clerk session).
-    // Skip ticket-based flow and exchange the existing session directly.
-    if (!ticket && isSignedIn) {
-      setStep("email_verifying");
+    // Case A: Clerk already processed the ticket and has an active session
+    if (!INITIAL_TICKET && isSignedIn) {
       finishWithToken().catch(onError);
       return;
     }
 
-    if (!ticket) return;
+    if (!INITIAL_TICKET) return;
 
-    // Case B: We have the ticket — manually complete sign-in/sign-up.
+    // Case B: Manually complete sign-in/sign-up using the ticket
     window.history.replaceState({}, "", window.location.pathname);
-    setStep("email_verifying");
 
     const flow = sessionStorage.getItem("clerk_email_flow") ?? "signin";
 
@@ -97,7 +89,7 @@ const Login = () => {
 
     if (flow === "signup") {
       (signUp as any)
-        .attemptEmailAddressVerification({ token: ticket })
+        .attemptEmailAddressVerification({ token: INITIAL_TICKET })
         .then((result: any) => {
           if (result.status === "complete") return finish(result.createdSessionId);
           throw new Error("Sign-up verification incomplete");
@@ -105,14 +97,14 @@ const Login = () => {
         .catch(onError);
     } else {
       (signIn as any)
-        .attemptFirstFactor({ strategy: "email_link", ticket })
+        .attemptFirstFactor({ strategy: "email_link", ticket: INITIAL_TICKET })
         .then((result: any) => {
           if (result.status === "complete") return finish(result.createdSessionId);
           throw new Error("Sign-in incomplete");
         })
         .catch(onError);
     }
-  }, [clerkLoaded, initialTicket, isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Phone OTP ──
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -396,8 +388,25 @@ const Login = () => {
           {/* ── Verifying ── */}
           {step === "email_verifying" && (
             <div className="space-y-5 text-center py-4">
-              <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-              <p className="text-sm text-muted-foreground">Verifying your magic link…</p>
+              {verifyError ? (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 mx-auto">
+                    <Mail className="h-7 w-7 text-destructive" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium text-destructive">Sign-in failed</p>
+                    <p className="text-xs text-muted-foreground">{verifyError}</p>
+                  </div>
+                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => { setVerifyError(null); setStep("email"); }}>
+                    Try again
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
+                  <p className="text-sm text-muted-foreground">Verifying your magic link…</p>
+                </>
+              )}
             </div>
           )}
 
