@@ -35,7 +35,7 @@ const Login = () => {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const clerk = useClerk();
-  const { getToken } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
 
   const clerkLoaded = signInLoaded && signUpLoaded;
 
@@ -43,31 +43,17 @@ const Login = () => {
   useEffect(() => {
     if (!clerkLoaded || !signIn || !signUp) return;
 
-    // Use the pre-captured ticket — ClerkProvider strips __clerk_ticket from
-    // window.location.search during its init, before this effect fires.
     const ticket = initialTicket;
-    if (!ticket) return;
 
-    window.history.replaceState({}, "", window.location.pathname);
-    setStep("email_verifying");
-
-    const flow = sessionStorage.getItem("clerk_email_flow") ?? "signin";
-
-    const finish = async (createdSessionId: string) => {
-      await clerk.setActive({ session: createdSessionId });
-
-      // Retry getting the token — session propagation can take a moment
+    // Helper: exchange an active Clerk session for our own JWT
+    const finishWithToken = async () => {
       let clerkToken: string | null = null;
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 300));
         clerkToken = await getToken().catch(() => null);
         if (clerkToken) break;
       }
-
-      if (!clerkToken) {
-        throw new Error("Session token unavailable — please try again");
-      }
-
+      if (!clerkToken) throw new Error("Session token unavailable — please try again");
       const response = await authApi.clerkLogin(clerkToken);
       if (response.success) {
         sessionStorage.removeItem("clerk_email_flow");
@@ -85,7 +71,28 @@ const Login = () => {
         "Something went wrong";
       toast({ title: "Sign-in failed", description: msg, variant: "destructive" });
       setStep("email");
-      window.history.replaceState({}, "", window.location.pathname);
+    };
+
+    // Case A: Clerk already has a session (ClerkProvider auto-completed the magic link
+    // before we could read __clerk_ticket, OR user already had an active Clerk session).
+    // Skip ticket-based flow and exchange the existing session directly.
+    if (!ticket && isSignedIn) {
+      setStep("email_verifying");
+      finishWithToken().catch(onError);
+      return;
+    }
+
+    if (!ticket) return;
+
+    // Case B: We have the ticket — manually complete sign-in/sign-up.
+    window.history.replaceState({}, "", window.location.pathname);
+    setStep("email_verifying");
+
+    const flow = sessionStorage.getItem("clerk_email_flow") ?? "signin";
+
+    const finish = async (createdSessionId: string) => {
+      await clerk.setActive({ session: createdSessionId });
+      await finishWithToken();
     };
 
     if (flow === "signup") {
@@ -93,7 +100,7 @@ const Login = () => {
         .attemptEmailAddressVerification({ token: ticket })
         .then((result: any) => {
           if (result.status === "complete") return finish(result.createdSessionId);
-          throw new Error("Sign-up incomplete");
+          throw new Error("Sign-up verification incomplete");
         })
         .catch(onError);
     } else {
@@ -105,7 +112,7 @@ const Login = () => {
         })
         .catch(onError);
     }
-  }, [clerkLoaded, initialTicket]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, initialTicket, isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Phone OTP ──
   const handleSendOtp = async (e: React.FormEvent) => {
