@@ -104,7 +104,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   onPressed: () { Navigator.pop(ctx); _printTransactionSummary(); },
                   icon: const Icon(Icons.receipt_long, size: 18),
                   label: Text('Transaction Summary',
-                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: AppColors.primary,
@@ -119,7 +119,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   onPressed: () { Navigator.pop(ctx); _printSalesSummary(); },
                   icon: const Icon(Icons.summarize, size: 18),
                   label: Text('Sales Summary',
-                      style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
+                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     foregroundColor: AppColors.primary,
