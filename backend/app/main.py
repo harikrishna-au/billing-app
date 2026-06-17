@@ -172,6 +172,33 @@ async def startup_event():
                 conn.commit()
                 print("✅ Migration: added location_id column to machines table")
 
+            # Deduplicate payments and add unique constraint on (machine_id, bill_number).
+            # The DELETE is a no-op when no duplicates exist; the index creation is idempotent.
+            try:
+                conn.execute(text("""
+                    DELETE FROM payments
+                    WHERE id IN (
+                        SELECT id FROM (
+                            SELECT id,
+                                   ROW_NUMBER() OVER (
+                                       PARTITION BY machine_id, bill_number
+                                       ORDER BY created_at
+                                   ) AS rn
+                            FROM payments
+                        ) subq
+                        WHERE rn > 1
+                    )
+                """))
+                conn.commit()
+                conn.execute(text("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_machine_bill
+                    ON payments(machine_id, bill_number)
+                """))
+                conn.commit()
+                print("✅ Migration: unique index on payments(machine_id, bill_number)")
+            except Exception as e:
+                print(f"⚠️  Payment dedup migration skipped: {e}")
+
             # UPI change requests table
             if "upi_change_requests" not in existing_tables:
                 conn.execute(text("""
