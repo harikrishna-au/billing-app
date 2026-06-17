@@ -139,10 +139,10 @@ export const firebaseLogin = async (firebaseIdToken: string): Promise<LoginRespo
 };
 
 /**
- * Hidden self-registration (secret URL only)
+ * Hidden self-registration (secret URL only) — Clerk OTP already verified on frontend
  */
 export const selfRegister = async (data: {
-    username: string; email: string; phone?: string; password: string; token: string;
+    email: string; phone: string; token: string; clerkToken: string;
 }): Promise<void> => {
     await apiClient.post('/v1/auth/self-register', data);
 };
