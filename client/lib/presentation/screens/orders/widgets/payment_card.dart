@@ -47,9 +47,17 @@ class PaymentCard extends StatelessWidget {
 
     final isCash = payment.method == PaymentMethod.cash;
     final isCard = payment.method == PaymentMethod.card;
+    final methodLabel = isCash ? 'Cash' : isCard ? 'Card' : 'UPI';
+    final methodIcon = isCash
+        ? Icons.payments_rounded
+        : isCard
+            ? Icons.credit_card_rounded
+            : Icons.qr_code_rounded;
+    final methodColor = isCash ? AppColors.success : AppColors.primary;
+    final methodBg = isCash ? AppColors.successLight : AppColors.primaryLight;
+
     final formattedTime = DateFormat('hh:mm a').format(payment.createdAtLocal);
-    final formattedDate =
-        DateFormat('dd MMM yyyy').format(payment.createdAtLocal);
+    final formattedDate = DateFormat('dd MMM').format(payment.createdAtLocal);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -72,36 +80,25 @@ class PaymentCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                // Method icon
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: isCash
-                        ? AppColors.successLight
-                        : AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isCash
-                        ? Icons.payments_rounded
-                        : isCard
-                            ? Icons.credit_card_rounded
-                            : Icons.qr_code_rounded,
-                    color: isCash ? AppColors.success : AppColors.primary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // Details
+                // ── Col 1: Bill ──────────────────────────────
                 Expanded(
+                  flex: 5,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Bill',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textLight,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         payment.billNumber,
                         style: GoogleFonts.dmSans(
@@ -111,11 +108,11 @@ class PaymentCard extends StatelessWidget {
                           letterSpacing: -0.1,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         '$formattedDate  •  $formattedTime',
                         style: GoogleFonts.dmSans(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: AppColors.textLight,
                           fontWeight: FontWeight.w400,
                         ),
@@ -124,39 +121,92 @@ class PaymentCard extends StatelessWidget {
                   ),
                 ),
 
-                // Amount + status
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      CurrencyFormatter.format(payment.amount),
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        statusLabel,
+                // ── Col 2: Amount ─────────────────────────────
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Amount',
                         style: GoogleFonts.dmSans(
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textLight,
+                          letterSpacing: 0.3,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyFormatter.format(payment.amount),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
+                // ── Col 3: Type ───────────────────────────────
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Type',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textLight,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: methodBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(methodIcon, size: 13, color: methodColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              methodLabel,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: methodColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
