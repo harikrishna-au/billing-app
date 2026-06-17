@@ -487,14 +487,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         itemCount: payments.length,
                         itemBuilder: (context, index) {
                           final p = payments[index];
-                          return PaymentCard(
-                            payment: p,
-                          )
-                              .animate()
-                              .fadeIn(
-                                  duration: 250.ms,
-                                  delay: (index * 30).ms)
-                              .slideY(begin: 0.06, end: 0);
+                          final card = PaymentCard(payment: p);
+                          // Only animate the first 8 cards on load; beyond that
+                          // animating every incoming item causes scroll jank.
+                          if (index < 8) {
+                            return card
+                                .animate()
+                                .fadeIn(duration: 200.ms, delay: (index * 25).ms)
+                                .slideY(begin: 0.05, end: 0);
+                          }
+                          return card;
                         },
                       ),
           ),
