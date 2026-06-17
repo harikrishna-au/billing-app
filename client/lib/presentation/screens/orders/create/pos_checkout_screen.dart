@@ -12,6 +12,7 @@ import '../../../providers/bill_config_provider.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../core/utils/print_utils.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../../core/services/plutus_smart_service.dart';
 import '../../../widgets/confirm_payment_dialog.dart';
 import 'widgets/checkout_bill_receipt.dart';
@@ -229,6 +230,9 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'UPI transaction not approved');
       }
 
+      // Lock bill number before touching the backend — Plutus already debited the customer.
+      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+
       final payment = Payment(
         id: '',
         billNumber: billNumber,
@@ -238,14 +242,29 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
       if (created == null) {
-        final reason = ref.read(paymentProvider).error ??
-            'Payment could not be confirmed. Check connection and try again.';
-        throw Exception(reason);
+        // Backend unreachable — queue so it syncs later; do not lose a Plutus-approved payment.
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          await ref.read(syncQueueServiceProvider).enqueue({
+            'machine_id': user.id,
+            'bill_number': payment.billNumber,
+            'amount': payment.amount,
+            'method': 'UPI',
+            'status': 'success',
+            'created_at': payment.createdAt.toUtc().toIso8601String(),
+          });
+        }
+        created = Payment(
+          id: payment.billNumber,
+          billNumber: payment.billNumber,
+          amount: payment.amount,
+          method: payment.method,
+          status: PaymentStatus.pending,
+          createdAt: payment.createdAt,
+        );
       }
-
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       if (mounted) {
         setState(() => _paymentProcessingOverlay = false);
@@ -321,6 +340,9 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'Card transaction declined');
       }
 
+      // Lock bill number before touching the backend — Plutus already debited the customer.
+      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+
       final payment = Payment(
         id: '',
         billNumber: billNumber,
@@ -330,14 +352,29 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
       if (created == null) {
-        final reason = ref.read(paymentProvider).error ??
-            'Payment could not be confirmed. Check connection and try again.';
-        throw Exception(reason);
+        // Backend unreachable — queue so it syncs later; do not lose a Plutus-approved payment.
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          await ref.read(syncQueueServiceProvider).enqueue({
+            'machine_id': user.id,
+            'bill_number': payment.billNumber,
+            'amount': payment.amount,
+            'method': 'CARD',
+            'status': 'success',
+            'created_at': payment.createdAt.toUtc().toIso8601String(),
+          });
+        }
+        created = Payment(
+          id: payment.billNumber,
+          billNumber: payment.billNumber,
+          amount: payment.amount,
+          method: payment.method,
+          status: PaymentStatus.pending,
+          createdAt: payment.createdAt,
+        );
       }
-
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       if (mounted) {
         setState(() => _paymentProcessingOverlay = false);
@@ -478,7 +515,8 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       final billConfig = ref.read(billConfigProvider);
 
       final billNumberGen = ref.read(billNumberServiceProvider);
-      final billNumber = billNumberGen.generatePreview(posId: billConfig.posId);
+      // Cashier confirmed receipt — lock the bill number immediately.
+      final billNumber = await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       final savedCart = ref.read(cartProvider);
 
@@ -491,14 +529,29 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
       if (created == null) {
-        final reason = ref.read(paymentProvider).error ??
-            'Payment could not be confirmed. Check connection and try again.';
-        throw Exception(reason);
+        // Backend unreachable — queue so it syncs later; cashier already collected the cash.
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          await ref.read(syncQueueServiceProvider).enqueue({
+            'machine_id': user.id,
+            'bill_number': payment.billNumber,
+            'amount': payment.amount,
+            'method': 'CASH',
+            'status': 'success',
+            'created_at': payment.createdAt.toUtc().toIso8601String(),
+          });
+        }
+        created = Payment(
+          id: payment.billNumber,
+          billNumber: payment.billNumber,
+          amount: payment.amount,
+          method: payment.method,
+          status: PaymentStatus.pending,
+          createdAt: payment.createdAt,
+        );
       }
-
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       // Hide "Processing payment" as soon as payment is saved. Thermal SDK can block a long time;
       // keeping the overlay until print finished is what left users stuck on checkout.
