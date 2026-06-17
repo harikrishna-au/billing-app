@@ -309,7 +309,26 @@ async def create_payment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
+    # Idempotency: if this bill_number is already recorded for this machine, return it.
+    existing = db.query(Payment).filter(
+        Payment.machine_id == payment_data.machine_id,
+        Payment.bill_number == payment_data.bill_number,
+    ).first()
+    if existing:
+        return {
+            "success": True,
+            "data": PaymentResponse(
+                id=str(existing.id),
+                machine_id=str(existing.machine_id),
+                bill_number=existing.bill_number,
+                amount=float(existing.amount),
+                method=existing.method,
+                status=existing.status,
+                created_at=existing.created_at
+            )
+        }
+
     # Create payment
     payment = Payment(
         machine_id=payment_data.machine_id,
