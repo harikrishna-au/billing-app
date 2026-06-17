@@ -167,6 +167,7 @@ const Login = () => {
   return (
     <div className="login-container flex min-h-screen items-center justify-center p-4">
       <div id="recaptcha-container" />
+      <div id="clerk-captcha" />
 
       <div className="w-full max-w-sm animate-scale-in">
         <div className="login-card px-8 py-10">
