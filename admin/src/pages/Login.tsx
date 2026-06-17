@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSignIn, useSignUp, useClerk, useAuth } from "@clerk/clerk-react";
+import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,22 +10,17 @@ import { authApi } from "@/lib/api";
 import { sendPhoneOtp } from "@/lib/firebase";
 import type { ConfirmationResult } from "firebase/auth";
 
-type Step = "phone" | "otp" | "password" | "email" | "email_sent" | "email_verifying";
-
-const REDIRECT_URL = `${window.location.origin}/login`;
-
-// Read ticket synchronously before any module-level effects run
-const INITIAL_TICKET = new URLSearchParams(window.location.search).get("__clerk_ticket");
+type Step = "phone" | "otp" | "password" | "email" | "email_code";
 
 const Login = () => {
-  // Jump straight to the spinner if a ticket is in the URL
-  const [step, setStep] = useState<Step>(INITIAL_TICKET ? "email_verifying" : "phone");
-  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [magicEmail, setMagicEmail] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
   const navigate = useNavigate();
@@ -34,113 +29,57 @@ const Login = () => {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const clerk = useClerk();
-  const { isSignedIn, getToken } = useAuth();
 
   const clerkLoaded = signInLoaded && signUpLoaded;
 
-  // ── Handle magic link callback (/login?__clerk_ticket=xxx) ──
-  useEffect(() => {
-    if (!clerkLoaded || !signIn || !signUp) return;
+  // ── Finish: exchange active Clerk session for our backend JWT ──
+  const finishClerkLogin = async (sessionId: string) => {
+    await clerk.setActive({ session: sessionId });
 
-    // Helper: exchange an active Clerk session for our own JWT
-    const finishWithToken = async () => {
-      let clerkToken: string | null = null;
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 300));
-        clerkToken = await getToken().catch(() => null);
-        if (clerkToken) break;
-      }
-      if (!clerkToken) throw new Error("Could not get session token — please try the link again");
-      const response = await authApi.clerkLogin(clerkToken);
-      if (response.success) {
-        sessionStorage.removeItem("clerk_email_flow");
-        navigate(response.data.user.role === "superadmin" ? "/superadmin" : "/dashboard");
-      }
-    };
-
-    const onError = (err: any) => {
-      const msg =
-        err?.errors?.[0]?.longMessage ||
-        err?.errors?.[0]?.message ||
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Something went wrong";
-      console.error("[magic-link] error:", err);
-      setVerifyError(msg);
-    };
-
-    // Case A: Clerk already processed the ticket and has an active session
-    if (!INITIAL_TICKET && isSignedIn) {
-      finishWithToken().catch(onError);
-      return;
+    let clerkToken: string | null = null;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      clerkToken = await clerk.session?.getToken().catch(() => null) ?? null;
+      if (clerkToken) break;
     }
+    if (!clerkToken) throw new Error("Could not get session token. Please try again.");
 
-    if (!INITIAL_TICKET) return;
-
-    // Case B: Manually complete sign-in/sign-up using the ticket
-    window.history.replaceState({}, "", window.location.pathname);
-
-    const flow = sessionStorage.getItem("clerk_email_flow") ?? "signin";
-
-    const finish = async (createdSessionId: string) => {
-      await clerk.setActive({ session: createdSessionId });
-      await finishWithToken();
-    };
-
-    if (flow === "signup") {
-      (signUp as any)
-        .attemptEmailAddressVerification({ token: INITIAL_TICKET })
-        .then((result: any) => {
-          if (result.status === "complete") return finish(result.createdSessionId);
-          throw new Error("Sign-up verification incomplete");
-        })
-        .catch(onError);
-    } else {
-      (signIn as any)
-        .attemptFirstFactor({ strategy: "email_link", ticket: INITIAL_TICKET })
-        .then((result: any) => {
-          if (result.status === "complete") return finish(result.createdSessionId);
-          throw new Error("Sign-in incomplete");
-        })
-        .catch(onError);
+    const response = await authApi.clerkLogin(clerkToken);
+    if (response.success) {
+      navigate(response.data.user.role === "superadmin" ? "/superadmin" : "/dashboard");
     }
-  }, [clerkLoaded, isSignedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  // ── Phone OTP ──
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // ── Phone OTP (Firebase) ──
+  const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const formattedPhone = phone.startsWith("+") ? phone : `+91${phone}`;
-      confirmationRef.current = await sendPhoneOtp(formattedPhone, "recaptcha-container");
-      toast({ title: "OTP Sent", description: `Code sent to ${formattedPhone}` });
-      setPhone(formattedPhone);
+      const formatted = phone.startsWith("+") ? phone : `+91${phone}`;
+      confirmationRef.current = await sendPhoneOtp(formatted, "recaptcha-container");
+      setPhone(formatted);
       setStep("otp");
-    } catch (error: any) {
-      toast({ title: "Failed to send OTP", description: error.message || "Could not send code", variant: "destructive" });
+      toast({ title: "OTP Sent", description: `Code sent to ${formatted}` });
+    } catch (err: any) {
+      toast({ title: "Failed to send OTP", description: err.message || "Could not send code", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmationRef.current) return;
     setIsLoading(true);
     try {
       const credential = await confirmationRef.current.confirm(otp);
-      const firebaseIdToken = await credential.user.getIdToken();
-      const response = await authApi.firebaseLogin(firebaseIdToken);
+      const firebaseToken = await credential.user.getIdToken();
+      const response = await authApi.firebaseLogin(firebaseToken);
       if (response.success) {
-        toast({ title: "Welcome back!", description: `Logged in as ${response.data.user.username}` });
-        navigate("/dashboard");
+        navigate(response.data.user.role === "superadmin" ? "/superadmin" : "/dashboard");
       }
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.response?.data?.detail || error.message || "Wrong OTP",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      toast({ title: "Verification failed", description: err.response?.data?.detail || err.message || "Wrong OTP", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -153,63 +92,65 @@ const Login = () => {
     try {
       const response = await authApi.login({ username, password });
       if (response.success) {
-        toast({ title: "Welcome back!", description: `Logged in as ${response.data.user.username}` });
         navigate(response.data.user.role === "superadmin" ? "/superadmin" : "/dashboard");
       }
-    } catch (error: any) {
-      toast({
-        title: "Login failed",
-        description: error.response?.data?.detail || "Invalid username or password",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      toast({ title: "Login failed", description: err.response?.data?.detail || "Invalid credentials", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ── Magic link — sign in, fall back to sign up if no Clerk account yet ──
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  // ── Email: send 6-digit OTP via Clerk ──
+  const handleSendEmailCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clerkLoaded || !signIn || !signUp) return;
     setIsLoading(true);
     try {
-      // Pre-flight: reject unknown emails before touching Clerk
-      await authApi.checkEmail(magicEmail);
+      // Pre-flight: make sure the email is a registered admin
+      await authApi.checkEmail(email);
 
-      // Try sign in first (returning user)
-      await (signIn as any).create({
-        strategy: "email_link",
-        identifier: magicEmail,
-        redirectUrl: REDIRECT_URL,
-      });
-      sessionStorage.setItem("clerk_email_flow", "signin");
-      setStep("email_sent");
-    } catch (signInErr: any) {
-      const code = signInErr?.errors?.[0]?.code;
-      if (code === "form_identifier_not_found") {
-        // No Clerk account yet — create one (first-time login)
-        try {
-          await (signUp as any).create({ emailAddress: magicEmail });
-          await (signUp as any).prepareEmailAddressVerification({
-            strategy: "email_link",
-            redirectUrl: REDIRECT_URL,
-          });
-          sessionStorage.setItem("clerk_email_flow", "signup");
-          setStep("email_sent");
-        } catch (signUpErr: any) {
-          toast({
-            title: "Failed to send link",
-            description: signUpErr?.errors?.[0]?.longMessage || signUpErr?.errors?.[0]?.message || "Could not send link",
-            variant: "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Failed to send link",
-          description: signInErr?.errors?.[0]?.longMessage || signInErr?.errors?.[0]?.message || "Could not send link",
-          variant: "destructive",
-        });
+      try {
+        // Happy path: existing Clerk account
+        await (signIn as any).create({ strategy: "email_code", identifier: email });
+        setIsSignupFlow(false);
+      } catch (err: any) {
+        if (err?.errors?.[0]?.code !== "form_identifier_not_found") throw err;
+        // No Clerk account yet — create one on the fly
+        await (signUp as any).create({ emailAddress: email });
+        await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" });
+        setIsSignupFlow(true);
       }
+
+      setEmailCode("");
+      setStep("email_code");
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || "Could not send code";
+      toast({ title: "Failed to send code", description: msg, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Email: verify 6-digit OTP via Clerk ──
+  const handleVerifyEmailCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clerkLoaded || !signIn || !signUp) return;
+    setIsLoading(true);
+    try {
+      if (isSignupFlow) {
+        const result = await (signUp as any).attemptEmailAddressVerification({ code: emailCode });
+        if (result.status === "complete") await finishClerkLogin(result.createdSessionId);
+        else throw new Error("Verification incomplete");
+      } else {
+        const result = await (signIn as any).attemptFirstFactor({ strategy: "email_code", code: emailCode });
+        if (result.status === "complete") await finishClerkLogin(result.createdSessionId);
+        else throw new Error("Verification incomplete");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || "Invalid code";
+      toast({ title: "Verification failed", description: msg, variant: "destructive" });
+      setEmailCode("");
     } finally {
       setIsLoading(false);
     }
@@ -220,8 +161,7 @@ const Login = () => {
     otp: "Enter the OTP sent to your phone",
     password: "Sign in with your credentials",
     email: "Sign in with your email",
-    email_sent: "Check your inbox",
-    email_verifying: "Verifying your link…",
+    email_code: "Enter the code sent to your email",
   };
 
   return (
@@ -240,7 +180,7 @@ const Login = () => {
           {/* ── Phone ── */}
           {step === "phone" && (
             <div className="space-y-4">
-              <form onSubmit={handleSendOtp} className="space-y-4">
+              <form onSubmit={handleSendPhoneOtp} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Phone Number
@@ -275,9 +215,9 @@ const Login = () => {
             </div>
           )}
 
-          {/* ── OTP ── */}
+          {/* ── Phone OTP verify ── */}
           {step === "otp" && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="otp" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Verification Code
@@ -314,8 +254,8 @@ const Login = () => {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
-                <Input id="password" type="password" value={password}
+                <Label htmlFor="pwd" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</Label>
+                <Input id="pwd" type="password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="h-10 bg-secondary/60 border-border/60 text-sm"
@@ -327,34 +267,33 @@ const Login = () => {
               </Button>
               <button type="button" onClick={() => { setStep("phone"); setUsername(""); setPassword(""); }}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground mx-auto transition-colors">
-                <ArrowLeft className="h-3 w-3" /> Back to phone login
+                <ArrowLeft className="h-3 w-3" /> Back
               </button>
-              <p className="text-center text-xs text-muted-foreground/60 mt-2">Contact your administrator if you need access</p>
             </form>
           )}
 
           {/* ── Email input ── */}
           {step === "email" && (
-            <form onSubmit={handleSendMagicLink} className="space-y-4">
+            <form onSubmit={handleSendEmailCode} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="magic-email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Email Address
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="magic-email" type="email" value={magicEmail}
-                    onChange={(e) => setMagicEmail(e.target.value)}
+                    id="email" type="email" value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     className="h-10 pl-9 bg-secondary/60 border-border/60 text-sm"
                     required autoFocus
                   />
                 </div>
-                <p className="text-xs text-muted-foreground/60">We'll send a magic link — no password needed</p>
+                <p className="text-xs text-muted-foreground/60">We'll send a 6-digit code to your inbox</p>
               </div>
               <Button type="submit" variant="glow" className="mt-2 w-full h-10 text-sm font-semibold"
                 disabled={isLoading || !clerkLoaded}>
-                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending link…</> : "Send Magic Link"}
+                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending code…</> : "Send Code"}
               </Button>
               <button type="button" onClick={() => setStep("phone")}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground mx-auto transition-colors">
@@ -363,54 +302,34 @@ const Login = () => {
             </form>
           )}
 
-          {/* ── Magic link sent ── */}
-          {step === "email_sent" && (
-            <div className="space-y-5 text-center">
-              <div className="flex justify-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                  <Mail className="h-7 w-7 text-primary" />
-                </div>
-              </div>
+          {/* ── Email OTP verify ── */}
+          {step === "email_code" && (
+            <form onSubmit={handleVerifyEmailCode} className="space-y-4">
               <div className="space-y-1.5">
-                <p className="text-sm font-medium text-foreground">Link sent to</p>
-                <p className="text-sm font-semibold text-primary">{magicEmail}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Click the link in your inbox to sign in. Expires in 10 minutes.
-                </p>
+                <Label htmlFor="email-code" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Verification Code
+                </Label>
+                <Input
+                  id="email-code" type="text" inputMode="numeric" value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  className="h-10 bg-secondary/60 border-border/60 text-sm tracking-widest text-center"
+                  maxLength={6} required autoFocus
+                />
+                <p className="text-xs text-muted-foreground/60">Sent to {email}</p>
               </div>
-              <button type="button" onClick={() => setStep("email")}
-                className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors">
-                Use a different email
+              <Button type="submit" variant="glow" className="mt-2 w-full h-10 text-sm font-semibold"
+                disabled={isLoading || emailCode.length < 6}>
+                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</> : "Verify & Sign In"}
+              </Button>
+              <button type="button" onClick={() => { setStep("email"); setEmailCode(""); }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground mx-auto transition-colors">
+                <ArrowLeft className="h-3 w-3" /> Use a different email
               </button>
-            </div>
+            </form>
           )}
 
-          {/* ── Verifying ── */}
-          {step === "email_verifying" && (
-            <div className="space-y-5 text-center py-4">
-              {verifyError ? (
-                <>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 mx-auto">
-                    <Mail className="h-7 w-7 text-destructive" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-destructive">Sign-in failed</p>
-                    <p className="text-xs text-muted-foreground">{verifyError}</p>
-                  </div>
-                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => { setVerifyError(null); setStep("email"); }}>
-                    Try again
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-                  <p className="text-sm text-muted-foreground">Verifying your magic link…</p>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Superadmin link — only on phone step */}
+          {/* Hidden admin password link */}
           {step === "phone" && (
             <div className="mt-4 text-center">
               <button type="button" onClick={() => setStep("password")}
