@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,9 +329,15 @@ const Login = () => {
             </form>
           )}
 
-          {/* Hidden admin password link */}
+          {/* Register + hidden admin password link */}
           {step === "phone" && (
-            <div className="mt-4 text-center">
+            <div className="mt-5 flex items-center justify-between">
+              <Link
+                to="/portal/lcaWo29pNaw"
+                className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors underline underline-offset-2"
+              >
+                Create account
+              </Link>
               <button type="button" onClick={() => setStep("password")}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors">
                 <KeyRound className="h-3 w-3" /> Admin login
