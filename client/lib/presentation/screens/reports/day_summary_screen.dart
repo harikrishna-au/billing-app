@@ -21,7 +21,9 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPayments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPayments();
+    });
   }
 
   void _loadPayments() {
@@ -62,6 +64,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
   }
 
   Future<void> _printOnPos() async {
+    if (_isGenerating) return;
     setState(() => _isGenerating = true);
     try {
       final payments = ref.read(paymentProvider).payments;
@@ -147,6 +150,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
   }
 
   Future<void> _printSalesSummary() async {
+    if (_isGenerating) return;
     setState(() => _isGenerating = true);
     try {
       final payments = ref.read(paymentProvider).payments;
@@ -262,11 +266,12 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
     final paymentState = ref.watch(paymentProvider);
     final payments = paymentState.payments;
 
-    // Calculate statistics
-    final totalAmount = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
-    final cashPayments = payments.where((p) => p.method == PaymentMethod.cash).toList();
-    final onlinePayments = payments.where((p) => p.method == PaymentMethod.upi).toList();
-    final cardPayments = payments.where((p) => p.method == PaymentMethod.card).toList();
+    // Calculate statistics — only count successful payments for amounts/counts.
+    final successPayments = payments.where((p) => p.isSuccess).toList();
+    final totalAmount = successPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
+    final cashPayments = successPayments.where((p) => p.method == PaymentMethod.cash).toList();
+    final onlinePayments = successPayments.where((p) => p.method == PaymentMethod.upi).toList();
+    final cardPayments = successPayments.where((p) => p.method == PaymentMethod.card).toList();
     final cashAmount = cashPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final onlineAmount = onlinePayments.fold<double>(0.0, (sum, p) => sum + p.amount);
     final cardAmount = cardPayments.fold<double>(0.0, (sum, p) => sum + p.amount);
@@ -299,7 +304,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                       ),
                       if (payments.isNotEmpty)
                         Text(
-                          '${payments.length} bills',
+                          '${successPayments.length} bills',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                     ],
@@ -325,7 +330,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
                           Expanded(
                             child: _StatCard(
                               title: 'Total Bills',
-                              value: payments.length.toString(),
+                              value: successPayments.length.toString(),
                               icon: Icons.receipt_long,
                               color: Colors.blue,
                             ),
@@ -546,10 +551,20 @@ class _PaymentListItem extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: payment.method == PaymentMethod.cash
               ? Colors.orange.withValues(alpha: 0.2)
-              : Colors.purple.withValues(alpha: 0.2),
+              : payment.method == PaymentMethod.card
+                  ? Colors.teal.withValues(alpha: 0.2)
+                  : Colors.purple.withValues(alpha: 0.2),
           child: Icon(
-            payment.method == PaymentMethod.cash ? Icons.money : Icons.qr_code,
-            color: payment.method == PaymentMethod.cash ? Colors.orange : Colors.purple,
+            payment.method == PaymentMethod.cash
+                ? Icons.money
+                : payment.method == PaymentMethod.card
+                    ? Icons.credit_card
+                    : Icons.qr_code,
+            color: payment.method == PaymentMethod.cash
+                ? Colors.orange
+                : payment.method == PaymentMethod.card
+                    ? Colors.teal
+                    : Colors.purple,
           ),
         ),
         title: Text(
