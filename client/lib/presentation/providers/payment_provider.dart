@@ -258,7 +258,13 @@ class PaymentController extends StateNotifier<PaymentState> {
   }
 
   Future<void> loadTodayPayments() async {
-    await loadAllPayments();
+    // Flush queued offline tickets first, then load today's date range only.
+    // Previously called loadAllPayments() here which fetched ALL payments from
+    // the server (~2300ms) before the date-filtered call — eliminated that
+    // redundant call; the offline fallback in loadPaymentsByDateRange reads
+    // directly from SharedPreferences cache so no warmup needed.
+    await flushSyncQueue();
+    await loadPaymentsForDate(DateTime.now());
   }
 
   Future<void> loadPaymentsForDate(DateTime date,
