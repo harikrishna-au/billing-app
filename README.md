@@ -80,7 +80,6 @@ SECRET_KEY=your-secret-key-here
 CLERK_SECRET_KEY=sk_test_...
 
 # Self-registration secret — generate with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-# Embed this in the hidden signup URL you share with new admins.
 # NO DEFAULT — server will refuse to start if this is not set.
 SELF_REGISTER_TOKEN=your-strong-random-token
 
@@ -199,7 +198,7 @@ If the terminal returns `ResponseCode: 14 (Invalid Application Id)`:
 
 ## Security Notes
 
-- **SELF_REGISTER_TOKEN** — embed this in the hidden signup URL (`/portal/{token}`). Rotate it by updating `.env` and redeploying. All existing links with the old token will stop working immediately.
+- **SELF_REGISTER_TOKEN** — rotate it by updating `.env` and redeploying. Must be a strong random value; the server will not start without it.
 - **Clerk verification** — `/auth/self-register` verifies the Clerk session token server-side (JWKS + backend API email check) before creating any account.
 - **Machine isolation** — machine JWTs can only read and write data for their own machine. Cross-machine access returns 403.
 - **SSRF protection** — Clerk JWT `iss` claims are validated against a strict domain allowlist before any outbound HTTP request.
