@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     # Clerk
     CLERK_SECRET_KEY: str = ""
 
-    # Self-registration (secret token embedded in the hidden signup URL)
-    SELF_REGISTER_TOKEN: str = "lcaWo29pNaw"
+    # Self-registration (secret token embedded in the hidden signup URL).
+    # NO DEFAULT — must be set in .env. Server refuses to start without it.
+    SELF_REGISTER_TOKEN: str
 
     # Server
     HOST: str = "0.0.0.0"

@@ -149,3 +149,12 @@ async def get_current_superadmin(
             detail="Superadmin access required"
         )
     return current_user
+
+
+def assert_machine_owns(current_user: Union[User, Machine], machine_id: str) -> None:
+    """Raise 403 if a machine token is being used to access a different machine's data."""
+    if isinstance(current_user, Machine) and str(current_user.id) != str(machine_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Machine token can only access its own data",
+        )
