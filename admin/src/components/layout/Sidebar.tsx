@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck, Users, CreditCard } from "lucide-react";
+import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck, Users, CreditCard, ClipboardList } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "@/lib/api";
 import { superadminApi } from "@/lib/api/superadmin";
@@ -50,6 +50,7 @@ const Sidebar = () => {
     { icon: Users,           label: "Admins",        path: "/superadmin/admins" },
     { icon: CreditCard,      label: "UPI Approvals", path: "/superadmin/upi-approvals", badge: pendingUpiCount },
     { icon: Monitor,         label: "All Machines",  path: "/superadmin/machines" },
+    { icon: ClipboardList,   label: "Audit Logs",    path: "/superadmin/audit-logs" },
   ];
 
   const navItems = isSuperAdmin ? superadminNavItems : adminNavItems;

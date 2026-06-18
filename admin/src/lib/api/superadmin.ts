@@ -49,6 +49,24 @@ export interface UpiRequest {
     resolved_at: string | null;
 }
 
+export interface AuditLog {
+    id: string;
+    actor_id: string;
+    actor_username: string;
+    action: string;
+    target_type: string | null;
+    target_id: string | null;
+    details: string | null;
+    created_at: string | null;
+}
+
+export interface CreateAdminResult {
+    id: string;
+    username: string;
+    email: string;
+    clerk_ready: boolean;
+}
+
 const BASE = '/v1/superadmin';
 
 export const superadminApi = {
@@ -62,8 +80,9 @@ export const superadminApi = {
         return res.data.data;
     },
 
-    createAdmin: async (data: { username: string; email: string; phone?: string; password: string }): Promise<void> => {
-        await apiClient.post(`${BASE}/admins`, data);
+    createAdmin: async (data: { username: string; email: string; phone?: string; password: string }): Promise<CreateAdminResult> => {
+        const res = await apiClient.post<{ success: boolean; data: CreateAdminResult }>(`${BASE}/admins`, data);
+        return res.data.data;
     },
 
     toggleAdminStatus: async (adminId: string, isActive: boolean): Promise<void> => {
@@ -87,6 +106,16 @@ export const superadminApi = {
 
     rejectUpiRequest: async (requestId: string, note?: string): Promise<void> => {
         await apiClient.post(`${BASE}/upi-requests/${requestId}/reject`, { note: note ?? '' });
+    },
+
+    listAuditLogs: async (params?: { action?: string; page?: number; limit?: number }): Promise<{ logs: AuditLog[]; pagination: { total: number; page: number; limit: number } }> => {
+        const query = new URLSearchParams();
+        if (params?.action) query.set('action', params.action);
+        if (params?.page) query.set('page', String(params.page));
+        if (params?.limit) query.set('limit', String(params.limit));
+        const qs = query.toString() ? `?${query.toString()}` : '';
+        const res = await apiClient.get<{ success: boolean; data: { logs: AuditLog[]; pagination: { total: number; page: number; limit: number } } }>(`${BASE}/audit-logs${qs}`);
+        return res.data.data;
     },
 };
 

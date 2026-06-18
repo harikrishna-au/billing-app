@@ -10,29 +10,29 @@ final billConfigRepositoryProvider = Provider<BillConfigRepository>((ref) {
   return BillConfigRepository(apiClient, prefs);
 });
 
+/// True when the server's catalog_version is newer than the cached one.
+/// Widgets watch this and show a "catalog updated" banner. Reset to false
+/// by calling `ref.read(catalogChangedProvider.notifier).state = false`.
+final catalogChangedProvider = StateProvider<bool>((ref) => false);
+
 /// Holds the current bill config. Starts from the cached value so the
 /// app works even if offline. Refreshed after a successful machine login.
 final billConfigProvider = StateNotifierProvider<BillConfigNotifier, BillConfig>((ref) {
   final repo = ref.watch(billConfigRepositoryProvider);
-  return BillConfigNotifier(repo);
+  return BillConfigNotifier(repo, ref);
 });
 
 class BillConfigNotifier extends StateNotifier<BillConfig> {
   final BillConfigRepository _repo;
-  bool _catalogChanged = false;
+  final Ref _ref;
 
-  BillConfigNotifier(this._repo) : super(_repo.loadCached());
-
-  /// True when the server catalog_version is higher than what was cached.
-  /// Reset to false after the caller acknowledges the change.
-  bool get catalogChanged => _catalogChanged;
-  void clearCatalogChanged() => _catalogChanged = false;
+  BillConfigNotifier(this._repo, this._ref) : super(_repo.loadCached());
 
   Future<void> refresh(String machineId) async {
     try {
       final config = await _repo.fetchAndCache(machineId);
       if (config.catalogVersion > state.catalogVersion) {
-        _catalogChanged = true;
+        _ref.read(catalogChangedProvider.notifier).state = true;
       }
       state = config;
     } catch (e) {

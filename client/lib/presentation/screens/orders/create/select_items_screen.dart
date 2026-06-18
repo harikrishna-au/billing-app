@@ -7,6 +7,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../providers/catalogue_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../providers/bill_config_provider.dart';
 import '../../../widgets/shimmer_loader.dart';
 import '../../../widgets/offline_banner.dart';
 import 'widgets/select_item_card.dart';
@@ -66,6 +67,7 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
     final cartState = ref.watch(cartProvider);
     final cartController = ref.read(cartProvider.notifier);
     final paymentState = ref.watch(paymentProvider);
+    final catalogChanged = ref.watch(catalogChangedProvider);
 
     final filteredItems = catalogueState.items;
 
@@ -106,6 +108,15 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
               pendingCount:
                   paymentState.pendingCount > 0 ? paymentState.pendingCount : null,
               onSyncTap: paymentState.pendingCount > 0 ? _syncQueuedTickets : null,
+            ),
+
+          // Catalog updated banner — appears when admin changed the service list
+          if (catalogChanged)
+            _CatalogUpdatedBanner(
+              onRefresh: () {
+                ref.read(catalogChangedProvider.notifier).state = false;
+                ref.read(catalogueProvider.notifier).fetchItems();
+              },
             ),
 
           // Search bar
@@ -211,6 +222,40 @@ class _SelectItemsScreenState extends ConsumerState<SelectItemsScreen> {
               onNext: () => context.go('/new/review'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _CatalogUpdatedBanner extends StatelessWidget {
+  final VoidCallback onRefresh;
+  const _CatalogUpdatedBanner({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onRefresh,
+      child: Container(
+        width: double.infinity,
+        color: const Color(0xFFFFF3CD),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: const Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF856404)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Catalogue updated by admin — tap to refresh',
+                style: TextStyle(
+                  color: Color(0xFF856404),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF856404)),
+          ],
+        ),
       ),
     );
   }
