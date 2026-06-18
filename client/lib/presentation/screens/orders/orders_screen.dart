@@ -577,14 +577,18 @@ class _SummaryCard extends StatelessWidget {
                             .shimmer(
                                 duration: 1200.ms,
                                 color: Colors.white.withValues(alpha: 0.4))
-                        : Text(
-                            CurrencyFormatter.format(total),
-                            style: GoogleFonts.dmSans(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.7,
-                              height: 1.1,
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              CurrencyFormatter.format(total),
+                              style: GoogleFonts.dmSans(
+                                fontSize: 23,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.7,
+                                height: 1.1,
+                              ),
                             ),
                           ),
                   ],
@@ -684,15 +688,15 @@ class _BreakdownChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.85)),
-          const SizedBox(width: 8),
+          Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.85)),
+          const SizedBox(width: 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,14 +708,20 @@ class _BreakdownChip extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  amount,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.2,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    amount,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
                   ),
                 ),
                 Text(
@@ -720,6 +730,8 @@ class _BreakdownChip extends StatelessWidget {
                     fontSize: 10,
                     color: Colors.white.withValues(alpha: 0.65),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
