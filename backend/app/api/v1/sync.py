@@ -11,7 +11,7 @@ from app.models.user import User
 from app.models.machine import Machine
 from app.models.service import Service
 from app.models.payment import Payment
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, assert_machine_owns
 from app.schemas.sync import (
     SyncPushRequest, SyncPushResponse,
     SyncPullResponse, SyncStatusResponse
@@ -41,6 +41,9 @@ async def sync_push(
     Returns:
         Sync statistics
     """
+    # Machine tokens may only push data for their own machine
+    assert_machine_owns(current_user, str(sync_data.machine_id))
+
     # Verify machine exists
     machine = db.query(Machine).filter(Machine.id == sync_data.machine_id).first()
     if not machine:
@@ -48,16 +51,17 @@ async def sync_push(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
     synced_count = 0
     failed_count = 0
     
     # Process payments
     for payment_data in sync_data.payments:
         try:
-            # Check if payment already exists (by bill_number)
+            # Check if payment already exists — scoped to this machine
             existing = db.query(Payment).filter(
-                Payment.bill_number == payment_data.bill_number
+                Payment.machine_id == payment_data.machine_id,
+                Payment.bill_number == payment_data.bill_number,
             ).first()
             
             if existing:
@@ -125,6 +129,9 @@ async def sync_pull(
     Returns:
         Latest services and machine status
     """
+    # Machine tokens may only pull data for their own machine
+    assert_machine_owns(current_user, machine_id)
+
     # Verify machine exists
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
     if not machine:
@@ -132,7 +139,7 @@ async def sync_pull(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
     # Get active services for this machine
     services = db.query(Service).filter(
         Service.machine_id == machine_id,
@@ -186,6 +193,9 @@ async def sync_status(
     Returns:
         Sync status information
     """
+    # Machine tokens may only check status for their own machine
+    assert_machine_owns(current_user, machine_id)
+
     # Verify machine exists
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
     if not machine:
@@ -193,7 +203,7 @@ async def sync_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Machine not found"
         )
-    
+
     return {
         "success": True,
         "data": SyncStatusResponse(

@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, assert_machine_owns
 from app.schemas.payment import (
     PaymentCreate, PaymentUpdate, PaymentResponse, 
     PaymentWithMachineResponse, PaymentSummary, PaymentListResponse
@@ -58,6 +58,8 @@ async def get_payments_by_machine(
     current_user: User = Depends(get_current_user)
 ):
     """Get all payments for a specific machine with filters."""
+    assert_machine_owns(current_user, machine_id)
+
     # Verify machine exists
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
     if not machine:
@@ -302,6 +304,8 @@ async def create_payment(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new payment (manual entry)."""
+    assert_machine_owns(current_user, str(payment_data.machine_id))
+
     # Verify machine exists
     machine = db.query(Machine).filter(Machine.id == payment_data.machine_id).first()
     if not machine:
