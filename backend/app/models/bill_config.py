@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, DateTime, ForeignKey
+from sqlalchemy import Column, String, Numeric, DateTime, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -38,6 +38,8 @@ class BillConfig(Base):
     footer_message = Column(String(500), nullable=True, default="Thank you. Visit again")
     website = Column(String(255), nullable=True)
     toll_free = Column(String(50), nullable=True)
+
+    catalog_version = Column(Integer, nullable=False, default=0, server_default='0')
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(

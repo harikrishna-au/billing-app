@@ -3,10 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import time
 
 from app.core.config import settings
 from app.core.logger import log_request, log_error
+from app.core.limiter import limiter
 from app.api.v1 import api_router
 from app.database import engine, Base
 
@@ -19,6 +22,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 app.add_middleware(
@@ -217,6 +224,31 @@ async def startup_event():
                 """))
                 conn.commit()
                 print("✅ Migration: created upi_change_requests table")
+
+            # audit_logs table
+            if "audit_logs" not in existing_tables:
+                conn.execute(text("""
+                    CREATE TABLE audit_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        actor_id VARCHAR(100) NOT NULL,
+                        actor_username VARCHAR(100) NOT NULL,
+                        action VARCHAR(100) NOT NULL,
+                        target_type VARCHAR(50),
+                        target_id VARCHAR(100),
+                        details TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: created audit_logs table")
+
+            # catalog_version on bill_configs
+            if "bill_configs" in inspector.get_table_names():
+                bc_cols = {c["name"] for c in inspector.get_columns("bill_configs")}
+                if "catalog_version" not in bc_cols:
+                    conn.execute(text("ALTER TABLE bill_configs ADD COLUMN catalog_version INTEGER NOT NULL DEFAULT 0"))
+                    conn.commit()
+                    print("✅ Migration: added catalog_version to bill_configs")
 
             # Superadmin role: ensure SQLEnum allows the new value (Postgres-specific)
             user_cols_info = inspector.get_columns("users")

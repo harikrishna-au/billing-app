@@ -15,6 +15,7 @@ import Alerts from "./pages/Alerts";
 import BillSettings from "./pages/BillSettings";
 import NotFound from "./pages/NotFound";
 import Signup from "./pages/Signup";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import Overview from "./pages/superadmin/Overview";
 import AdminsPage from "./pages/superadmin/AdminsPage";
 import UpiApprovalsPage from "./pages/superadmin/UpiApprovalsPage";
@@ -32,20 +33,20 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/portal/:token" element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/clients/:id" element={<ClientDashboard />} />
-          <Route path="/clients/:id/catalog" element={<MachineCatalog />} />
-          <Route path="/clients/:id/payments" element={<MachinePayments />} />
-          <Route path="/clients/:id/logs" element={<MachineLogs />} />
-          <Route path="/clients/:id/catalog-logs" element={<MachineLogs />} />
-          <Route path="/clients/:id/bill-settings" element={<BillSettings />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+          <Route path="/clients/:id" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
+          <Route path="/clients/:id/catalog" element={<ProtectedRoute><MachineCatalog /></ProtectedRoute>} />
+          <Route path="/clients/:id/payments" element={<ProtectedRoute><MachinePayments /></ProtectedRoute>} />
+          <Route path="/clients/:id/logs" element={<ProtectedRoute><MachineLogs /></ProtectedRoute>} />
+          <Route path="/clients/:id/catalog-logs" element={<ProtectedRoute><MachineLogs /></ProtectedRoute>} />
+          <Route path="/clients/:id/bill-settings" element={<ProtectedRoute><BillSettings /></ProtectedRoute>} />
           {/* Superadmin portal — completely separate from admin panel */}
-          <Route path="/superadmin" element={<Overview />} />
-          <Route path="/superadmin/admins" element={<AdminsPage />} />
-          <Route path="/superadmin/upi-approvals" element={<UpiApprovalsPage />} />
-          <Route path="/superadmin/machines" element={<MachinesPage />} />
+          <Route path="/superadmin" element={<ProtectedRoute superadminOnly><Overview /></ProtectedRoute>} />
+          <Route path="/superadmin/admins" element={<ProtectedRoute superadminOnly><AdminsPage /></ProtectedRoute>} />
+          <Route path="/superadmin/upi-approvals" element={<ProtectedRoute superadminOnly><UpiApprovalsPage /></ProtectedRoute>} />
+          <Route path="/superadmin/machines" element={<ProtectedRoute superadminOnly><MachinesPage /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

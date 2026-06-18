@@ -1,24 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Optional
+from typing import Optional, Tuple
 from datetime import datetime, timezone
 import httpx
+import json
 
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.machine import Machine
 from app.models.upi_change_request import UpiChangeRequest
+from app.models.audit_log import AuditLog
 from app.dependencies import get_current_superadmin
 from app.core.security import get_password_hash
 from app.core.config import settings
 from app.schemas.common import SuccessResponse, MessageResponse
 
 
-async def _create_clerk_user(email: str, username: str) -> Optional[str]:
-    """Create a Clerk user for the given email. Returns Clerk user ID or None on failure."""
+async def _create_clerk_user(email: str, username: str) -> Tuple[Optional[str], bool]:
+    """Create a Clerk user. Returns (clerk_user_id, clerk_ready).
+    clerk_ready=False only when Clerk is configured but returned an unexpected error."""
     if not settings.CLERK_SECRET_KEY:
-        return None
+        return None, True  # No Clerk configured — silently skip
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -35,13 +38,36 @@ async def _create_clerk_user(email: str, username: str) -> Optional[str]:
                 timeout=10.0,
             )
         if resp.status_code in (200, 201):
-            return resp.json().get("id")
-        # 422 usually means the email already exists in Clerk — that's fine
-        return None
+            return resp.json().get("id"), True
+        if resp.status_code == 422:
+            # Email already exists in Clerk — admin can still log in via email OTP
+            return None, True
+        # Unexpected error — email OTP login may not work for this admin
+        return None, False
     except Exception:
-        return None
+        return None, False
 
 router = APIRouter()
+
+
+def _log_audit(
+    db: Session,
+    actor: User,
+    action: str,
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None,
+    details: Optional[dict] = None,
+) -> None:
+    log = AuditLog(
+        actor_id=str(actor.id),
+        actor_username=actor.username,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        details=json.dumps(details) if details else None,
+    )
+    db.add(log)
+    db.commit()
 
 
 def _mask_phone(phone: Optional[str]) -> Optional[str]:
@@ -138,7 +164,7 @@ async def get_admin(
 async def create_admin(
     body: dict,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_superadmin),
+    superadmin: User = Depends(get_current_superadmin),
 ):
     username = body.get("username", "").strip()
     email = body.get("email", "").strip()
@@ -170,7 +196,10 @@ async def create_admin(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     # Create Clerk account so the admin can use email magic link immediately
-    await _create_clerk_user(email, username)
+    _clerk_id, clerk_ready = await _create_clerk_user(email, username)
+
+    _log_audit(db, superadmin, "admin.create", target_type="user", target_id=str(user.id),
+               details={"username": username, "email": email, "clerk_ready": clerk_ready})
 
     return {
         "success": True,
@@ -179,6 +208,7 @@ async def create_admin(
             "username": user.username,
             "email": user.email,
             "role": user.role,
+            "clerk_ready": clerk_ready,
             "created_at": user.created_at.isoformat(),
         },
     }
@@ -189,7 +219,7 @@ async def toggle_admin_status(
     admin_id: str,
     body: dict,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_superadmin),
+    superadmin: User = Depends(get_current_superadmin),
 ):
     admin = db.query(User).filter(User.id == admin_id, User.role == UserRole.ADMIN).first()
     if not admin:
@@ -201,6 +231,9 @@ async def toggle_admin_status(
 
     admin.is_active = new_status
     db.commit()
+
+    _log_audit(db, superadmin, "admin.status_toggle", target_type="user", target_id=str(admin.id),
+               details={"username": admin.username, "is_active": new_status})
 
     return {"success": True, "data": {"id": str(admin.id), "is_active": admin.is_active}}
 
@@ -304,6 +337,9 @@ async def approve_upi_request(
 
     db.commit()
 
+    _log_audit(db, superadmin, "upi.approve", target_type="upi_request", target_id=str(req.id),
+               details={"machine_id": str(machine.id), "new_upi_id": req.new_upi_id})
+
     return {
         "success": True,
         "data": {
@@ -334,4 +370,43 @@ async def reject_upi_request(
 
     db.commit()
 
+    _log_audit(db, superadmin, "upi.reject", target_type="upi_request", target_id=str(req.id),
+               details={"machine_id": str(req.machine_id), "note": req.superadmin_note})
+
     return {"success": True, "data": {"request_id": str(req.id), "status": "rejected"}}
+
+
+# ─── Audit log viewer ─────────────────────────────────────────────────────────
+
+@router.get("/audit-logs", response_model=SuccessResponse[dict])
+async def list_audit_logs(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    action: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_superadmin),
+):
+    query = db.query(AuditLog)
+    if action:
+        query = query.filter(AuditLog.action == action)
+    total = query.count()
+    logs = query.order_by(AuditLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    return {
+        "success": True,
+        "data": {
+            "logs": [
+                {
+                    "id": str(log.id),
+                    "actor_id": log.actor_id,
+                    "actor_username": log.actor_username,
+                    "action": log.action,
+                    "target_type": log.target_type,
+                    "target_id": log.target_id,
+                    "details": log.details,
+                    "created_at": log.created_at.isoformat() if log.created_at else None,
+                }
+                for log in logs
+            ],
+            "pagination": {"total": total, "page": page, "limit": limit},
+        },
+    }

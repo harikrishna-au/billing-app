@@ -14,6 +14,7 @@ class BillConfig {
   final String? website;
   final String? tollFree;
   final String? upiId;
+  final int catalogVersion;
 
   const BillConfig({
     required this.machineId,
@@ -30,6 +31,7 @@ class BillConfig {
     this.website,
     this.tollFree,
     this.upiId,
+    this.catalogVersion = 0,
   });
 
   static const BillConfig empty = BillConfig(machineId: '', orgName: '');
@@ -50,6 +52,7 @@ class BillConfig {
       website: json['website']?.toString(),
       tollFree: json['toll_free']?.toString(),
       upiId: json['upi_id']?.toString(),
+      catalogVersion: (json['catalog_version'] as int?) ?? 0,
     );
   }
 
@@ -68,6 +71,7 @@ class BillConfig {
         'website': website,
         'toll_free': tollFree,
         'upi_id': upiId,
+        'catalog_version': catalogVersion,
       };
 
   static double _toDouble(dynamic v) {
