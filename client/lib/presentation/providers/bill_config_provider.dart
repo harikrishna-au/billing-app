@@ -19,12 +19,21 @@ final billConfigProvider = StateNotifierProvider<BillConfigNotifier, BillConfig>
 
 class BillConfigNotifier extends StateNotifier<BillConfig> {
   final BillConfigRepository _repo;
+  bool _catalogChanged = false;
 
   BillConfigNotifier(this._repo) : super(_repo.loadCached());
+
+  /// True when the server catalog_version is higher than what was cached.
+  /// Reset to false after the caller acknowledges the change.
+  bool get catalogChanged => _catalogChanged;
+  void clearCatalogChanged() => _catalogChanged = false;
 
   Future<void> refresh(String machineId) async {
     try {
       final config = await _repo.fetchAndCache(machineId);
+      if (config.catalogVersion > state.catalogVersion) {
+        _catalogChanged = true;
+      }
       state = config;
     } catch (e) {
       assert(() {

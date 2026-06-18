@@ -17,6 +17,7 @@ from app.models.alert import AlertSeverity
 from app.schemas.user import UserResponse
 from app.schemas.common import SuccessResponse, ErrorResponse, ErrorDetail, MessageResponse
 from app.dependencies import get_current_user
+from app.core.limiter import limiter
 
 router = APIRouter()
 
@@ -70,6 +71,7 @@ async def bootstrap_superadmin(body: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=SuccessResponse[dict])
+@limiter.limit("10/minute")
 async def login(
     credentials: LoginRequest,
     request: Request,
@@ -286,7 +288,8 @@ async def firebase_login(
 
 
 @router.post("/self-register", response_model=SuccessResponse[dict])
-async def self_register(request_data: dict, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def self_register(request: Request, request_data: dict, db: Session = Depends(get_db)):
     """
     Hidden self-registration endpoint (secret URL only).
     Accepts email + phone — no password or username required.
@@ -318,6 +321,53 @@ async def self_register(request_data: dict, db: Session = Depends(get_db)):
 
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    # Verify clerkToken server-side — prove the caller actually completed Clerk OTP for this email.
+    if settings.CLERK_SECRET_KEY:
+        try:
+            from jose import jwt as jose_jwt
+            from urllib.parse import urlparse as _urlparse
+
+            unverified = jose_jwt.get_unverified_claims(clerk_token)
+            iss = unverified.get("iss", "")
+            _host = (_urlparse(iss).hostname or "").lower()
+            if not (_host == "clerk.com" or _host.endswith(".clerk.com")
+                    or _host.endswith(".clerk.accounts.dev") or _host.endswith(".clerkstage.dev")):
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token issuer")
+
+            async with httpx.AsyncClient() as _hc:
+                _jwks = await _hc.get(f"{iss}/.well-known/jwks.json", timeout=8.0)
+            if _jwks.status_code != 200:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not verify Clerk token")
+
+            claims = jose_jwt.decode(clerk_token, _jwks.json(), algorithms=["RS256"], options={"verify_aud": False})
+            clerk_user_id = claims.get("sub")
+            if not clerk_user_id:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: no user ID")
+
+            async with httpx.AsyncClient() as _hc:
+                _user_resp = await _hc.get(
+                    f"https://api.clerk.com/v1/users/{clerk_user_id}",
+                    headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
+                    timeout=8.0,
+                )
+            if _user_resp.status_code != 200:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not verify Clerk identity")
+
+            _ud = _user_resp.json()
+            _primary_id = _ud.get("primary_email_address_id")
+            _clerk_email = next(
+                (ea["email_address"] for ea in _ud.get("email_addresses", []) if ea["id"] == _primary_id),
+                None,
+            )
+            if not _clerk_email or _clerk_email.lower() != email:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                    detail="Clerk session email does not match the provided email")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail=f"Clerk verification failed: {exc}")
 
     # Auto-generate a unique username from the email local part
     base = re.sub(r"[^a-z0-9_]", "_", email.split("@")[0].lower())[:30]
@@ -351,7 +401,8 @@ async def self_register(request_data: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/check-email", response_model=SuccessResponse[dict])
-async def check_email(request_data: dict, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def check_email(request: Request, request_data: dict, db: Session = Depends(get_db)):
     """
     Pre-flight check before sending a Clerk magic link.
     Returns 200 if the email belongs to an active admin, 404 otherwise.
@@ -395,6 +446,18 @@ async def clerk_login(
         iss = unverified_claims.get("iss", "")
         if not iss:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: missing issuer")
+
+        # Allowlist the issuer host — prevents SSRF via attacker-controlled iss claim
+        from urllib.parse import urlparse as _urlparse
+        _iss_host = (_urlparse(iss).hostname or "").lower()
+        _allowed = (
+            _iss_host == "clerk.com"
+            or _iss_host.endswith(".clerk.com")
+            or _iss_host.endswith(".clerk.accounts.dev")
+            or _iss_host.endswith(".clerkstage.dev")
+        )
+        if not _allowed:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: untrusted issuer")
 
         # Fetch JWKS from Clerk
         async with httpx.AsyncClient() as client:

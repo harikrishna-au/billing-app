@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.service import Service
+from app.models.bill_config import BillConfig
 
 from app.dependencies import get_current_user
 from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse, ServiceWithMachineResponse
@@ -180,7 +181,12 @@ async def create_service(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create service: {str(e)}"
         )
-    
+
+    bill_cfg = db.query(BillConfig).filter(BillConfig.machine_id == machine_id).first()
+    if bill_cfg:
+        bill_cfg.catalog_version = (bill_cfg.catalog_version or 0) + 1
+        db.commit()
+
     return {
         "success": True,
         "data": ServiceResponse(
@@ -233,14 +239,18 @@ async def update_service(
     try:
         db.commit()
         db.refresh(service)
-        
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update service: {str(e)}"
         )
-    
+
+    bill_cfg = db.query(BillConfig).filter(BillConfig.machine_id == service.machine_id).first()
+    if bill_cfg:
+        bill_cfg.catalog_version = (bill_cfg.catalog_version or 0) + 1
+        db.commit()
+
     return {
         "success": True,
         "data": ServiceResponse(
@@ -270,6 +280,7 @@ async def delete_service(
             detail="Service not found"
         )
     
+    machine_id_for_bump = service.machine_id
     try:
         db.delete(service)
         db.commit()
@@ -279,7 +290,12 @@ async def delete_service(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to delete service: {str(e)}"
         )
-    
+
+    bill_cfg = db.query(BillConfig).filter(BillConfig.machine_id == machine_id_for_bump).first()
+    if bill_cfg:
+        bill_cfg.catalog_version = (bill_cfg.catalog_version or 0) + 1
+        db.commit()
+
     return {
         "success": True,
         "message": "Service deleted successfully"

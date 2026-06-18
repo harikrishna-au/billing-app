@@ -40,6 +40,7 @@ class BillConfigResponse(BaseModel):
     website: Optional[str]
     toll_free: Optional[str]
     upi_id: Optional[str] = None
+    catalog_version: int = 0
     created_at: datetime
     updated_at: datetime
 
