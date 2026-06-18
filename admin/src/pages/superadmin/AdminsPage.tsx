@@ -38,9 +38,17 @@ const AdminsPage = () => {
 
   const createMutation = useMutation({
     mutationFn: superadminApi.createAdmin,
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["sa-admins"] });
-      toast({ title: "Admin created" });
+      if (result.clerk_ready) {
+        toast({ title: "Admin created", description: "Login invite sent via Clerk email OTP." });
+      } else {
+        toast({
+          title: "Admin created — Clerk invite failed",
+          description: "Account exists but the Clerk email invite didn't send. The admin can still log in once Clerk is set up.",
+          variant: "destructive",
+        });
+      }
       setIsCreateOpen(false);
       setForm({ username: "", email: "", phone: "", password: "" });
     },

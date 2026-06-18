@@ -20,6 +20,7 @@ import Overview from "./pages/superadmin/Overview";
 import AdminsPage from "./pages/superadmin/AdminsPage";
 import UpiApprovalsPage from "./pages/superadmin/UpiApprovalsPage";
 import MachinesPage from "./pages/superadmin/MachinesPage";
+import AuditLogsPage from "./pages/superadmin/AuditLogsPage";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/superadmin/admins" element={<ProtectedRoute superadminOnly><AdminsPage /></ProtectedRoute>} />
           <Route path="/superadmin/upi-approvals" element={<ProtectedRoute superadminOnly><UpiApprovalsPage /></ProtectedRoute>} />
           <Route path="/superadmin/machines" element={<ProtectedRoute superadminOnly><MachinesPage /></ProtectedRoute>} />
+          <Route path="/superadmin/audit-logs" element={<ProtectedRoute superadminOnly><AuditLogsPage /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
