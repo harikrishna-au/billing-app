@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import '../models/payment_model.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
@@ -139,6 +140,9 @@ class ApiPaymentRepository implements PaymentRepository {
       throw Exception('Machine ID not found. Please login again.');
     }
 
+    // Short timeout: if the server doesn't respond in 12 s, fall back to the
+    // offline queue immediately rather than blocking the cashier for 90 s.
+    // The global 90-s timeout exists only for Render cold-starts on GETs.
     final response = await _apiClient.post(
       ApiConstants.payments,
       data: {
@@ -148,6 +152,10 @@ class ApiPaymentRepository implements PaymentRepository {
         'method': payment.method.name.toUpperCase(),
         'status': payment.status.name,
       },
+      options: Options(
+        sendTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+      ),
     );
 
     final raw = response.data;

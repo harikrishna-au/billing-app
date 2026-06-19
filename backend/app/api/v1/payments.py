@@ -170,7 +170,18 @@ async def get_all_payments(
 ):
     """Get all payments with filters."""
     query = db.query(Payment)
-    
+
+    # Scope to the authenticated tenant so no cross-tenant data leaks.
+    if isinstance(current_user, Machine):
+        # Machine tokens can only see their own payments.
+        query = query.filter(Payment.machine_id == current_user.id)
+    else:
+        # Admin/user tokens can only see payments for machines they own.
+        owned_machine_ids = db.query(Machine.id).filter(
+            Machine.user_id == current_user.id
+        )
+        query = query.filter(Payment.machine_id.in_(owned_machine_ids))
+
     # Apply machine filter
     if machine_id:
         query = query.filter(Payment.machine_id == machine_id)
@@ -314,10 +325,14 @@ async def create_payment(
             detail="Machine not found"
         )
 
-    # Idempotency: if this bill_number is already recorded for this machine, return it.
+    # Idempotency: if a successful or pending record for this bill number already
+    # exists on this machine, return it rather than inserting a duplicate.
+    # Stale failed/cancelled records are treated as if they don't exist so the
+    # client can retry and record the payment correctly.
     existing = db.query(Payment).filter(
         Payment.machine_id == payment_data.machine_id,
         Payment.bill_number == payment_data.bill_number,
+        Payment.status.notin_(["failed", "cancelled"]),
     ).first()
     if existing:
         return {

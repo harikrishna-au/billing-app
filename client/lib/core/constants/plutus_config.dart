@@ -2,10 +2,10 @@ import 'pine_terminal_config.dart';
 
 class PlutusConfig {
   /// Master switch for Plutus App-to-App flow.
-  /// Set to true to force CARD/UPI through Plutus.
+  /// Disabled by default on this branch (PhonePe P1000 device — no Pine Labs).
   static const bool enabled = bool.fromEnvironment(
     'PLUTUS_ENABLED',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   /// Issued by Pine Labs for your billing app.

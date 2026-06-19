@@ -12,7 +12,6 @@ import '../../../providers/bill_config_provider.dart';
 import '../../../providers/payment_provider.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../core/utils/print_utils.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../../core/services/plutus_smart_service.dart';
 import '../../../widgets/confirm_payment_dialog.dart';
 import 'widgets/checkout_bill_receipt.dart';
@@ -227,7 +226,11 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       }
 
       if (!parsed.isApproved) {
-        throw Exception(parsed.responseMsg ?? 'UPI transaction not approved');
+        final msg = (parsed.responseMsg ?? '').toLowerCase();
+        final isCancelled = msg.contains('cancel') ||
+            msg.contains('could not record') ||
+            msg.contains('abort');
+        throw Exception(isCancelled ? 'Payment cancelled' : 'UPI transaction not approved — please try again');
       }
 
       // Lock bill number before touching the backend — Plutus already debited the customer.
@@ -242,29 +245,8 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
-      if (created == null) {
-        // Backend unreachable — queue so it syncs later; do not lose a Plutus-approved payment.
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          await ref.read(syncQueueServiceProvider).enqueue({
-            'machine_id': user.id,
-            'bill_number': payment.billNumber,
-            'amount': payment.amount,
-            'method': 'UPI',
-            'status': 'success',
-            'created_at': payment.createdAt.toUtc().toIso8601String(),
-          });
-        }
-        created = Payment(
-          id: payment.billNumber,
-          billNumber: payment.billNumber,
-          amount: payment.amount,
-          method: payment.method,
-          status: PaymentStatus.pending,
-          createdAt: payment.createdAt,
-        );
-      }
+      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      if (created == null) throw Exception('Not logged in — please sign in again');
 
       if (mounted) {
         setState(() => _paymentProcessingOverlay = false);
@@ -337,7 +319,11 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       final raw = await PlutusSmartService.startTransaction(transactionJson: payload);
       final parsed = PlutusResponse.tryParse(raw);
       if (!parsed.isApproved) {
-        throw Exception(parsed.responseMsg ?? 'Card transaction declined');
+        final msg = (parsed.responseMsg ?? '').toLowerCase();
+        final isCancelled = msg.contains('cancel') ||
+            msg.contains('could not record') ||
+            msg.contains('abort');
+        throw Exception(isCancelled ? 'Payment cancelled' : 'Card declined — please try again');
       }
 
       // Lock bill number before touching the backend — Plutus already debited the customer.
@@ -352,29 +338,8 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
-      if (created == null) {
-        // Backend unreachable — queue so it syncs later; do not lose a Plutus-approved payment.
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          await ref.read(syncQueueServiceProvider).enqueue({
-            'machine_id': user.id,
-            'bill_number': payment.billNumber,
-            'amount': payment.amount,
-            'method': 'CARD',
-            'status': 'success',
-            'created_at': payment.createdAt.toUtc().toIso8601String(),
-          });
-        }
-        created = Payment(
-          id: payment.billNumber,
-          billNumber: payment.billNumber,
-          amount: payment.amount,
-          method: payment.method,
-          status: PaymentStatus.pending,
-          createdAt: payment.createdAt,
-        );
-      }
+      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      if (created == null) throw Exception('Not logged in — please sign in again');
 
       if (mounted) {
         setState(() => _paymentProcessingOverlay = false);
@@ -529,29 +494,8 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         createdAt: DateTime.now(),
       );
 
-      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
-      if (created == null) {
-        // Backend unreachable — queue so it syncs later; cashier already collected the cash.
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          await ref.read(syncQueueServiceProvider).enqueue({
-            'machine_id': user.id,
-            'bill_number': payment.billNumber,
-            'amount': payment.amount,
-            'method': 'CASH',
-            'status': 'success',
-            'created_at': payment.createdAt.toUtc().toIso8601String(),
-          });
-        }
-        created = Payment(
-          id: payment.billNumber,
-          billNumber: payment.billNumber,
-          amount: payment.amount,
-          method: payment.method,
-          status: PaymentStatus.pending,
-          createdAt: payment.createdAt,
-        );
-      }
+      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      if (created == null) throw Exception('Not logged in — please sign in again');
 
       // Hide "Processing payment" as soon as payment is saved. Thermal SDK can block a long time;
       // keeping the overlay until print finished is what left users stuck on checkout.

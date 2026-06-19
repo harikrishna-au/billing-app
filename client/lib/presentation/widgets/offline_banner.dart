@@ -24,7 +24,7 @@ class OfflineBanner extends StatelessWidget {
       text = message!.trim();
     } else if (pendingCount != null && pendingCount! > 0) {
       text =
-          '$pendingCount bill${pendingCount == 1 ? '' : 's'} queued — tap Sync';
+          '$pendingCount bill${pendingCount == 1 ? '' : 's'} queued — syncing…';
     } else {
       text = 'Offline — showing cached data';
     }

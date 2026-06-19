@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -10,16 +11,6 @@ import '../../data/models/payment_model.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/api_payment_repository.dart';
 import 'auth_provider.dart';
-
-String _paymentErrorMessage(Object e) {
-  if (e is DioException && e.error is ApiException) {
-    return (e.error! as ApiException).message;
-  }
-  if (e is ApiException) return e.message;
-  final s = e.toString();
-  if (s.startsWith('Exception: ')) return s.substring('Exception: '.length);
-  return s;
-}
 
 /// Sentinel for [PaymentState.copyWith] so omitting [error] preserves the prior value.
 class _PaymentErrorUnset {
@@ -33,7 +24,10 @@ enum QueuedTicketsSyncResult {
   nothingToSync,
   notLoggedIn,
   success,
+  /// True network/connectivity error — server was unreachable.
   failedNetwork,
+  /// Server was reachable but rejected the request (auth, validation, server error).
+  failedServer,
 }
 
 bool _sameLocalCalendarDay(DateTime a, DateTime b) {
@@ -52,7 +46,9 @@ extension QueuedTicketsSyncResultMessage on QueuedTicketsSyncResult {
       case QueuedTicketsSyncResult.success:
         return 'Tickets synced to server';
       case QueuedTicketsSyncResult.failedNetwork:
-        return 'Server unreachable — tickets stay queued';
+        return 'No internet — tickets stay queued';
+      case QueuedTicketsSyncResult.failedServer:
+        return 'Sync failed — please re-login and try again';
     }
   }
 }
@@ -126,8 +122,38 @@ class PaymentState {
 // Controller
 class PaymentController extends StateNotifier<PaymentState> {
   final Ref ref;
+  bool _disposed = false;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  Timer? _autoSyncTimer;
 
-  PaymentController(this.ref) : super(PaymentState());
+  PaymentController(this.ref) : super(PaymentState()) {
+    _startAutoSync();
+  }
+
+  void _startAutoSync() {
+    // Flush queue immediately whenever internet is restored.
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online && state.pendingCount > 0) {
+        flushSyncQueue();
+      }
+    });
+
+    // Periodic fallback: retry every 30 s in case the connectivity event
+    // fires before the network stack is fully ready.
+    _autoSyncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_disposed || state.pendingCount == 0) return;
+      flushSyncQueue();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _connectivitySub?.cancel();
+    _autoSyncTimer?.cancel();
+    super.dispose();
+  }
 
   /// Clears API error from the last payment attempt so it does not linger on Checkout.
   void clearPaymentError() {
@@ -208,10 +234,13 @@ class PaymentController extends StateNotifier<PaymentState> {
     state = state.copyWith(pendingCount: n);
   }
 
-  /// Push any locally queued payments to the server via /sync/push.
-  /// Prefer [syncQueuedTicketsNow] when you need the result; this stays for silent hooks.
+  /// Push any locally queued payments to the server via /sync/push (silent, no result).
   Future<void> flushSyncQueue() async {
-    await syncQueuedTicketsNow();
+    final r = await syncQueuedTicketsNow();
+    // ignore: avoid_print
+    if (r == QueuedTicketsSyncResult.failedServer) {
+      print('[SyncQueue] silent flush failed with server error — session may have expired');
+    }
   }
 
   /// Manual or periodic sync: uploads queued offline tickets, updates bill counter on success.
@@ -236,13 +265,24 @@ class PaymentController extends StateNotifier<PaymentState> {
           'payments': pending,
           'client_bill_counter': billGen.currentCounter,
         },
+        options: Options(
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
       );
 
       if (response.data['success'] == true) {
-        await queue.clear();
-        state = state.copyWith(pendingCount: 0);
-
         final responseData = response.data['data'] as Map<String, dynamic>?;
+        final failedPayments = responseData?['failed_payments'] as int? ?? 0;
+        // Only wipe the queue when every item synced; if some failed they will
+        // be retried on the next flush (idempotency on the server is safe).
+        if (failedPayments == 0) {
+          await queue.clear();
+          state = state.copyWith(pendingCount: 0);
+        } else {
+          await _refreshPendingCount();
+        }
+
         final backendCounter = responseData?['latest_bill_counter'];
         if (backendCounter is int) {
           await billGen.syncWithBackend(backendCounter);
@@ -250,10 +290,16 @@ class PaymentController extends StateNotifier<PaymentState> {
         return QueuedTicketsSyncResult.success;
       }
       await _refreshPendingCount();
-      return QueuedTicketsSyncResult.failedNetwork;
-    } catch (_) {
+      return QueuedTicketsSyncResult.failedServer;
+    } catch (e) {
       await _refreshPendingCount();
-      return QueuedTicketsSyncResult.failedNetwork;
+      // ignore: avoid_print
+      print('[SyncQueue] push failed: $e');
+      final isNetworkError = (e is DioException && e.error is NetworkException) ||
+          (e is NetworkException);
+      return isNetworkError
+          ? QueuedTicketsSyncResult.failedNetwork
+          : QueuedTicketsSyncResult.failedServer;
     }
   }
 
@@ -334,7 +380,9 @@ class PaymentController extends StateNotifier<PaymentState> {
 
   /// Best-effort: push queued tickets, then refresh today from server (no await on hot path).
   Future<void> _reconcileAfterOnlineCreate() async {
+    if (_disposed) return;
     await syncQueuedTicketsNow();
+    if (_disposed) return;
     await loadPaymentsForDate(DateTime.now(), showGlobalLoading: false);
   }
 
@@ -380,50 +428,53 @@ class PaymentController extends StateNotifier<PaymentState> {
 
   Future<Payment?> createPayment(Payment payment) async {
     final repo = ref.read(paymentRepositoryProvider);
+    final queue = ref.read(syncQueueServiceProvider);
+    final user = ref.read(authProvider).user;
     state = state.copyWith(error: null);
+
+    if (user == null) {
+      state = state.copyWith(error: 'Not logged in — please sign in again');
+      return null;
+    }
+
+    // Enqueue BEFORE the network call. If the process is killed mid-POST the
+    // payment is already on disk and will sync automatically on next launch.
+    await queue.enqueue({
+      'machine_id': user.id,
+      'bill_number': payment.billNumber,
+      'amount': payment.amount,
+      'method': payment.method.name.toUpperCase(),
+      'status': 'success',
+      'created_at': payment.createdAt.toUtc().toIso8601String(),
+    });
+    await _refreshPendingCount();
 
     try {
       final createdPayment = await repo.createPayment(payment);
 
+      // Server confirmed — remove from queue; server is now source of truth.
+      await queue.removeByBillNumber(payment.billNumber);
+      await _refreshPendingCount();
+
       await repo.mergePaymentIntoLocalCache(createdPayment);
       _optimisticMergeToday(createdPayment, fromServer: true);
-
       unawaited(_reconcileAfterOnlineCreate());
       return createdPayment;
     } catch (e) {
-      // Detect network / connection failures and queue locally.
-      final isOffline = (e is DioException && e.error is NetworkException) ||
-          (e is NetworkException);
-      if (isOffline) {
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          await ref.read(syncQueueServiceProvider).enqueue({
-            'machine_id': user.id,
-            'bill_number': payment.billNumber,
-            'amount': payment.amount,
-            'method': payment.method.name.toUpperCase(),
-            'status': 'success',
-            'created_at': payment.createdAt.toUtc().toIso8601String(),
-          });
-
-          // Return a local pending payment so the bill screen can proceed.
-          final pendingPayment = Payment(
-            id: const Uuid().v4(),
-            billNumber: payment.billNumber,
-            amount: payment.amount,
-            method: payment.method,
-            status: PaymentStatus.pending,
-            createdAt: payment.createdAt,
-          );
-          await repo.mergePaymentIntoLocalCache(pendingPayment);
-          _optimisticMergeToday(pendingPayment, fromServer: false);
-          await _refreshPendingCount();
-          return pendingPayment;
-        }
-      }
-
-      state = state.copyWith(error: _paymentErrorMessage(e));
-      return null;
+      // POST failed for any reason — payment stays queued for auto-sync.
+      // ignore: avoid_print
+      print('[Payment] POST failed, staying queued: $e');
+      final pendingPayment = Payment(
+        id: const Uuid().v4(),
+        billNumber: payment.billNumber,
+        amount: payment.amount,
+        method: payment.method,
+        status: PaymentStatus.pending,
+        createdAt: payment.createdAt,
+      );
+      await repo.mergePaymentIntoLocalCache(pendingPayment);
+      _optimisticMergeToday(pendingPayment, fromServer: false);
+      return pendingPayment;
     }
   }
 
