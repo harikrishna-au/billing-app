@@ -179,6 +179,67 @@
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Shimmering skeleton placeholder for loading states */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-secondary/40;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--foreground) / 0.06) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Segmented period control — used by filters across the app */
+  .segmented {
+    @apply inline-flex items-center gap-1 rounded-xl border border-border/60 bg-secondary/40 p-1 backdrop-blur-sm;
+  }
+
+  .segmented-item {
+    @apply rounded-lg px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 ease-out;
+  }
+
+  .segmented-item:hover {
+    @apply text-foreground;
+  }
+
+  .segmented-item.active {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: 0 1px 8px -2px hsl(var(--primary) / 0.5);
+  }
+
+  /* Pretty native date input that matches the dark theme */
+  .date-field {
+    @apply flex items-center gap-2 rounded-lg border border-border/60 bg-secondary/40 px-3 py-1.5 text-sm font-medium text-foreground transition-all duration-200;
+  }
+
+  .date-field:focus-within {
+    @apply border-primary/60;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+  }
+
+  .date-field input[type='date'] {
+    @apply bg-transparent text-foreground outline-none;
+    color-scheme: dark;
+  }
+
+  .date-field input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(0.7);
+    transition: filter 0.2s ease;
+  }
+
+  .date-field input[type='date']::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1);
+  }
 }
 
 @layer utilities {

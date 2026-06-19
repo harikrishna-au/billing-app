@@ -5,15 +5,20 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
+  /** Staggered entrance delay in ms — lets a row of cards animate in sequence. */
+  delay?: number;
   trend?: {
     value: number;
     isPositive: boolean;
   };
 }
 
-const StatCard = ({ title, value, subtitle, icon: Icon, trend }: StatCardProps) => {
+const StatCard = ({ title, value, subtitle, icon: Icon, trend, delay = 0 }: StatCardProps) => {
   return (
-    <div className="stat-card group animate-fade-in">
+    <div
+      className="stat-card group animate-slide-up opacity-0"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div className="flex items-start justify-between">
         <div className="space-y-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
