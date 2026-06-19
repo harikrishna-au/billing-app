@@ -11,9 +11,8 @@ class PlutusConfig {
   /// Issued by Pine Labs for your billing app.
   static const String applicationId = String.fromEnvironment(
     'PLUTUS_APPLICATION_ID',
-    // UAT app id shared by Pine team (corrected 32-char value; earlier email
-    // dropped the leading "5"). Can still be overridden via --dart-define.
-    defaultValue: '50269e0a955c4370a9c04c78fb111bd4',
+    // Production Application ID issued by Pine Labs (2026-06-19).
+    defaultValue: '14103d3b12a444d6b5ffff15022d8a27',
   );
 
   /// Optional operator/user id for Pine header.
