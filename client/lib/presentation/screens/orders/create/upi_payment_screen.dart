@@ -11,7 +11,6 @@ import '../../../providers/bill_config_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../core/utils/print_utils.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../widgets/app_error_widget.dart';
 import 'widgets/payment_processing_layer.dart';
 import 'widgets/upi_payment_widgets.dart';
@@ -75,31 +74,9 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen> {
         createdAt: DateTime.now(),
       );
 
-      var createdPayment =
+      final createdPayment =
           await ref.read(paymentProvider.notifier).createPayment(payment);
-
-      if (createdPayment == null) {
-        // Backend unreachable — queue locally so it syncs when server is available.
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          await ref.read(syncQueueServiceProvider).enqueue({
-            'machine_id': user.id,
-            'bill_number': payment.billNumber,
-            'amount': payment.amount,
-            'method': 'UPI',
-            'status': 'success',
-            'created_at': payment.createdAt.toUtc().toIso8601String(),
-          });
-        }
-        createdPayment = Payment(
-          id: payment.billNumber,
-          billNumber: payment.billNumber,
-          amount: payment.amount,
-          method: payment.method,
-          status: PaymentStatus.pending,
-          createdAt: payment.createdAt,
-        );
-      }
+      if (createdPayment == null) throw Exception('Not logged in — please sign in again');
 
       if (mounted) {
         setState(() => _paymentProcessingOverlay = false);

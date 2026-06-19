@@ -79,6 +79,10 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     """
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    # Preserve the caller's entity type (e.g. "machine") before stamping type="refresh",
+    # so the refresh endpoint can still distinguish machine tokens from user tokens.
+    if "type" in to_encode and to_encode["type"] != "refresh":
+        to_encode["entity_type"] = to_encode["type"]
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

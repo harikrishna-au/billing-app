@@ -38,26 +38,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     await ref.read(paymentProvider.notifier).loadPaymentsForDate(date);
   }
 
-  Future<void> _syncQueuedTickets() async {
-    final r = await ref.read(paymentProvider.notifier).syncQueuedTicketsNow();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          r.userMessage,
-          style: GoogleFonts.dmSans(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: r == QueuedTicketsSyncResult.success
-            ? AppColors.success
-            : AppColors.textSecondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-    await _loadFor(_selectedDate);
-  }
-
   bool _isPrinting = false;
 
   void _showPrintSheet(BuildContext context) {
@@ -374,11 +354,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         children: [
           if (state.isOffline || state.pendingCount > 0)
             ImprovedOfflineBanner(
-              message: !state.isOffline && state.pendingCount > 0
-                  ? '${state.pendingCount} ticket(s) queued — tap Sync'
-                  : null,
               pendingCount: state.pendingCount > 0 ? state.pendingCount : null,
-              onSyncTap: state.pendingCount > 0 ? _syncQueuedTickets : null,
             ),
 
           // Full-screen error (non-offline hard failure)

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import 'token_manager.dart';
@@ -200,6 +201,11 @@ class _AuthInterceptor extends Interceptor {
   final TokenManager _tokenManager;
   final Dio _dio;
 
+  /// Guards concurrent 401s so only one refresh request goes out at a time.
+  /// Other 401s that arrive while a refresh is in flight wait for this
+  /// completer and reuse the new token instead of starting their own refresh.
+  static Completer<String?>? _refreshCompleter;
+
   _AuthInterceptor(this._tokenManager, this._dio);
 
   @override
@@ -239,55 +245,86 @@ class _AuthInterceptor extends Interceptor {
       final refreshToken = _tokenManager.getRefreshToken();
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
-        try {
-          // Attempt to refresh token (must match backend: data.access_token)
-          final response = await _dio.post(
-            ApiConstants.refresh,
-            data: {'refresh_token': refreshToken},
-          );
-
-          if (response.statusCode == 200) {
-            final data = _parseJsonMap(response.data);
-            final newAccessToken = data?['access_token'] as String? ??
-                data?['accessToken'] as String?;
-            final newRefreshToken = data?['refresh_token'] as String? ??
-                data?['refreshToken'] as String?;
-            final expiresIn = data?['expires_in'] as int?;
-
-            if (newAccessToken != null) {
-              await _tokenManager.saveAccessToken(newAccessToken);
-              if (newRefreshToken != null) {
-                await _tokenManager.saveRefreshToken(newRefreshToken);
-              }
-              if (expiresIn != null) {
-                await _tokenManager.saveTokenExpiry(
-                  DateTime.now().add(Duration(seconds: expiresIn)),
-                );
-              }
-
-              // Retry the original request
-              final opts = Options(
-                method: err.requestOptions.method,
-                headers: {
-                  ...err.requestOptions.headers,
-                  ApiConstants.authHeader: 'Bearer $newAccessToken',
-                },
-              );
-
+        // If another request already triggered a refresh, piggyback on it.
+        if (_refreshCompleter != null) {
+          final newToken = await _refreshCompleter!.future;
+          if (newToken != null) {
+            final opts = Options(
+              method: err.requestOptions.method,
+              headers: {
+                ...err.requestOptions.headers,
+                ApiConstants.authHeader: 'Bearer $newToken',
+              },
+            );
+            try {
               final cloneReq = await _dio.request(
                 err.requestOptions.path,
                 options: opts,
                 data: err.requestOptions.data,
                 queryParameters: err.requestOptions.queryParameters,
               );
-
               return handler.resolve(cloneReq);
-            }
+            } catch (_) {}
           }
-        } catch (e) {
-          if (e is DioException &&
-              (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
-            await _tokenManager.clearAll();
+        } else {
+          _refreshCompleter = Completer<String?>();
+          try {
+            // Attempt to refresh token (must match backend: data.access_token)
+            final response = await _dio.post(
+              ApiConstants.refresh,
+              data: {'refresh_token': refreshToken},
+            );
+
+            if (response.statusCode == 200) {
+              final data = _parseJsonMap(response.data);
+              final newAccessToken = data?['access_token'] as String? ??
+                  data?['accessToken'] as String?;
+              final newRefreshToken = data?['refresh_token'] as String? ??
+                  data?['refreshToken'] as String?;
+              final expiresIn = data?['expires_in'] as int?;
+
+              if (newAccessToken != null) {
+                await _tokenManager.saveAccessToken(newAccessToken);
+                if (newRefreshToken != null) {
+                  await _tokenManager.saveRefreshToken(newRefreshToken);
+                }
+                if (expiresIn != null) {
+                  await _tokenManager.saveTokenExpiry(
+                    DateTime.now().add(Duration(seconds: expiresIn)),
+                  );
+                }
+
+                _refreshCompleter!.complete(newAccessToken);
+                _refreshCompleter = null;
+
+                // Retry the original request
+                final opts = Options(
+                  method: err.requestOptions.method,
+                  headers: {
+                    ...err.requestOptions.headers,
+                    ApiConstants.authHeader: 'Bearer $newAccessToken',
+                  },
+                );
+
+                final cloneReq = await _dio.request(
+                  err.requestOptions.path,
+                  options: opts,
+                  data: err.requestOptions.data,
+                  queryParameters: err.requestOptions.queryParameters,
+                );
+
+                return handler.resolve(cloneReq);
+              }
+            }
+            _refreshCompleter!.complete(null);
+            _refreshCompleter = null;
+          } catch (e) {
+            _refreshCompleter!.complete(null);
+            _refreshCompleter = null;
+            if (e is DioException &&
+                (e.response?.statusCode == 401 || e.response?.statusCode == 403)) {
+              await _tokenManager.clearAll();
+            }
           }
         }
       } else {
