@@ -180,31 +180,40 @@ async def startup_event():
                 print("✅ Migration: added location_id column to machines table")
 
             # Deduplicate payments and add unique constraint on (machine_id, bill_number).
-            # The DELETE is a no-op when no duplicates exist; the index creation is idempotent.
-            try:
-                conn.execute(text("""
-                    DELETE FROM payments
-                    WHERE id IN (
-                        SELECT id FROM (
-                            SELECT id,
-                                   ROW_NUMBER() OVER (
-                                       PARTITION BY machine_id, bill_number
-                                       ORDER BY created_at
-                                   ) AS rn
-                            FROM payments
-                        ) subq
-                        WHERE rn > 1
-                    )
-                """))
-                conn.commit()
-                conn.execute(text("""
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_machine_bill
-                    ON payments(machine_id, bill_number)
-                """))
-                conn.commit()
-                print("✅ Migration: unique index on payments(machine_id, bill_number)")
-            except Exception as e:
-                print(f"⚠️  Payment dedup migration skipped: {e}")
+            # This is heavy (full-table DELETE) and lock-taking (CREATE UNIQUE INDEX), so run
+            # it ONLY once — when the index is still missing. Re-running on every boot would
+            # rescan the whole payments table and, during a zero-downtime deploy, block on locks
+            # held by the still-running old instance long enough to exceed Render's deploy
+            # timeout. Once the index exists, skip the work entirely so startup stays fast.
+            payment_indexes = (
+                {ix["name"] for ix in inspector.get_indexes("payments")}
+                if "payments" in existing_tables else set()
+            )
+            if "idx_payments_machine_bill" not in payment_indexes:
+                try:
+                    conn.execute(text("""
+                        DELETE FROM payments
+                        WHERE id IN (
+                            SELECT id FROM (
+                                SELECT id,
+                                       ROW_NUMBER() OVER (
+                                           PARTITION BY machine_id, bill_number
+                                           ORDER BY created_at
+                                       ) AS rn
+                                FROM payments
+                            ) subq
+                            WHERE rn > 1
+                        )
+                    """))
+                    conn.commit()
+                    conn.execute(text("""
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_machine_bill
+                        ON payments(machine_id, bill_number)
+                    """))
+                    conn.commit()
+                    print("✅ Migration: unique index on payments(machine_id, bill_number)")
+                except Exception as e:
+                    print(f"⚠️  Payment dedup migration skipped: {e}")
 
             # UPI change requests table
             if "upi_change_requests" not in existing_tables:
