@@ -38,9 +38,12 @@ class Settings(BaseSettings):
     # Clerk
     CLERK_SECRET_KEY: str = ""
 
-    # Self-registration (secret token embedded in the hidden signup URL).
-    # NO DEFAULT — must be set in .env. Server refuses to start without it.
-    SELF_REGISTER_TOKEN: str
+    # Self-registration token embedded in the hidden signup URL.
+    # This is an obscurity token, not a true secret — the same value ships in the
+    # frontend bundle (Signup.tsx), and the real gate on self-register is Clerk OTP.
+    # Defaults to the frontend value so deploys don't crash when the env var is unset;
+    # override SELF_REGISTER_TOKEN in the environment to use a different value.
+    SELF_REGISTER_TOKEN: str = "lcaWo29pNaw"
 
     # Server
     HOST: str = "0.0.0.0"
