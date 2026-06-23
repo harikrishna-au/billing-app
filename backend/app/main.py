@@ -251,6 +251,20 @@ async def startup_event():
                 conn.commit()
                 print("✅ Migration: created audit_logs table")
 
+            # bill_counters table
+            if "bill_counters" not in existing_tables:
+                conn.execute(text("""
+                    CREATE TABLE bill_counters (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        machine_id UUID NOT NULL REFERENCES machines(id),
+                        posid VARCHAR(100) NOT NULL,
+                        next_number INTEGER NOT NULL DEFAULT 1,
+                        UNIQUE(machine_id, posid)
+                    )
+                """))
+                conn.commit()
+                print("✅ Migration: created bill_counters table")
+
             # catalog_version on bill_configs
             if "bill_configs" in inspector.get_table_names():
                 bc_cols = {c["name"] for c in inspector.get_columns("bill_configs")}
