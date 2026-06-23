@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
+from app.models.bill_counter import BillCounter
 from app.dependencies import get_current_user, assert_machine_owns
 from app.schemas.payment import (
     PaymentCreate, PaymentUpdate, PaymentResponse, 
@@ -355,36 +356,71 @@ async def create_payment(
     # "WSSBI-AP/000330" and "WSSBI-AP/330" are treated as the same bill.
     normalized_bill = _normalize_bill_number(payment_data.bill_number)
 
-    # Idempotency: if this bill_number is already recorded for this machine, return it.
-    existing = db.query(Payment).filter(
-        Payment.machine_id == payment_data.machine_id,
-        Payment.bill_number == normalized_bill,
-    ).first()
-    if existing:
-        # If the app is trying to create this bill number today, the timestamp is likely stale.
-        # Update it to today's UTC time so the payment appears in today's date range queries.
-        # This handles cases where the app restarts and loses its bill counter, creating bills
-        # that already exist but with old timestamps.
-        now_utc = datetime.now(timezone.utc)
-        if existing.created_at.date() != now_utc.date():
-            existing.created_at = now_utc
-            db.commit()
-            print(f"✅ Updated stale idempotent payment: {normalized_bill}, new created_at={existing.created_at}")
-        else:
-            print(f"⚠️  Idempotency: payment exists today: {normalized_bill}")
+    # Extract POSID and number from bill_number (e.g., "WSSBI-AP/333" -> "WSSBI-AP", 333)
+    import re
+    bill_match = re.match(r'^(.+?)/(\d+)$', normalized_bill)
+    if not bill_match:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid bill number format: {normalized_bill}"
+        )
+    posid, bill_num_str = bill_match.groups()
+    try:
+        bill_num = int(bill_num_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid bill number: {normalized_bill}"
+        )
 
-        return {
-            "success": True,
-            "data": PaymentResponse(
-                id=str(existing.id),
-                machine_id=str(existing.machine_id),
-                bill_number=existing.bill_number,
-                amount=float(existing.amount),
-                method=existing.method,
-                status=existing.status,
-                created_at=existing.created_at
-            )
-        }
+    # Get or create bill counter for this machine/POSID
+    counter = db.query(BillCounter).filter(
+        BillCounter.machine_id == payment_data.machine_id,
+        BillCounter.posid == posid,
+    ).first()
+
+    if not counter:
+        # First payment for this machine/POSID - create counter starting at this number + 1
+        counter = BillCounter(
+            machine_id=payment_data.machine_id,
+            posid=posid,
+            next_number=bill_num + 1
+        )
+        db.add(counter)
+        db.commit()
+        print(f"📊 Created bill counter: {posid} for machine {payment_data.machine_id}, next_number={bill_num + 1}")
+    else:
+        # Check if bill number is valid (should be >= next_number, or if less, it's a duplicate from old attempt)
+        if bill_num < counter.next_number:
+            # Bill number is too low - the app's counter must have reset!
+            # This is a duplicate attempt from the client. Update the timestamp and return it.
+            existing = db.query(Payment).filter(
+                Payment.machine_id == payment_data.machine_id,
+                Payment.bill_number == normalized_bill,
+            ).first()
+            if existing:
+                now_utc = datetime.now(timezone.utc)
+                if existing.created_at.date() != now_utc.date():
+                    existing.created_at = now_utc
+                    db.commit()
+                    print(f"✅ Updated stale payment due to counter reset: {normalized_bill}, new created_at={existing.created_at}")
+                return {
+                    "success": True,
+                    "data": PaymentResponse(
+                        id=str(existing.id),
+                        machine_id=str(existing.machine_id),
+                        bill_number=existing.bill_number,
+                        amount=float(existing.amount),
+                        method=existing.method,
+                        status=existing.status,
+                        created_at=existing.created_at
+                    )
+                }
+        else:
+            # Bill number is valid - update counter to next number
+            counter.next_number = max(counter.next_number, bill_num + 1)
+            db.commit()
+            print(f"📊 Updated bill counter: {posid}, next_number={counter.next_number}")
 
     # Create payment — explicitly set created_at to UTC now (don't rely on DB server time)
     payment = Payment(
