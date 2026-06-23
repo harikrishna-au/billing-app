@@ -1,12 +1,24 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Monitor, AlertTriangle, LogOut, ShieldCheck, Users, CreditCard, ClipboardList } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "@/lib/api";
 import { superadminApi } from "@/lib/api/superadmin";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
   const isSuperAdmin = storedUser?.role === "superadmin";
@@ -130,7 +142,7 @@ const Sidebar = () => {
             </div>
           )}
           <button
-            onClick={handleLogout}
+            onClick={() => setShowSignOutDialog(true)}
             className="sidebar-item w-full hover:bg-destructive/10 hover:text-destructive group"
           >
             <LogOut className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-destructive" />
@@ -138,6 +150,26 @@ const Sidebar = () => {
           </button>
         </div>
       </div>
+
+      <AlertDialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll be returned to the login screen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogout}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   );
 };
