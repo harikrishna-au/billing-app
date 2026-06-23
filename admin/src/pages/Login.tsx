@@ -110,21 +110,20 @@ const Login = () => {
       // Pre-flight: make sure the email is a registered admin
       await authApi.checkEmail(email);
 
-      // Clear any stale Clerk session (e.g. from a previous partial signup).
-      // Without this, signIn.create() returns 400 "already signed in".
-      if (clerk.session) {
-        await clerk.signOut();
-      }
+      // Always clear any existing Clerk session before starting a new sign-in.
+      // clerk.session may be null even when a Clerk cookie exists (not yet hydrated),
+      // so call signOut unconditionally — it's a safe no-op when there's no session.
+      try { await clerk.signOut(); } catch (_) {}
 
       try {
-        // Happy path: existing Clerk account
+        // Happy path: existing Clerk account — send 6-digit email OTP
         await (signIn as any).create({ strategy: "email_code", identifier: email });
         setIsSignupFlow(false);
       } catch (err: any) {
         const code = err?.errors?.[0]?.code ?? "";
         if (code !== "form_identifier_not_found") throw err;
-        // Clerk account doesn't exist yet (shouldn't happen with new signup flow,
-        // but handle gracefully for accounts created before this fix)
+        // Clerk account doesn't exist yet — create it on the fly (older accounts
+        // predating the backend-creates-Clerk-user signup flow)
         await (signUp as any).create({ emailAddress: email });
         await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" });
         setIsSignupFlow(true);
