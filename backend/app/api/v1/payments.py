@@ -361,6 +361,7 @@ async def create_payment(
         Payment.bill_number == normalized_bill,
     ).first()
     if existing:
+        print(f"⚠️  Idempotency: payment already exists: {normalized_bill}")
         return {
             "success": True,
             "data": PaymentResponse(
@@ -397,7 +398,7 @@ async def create_payment(
             detail=f"Failed to create payment: {str(e)}"
         )
 
-    return {
+    result = {
         "success": True,
         "data": PaymentResponse(
             id=str(payment.id),
@@ -409,5 +410,7 @@ async def create_payment(
             created_at=payment.created_at
         )
     }
+    print(f"🔄 Returning payment: {payment.bill_number}, created_at={payment.created_at}")
+    return result
 
 
