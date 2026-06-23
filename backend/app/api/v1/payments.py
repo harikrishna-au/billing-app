@@ -361,7 +361,18 @@ async def create_payment(
         Payment.bill_number == normalized_bill,
     ).first()
     if existing:
-        print(f"⚠️  Idempotency: payment already exists: {normalized_bill}, created_at={existing.created_at}, status={existing.status}")
+        # If the app is trying to create this bill number today, the timestamp is likely stale.
+        # Update it to today's UTC time so the payment appears in today's date range queries.
+        # This handles cases where the app restarts and loses its bill counter, creating bills
+        # that already exist but with old timestamps.
+        now_utc = datetime.now(timezone.utc)
+        if existing.created_at.date() != now_utc.date():
+            existing.created_at = now_utc
+            db.commit()
+            print(f"✅ Updated stale idempotent payment: {normalized_bill}, new created_at={existing.created_at}")
+        else:
+            print(f"⚠️  Idempotency: payment exists today: {normalized_bill}")
+
         return {
             "success": True,
             "data": PaymentResponse(
