@@ -76,18 +76,28 @@ async def get_payments_by_machine(
         IST = pytz.timezone('Asia/Kolkata')
         now_ist = datetime.now(IST)
         if period == "day":
-            # Start of today in IST (midnight), convert to UTC
+            # All of today in IST (midnight to just before next midnight)
             start_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0)).astimezone(timezone.utc)
+            end_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59)).astimezone(timezone.utc)
         elif period == "week":
-            # Start of this week (Monday midnight IST)
+            # This week (Monday through Sunday in IST)
             start_of_week = now_ist - timedelta(days=now_ist.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
             start_dt = IST.localize(datetime(start_of_week.year, start_of_week.month, start_of_week.day, 0, 0, 0)).astimezone(timezone.utc)
+            end_dt = IST.localize(datetime(end_of_week.year, end_of_week.month, end_of_week.day, 23, 59, 59)).astimezone(timezone.utc)
         elif period == "month":
-            # Start of this calendar month (IST)
+            # This calendar month in IST
             start_dt = IST.localize(datetime(now_ist.year, now_ist.month, 1, 0, 0, 0)).astimezone(timezone.utc)
+            # Last day of this month
+            if now_ist.month == 12:
+                end_of_month = datetime(now_ist.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_of_month = datetime(now_ist.year, now_ist.month + 1, 1) - timedelta(days=1)
+            end_dt = IST.localize(datetime(end_of_month.year, end_of_month.month, end_of_month.day, 23, 59, 59)).astimezone(timezone.utc)
         else:  # year
             start_dt = IST.localize(datetime(now_ist.year, 1, 1, 0, 0, 0)).astimezone(timezone.utc)
-        query = query.filter(Payment.created_at >= start_dt)
+            end_dt = IST.localize(datetime(now_ist.year, 12, 31, 23, 59, 59)).astimezone(timezone.utc)
+        query = query.filter(and_(Payment.created_at >= start_dt, Payment.created_at <= end_dt))
 
     # Apply date range filters
     if start_date:
@@ -180,18 +190,28 @@ async def get_all_payments(
         IST = pytz.timezone('Asia/Kolkata')
         now_ist = datetime.now(IST)
         if period == "day":
-            # Start of today in IST (midnight), convert to UTC
+            # All of today in IST (midnight to just before next midnight)
             start_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 0, 0, 0)).astimezone(timezone.utc)
+            end_dt = IST.localize(datetime(now_ist.year, now_ist.month, now_ist.day, 23, 59, 59)).astimezone(timezone.utc)
         elif period == "week":
-            # Start of this week (Monday midnight IST)
+            # This week (Monday through Sunday in IST)
             start_of_week = now_ist - timedelta(days=now_ist.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
             start_dt = IST.localize(datetime(start_of_week.year, start_of_week.month, start_of_week.day, 0, 0, 0)).astimezone(timezone.utc)
+            end_dt = IST.localize(datetime(end_of_week.year, end_of_week.month, end_of_week.day, 23, 59, 59)).astimezone(timezone.utc)
         elif period == "month":
-            # Start of this calendar month (IST)
+            # This calendar month in IST
             start_dt = IST.localize(datetime(now_ist.year, now_ist.month, 1, 0, 0, 0)).astimezone(timezone.utc)
+            # Last day of this month
+            if now_ist.month == 12:
+                end_of_month = datetime(now_ist.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_of_month = datetime(now_ist.year, now_ist.month + 1, 1) - timedelta(days=1)
+            end_dt = IST.localize(datetime(end_of_month.year, end_of_month.month, end_of_month.day, 23, 59, 59)).astimezone(timezone.utc)
         else:  # year
             start_dt = IST.localize(datetime(now_ist.year, 1, 1, 0, 0, 0)).astimezone(timezone.utc)
-        query = query.filter(Payment.created_at >= start_dt)
+            end_dt = IST.localize(datetime(now_ist.year, 12, 31, 23, 59, 59)).astimezone(timezone.utc)
+        query = query.filter(and_(Payment.created_at >= start_dt, Payment.created_at <= end_dt))
 
     # Apply date range filters
     if start_date:
@@ -351,7 +371,6 @@ async def create_payment(
         }
 
     # Create payment — explicitly set created_at to UTC now (don't rely on DB server time)
-    from datetime import datetime, timezone
     payment = Payment(
         machine_id=payment_data.machine_id,
         bill_number=normalized_bill,
