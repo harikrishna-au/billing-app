@@ -292,9 +292,8 @@ async def firebase_login(
 async def self_register(request: Request, request_data: dict, db: Session = Depends(get_db)):
     """
     Hidden self-registration endpoint (secret URL only).
-    Accepts email + phone — no password or username required.
-    Clerk has already verified the email via OTP on the frontend;
-    we receive the Clerk session token to confirm identity.
+    Backend creates the Clerk user via management API — no browser Clerk SDK needed.
+    This avoids Cloudflare Turnstile bot-challenges that block Safari.
     """
     import secrets as _secrets
     import re
@@ -303,18 +302,15 @@ async def self_register(request: Request, request_data: dict, db: Session = Depe
     if not reg_token or reg_token != settings.SELF_REGISTER_TOKEN:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    email       = (request_data.get("email")       or "").strip().lower()
-    phone       = (request_data.get("phone")       or "").strip() or None
-    clerk_token = (request_data.get("clerkToken")  or "").strip()
+    email = (request_data.get("email") or "").strip().lower()
+    phone = (request_data.get("phone") or "").strip() or None
 
     if not email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="email is required")
     if not phone:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="phone is required")
-    if not clerk_token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="clerkToken is required")
 
-    # Format phone
+    # Format phone — add +91 prefix for bare 10-digit Indian numbers
     digits = re.sub(r"\D", "", phone)
     if len(digits) == 10:
         phone = f"+91{digits}"
@@ -322,52 +318,51 @@ async def self_register(request: Request, request_data: dict, db: Session = Depe
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    # Verify clerkToken server-side — prove the caller actually completed Clerk OTP for this email.
+    # Create Clerk user via management API so no browser Clerk SDK / Turnstile is needed.
     if settings.CLERK_SECRET_KEY:
         try:
-            from jose import jwt as jose_jwt
-            from urllib.parse import urlparse as _urlparse
-
-            unverified = jose_jwt.get_unverified_claims(clerk_token)
-            iss = unverified.get("iss", "")
-            _host = (_urlparse(iss).hostname or "").lower()
-            if not (_host == "clerk.com" or _host.endswith(".clerk.com")
-                    or _host.endswith(".clerk.accounts.dev") or _host.endswith(".clerkstage.dev")):
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token issuer")
-
             async with httpx.AsyncClient() as _hc:
-                _jwks = await _hc.get(f"{iss}/.well-known/jwks.json", timeout=8.0)
-            if _jwks.status_code != 200:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not verify Clerk token")
-
-            claims = jose_jwt.decode(clerk_token, _jwks.json(), algorithms=["RS256"], options={"verify_aud": False})
-            clerk_user_id = claims.get("sub")
-            if not clerk_user_id:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Clerk token: no user ID")
-
-            async with httpx.AsyncClient() as _hc:
-                _user_resp = await _hc.get(
-                    f"https://api.clerk.com/v1/users/{clerk_user_id}",
+                _resp = await _hc.post(
+                    "https://api.clerk.com/v1/users",
                     headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
-                    timeout=8.0,
+                    json={"email_address": [email], "skip_password_requirement": True},
+                    timeout=10.0,
                 )
-            if _user_resp.status_code != 200:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not verify Clerk identity")
 
-            _ud = _user_resp.json()
-            _primary_id = _ud.get("primary_email_address_id")
-            _clerk_email = next(
-                (ea["email_address"] for ea in _ud.get("email_addresses", []) if ea["id"] == _primary_id),
-                None,
-            )
-            if not _clerk_email or _clerk_email.lower() != email:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                    detail="Clerk session email does not match the provided email")
+            if _resp.status_code not in (200, 201):
+                # If the email already exists in Clerk (e.g. a previous partial attempt),
+                # find the existing user rather than failing.
+                _body = _resp.json()
+                _is_dup = any(
+                    e.get("code") in ("form_identifier_exists", "that_email_address_is_taken", "email_address_exists")
+                    for e in (_body.get("errors") or [])
+                )
+                if _is_dup:
+                    async with httpx.AsyncClient() as _hc2:
+                        _find = await _hc2.get(
+                            "https://api.clerk.com/v1/users",
+                            headers={"Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"},
+                            params={"email_address": email},
+                            timeout=8.0,
+                        )
+                    if _find.status_code != 200 or not _find.json():
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Email already exists in authentication system"
+                        )
+                    # Clerk user exists — continue creating local DB record
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Could not create account: {_body.get('errors', [{}])[0].get('long_message', 'Clerk error')}"
+                    )
         except HTTPException:
             raise
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                detail=f"Clerk verification failed: {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Authentication service error: {exc}"
+            )
 
     # Auto-generate a unique username from the email local part
     base = re.sub(r"[^a-z0-9_]", "_", email.split("@")[0].lower())[:30]
@@ -381,7 +376,7 @@ async def self_register(request: Request, request_data: dict, db: Session = Depe
         username=username,
         email=email,
         phone=phone,
-        hashed_password=get_password_hash(_secrets.token_hex(32)),  # placeholder — login is via Clerk OTP
+        hashed_password=get_password_hash(_secrets.token_hex(32)),
         role=UserRole.ADMIN,
         is_active="true",
     )
