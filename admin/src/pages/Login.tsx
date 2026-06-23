@@ -110,13 +110,21 @@ const Login = () => {
       // Pre-flight: make sure the email is a registered admin
       await authApi.checkEmail(email);
 
+      // Clear any stale Clerk session (e.g. from a previous partial signup).
+      // Without this, signIn.create() returns 400 "already signed in".
+      if (clerk.session) {
+        await clerk.signOut();
+      }
+
       try {
         // Happy path: existing Clerk account
         await (signIn as any).create({ strategy: "email_code", identifier: email });
         setIsSignupFlow(false);
       } catch (err: any) {
-        if (err?.errors?.[0]?.code !== "form_identifier_not_found") throw err;
-        // No Clerk account yet — create one on the fly
+        const code = err?.errors?.[0]?.code ?? "";
+        if (code !== "form_identifier_not_found") throw err;
+        // Clerk account doesn't exist yet (shouldn't happen with new signup flow,
+        // but handle gracefully for accounts created before this fix)
         await (signUp as any).create({ emailAddress: email });
         await (signUp as any).prepareEmailAddressVerification({ strategy: "email_code" });
         setIsSignupFlow(true);
