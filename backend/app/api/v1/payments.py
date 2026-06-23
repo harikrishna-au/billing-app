@@ -361,7 +361,7 @@ async def create_payment(
         Payment.bill_number == normalized_bill,
     ).first()
     if existing:
-        print(f"⚠️  Idempotency: payment already exists: {normalized_bill}")
+        print(f"⚠️  Idempotency: payment already exists: {normalized_bill}, created_at={existing.created_at}, status={existing.status}")
         return {
             "success": True,
             "data": PaymentResponse(
