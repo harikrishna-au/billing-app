@@ -90,6 +90,7 @@ const MachinePayments = () => {
                 ? paymentsApi.getByMachine(id!, rangeParams)
                 : paymentsApi.getByMachine(id!, { period: mode as "day" | "week" | "month" }),
         enabled: !!id && (mode !== "range" || rangeActive),
+        refetchInterval: 5000,
     });
 
     const summary = response?.summary;

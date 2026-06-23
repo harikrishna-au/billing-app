@@ -283,6 +283,9 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       ref.read(cartProvider.notifier).clearCart();
       goRouter.go('/new');
 
+      // Refresh payment list in background so orders screen shows the new payment
+      unawaited(ref.read(paymentProvider.notifier).loadPaymentsForDate(DateTime.now(), showGlobalLoading: false));
+
       unawaited(
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
@@ -392,6 +395,9 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
 
       ref.read(cartProvider.notifier).clearCart();
       goRouter.go('/new');
+
+      // Refresh payment list in background so orders screen shows the new payment
+      unawaited(ref.read(paymentProvider.notifier).loadPaymentsForDate(DateTime.now(), showGlobalLoading: false));
 
       unawaited(
         PrintUtils.printReceipt(
@@ -573,6 +579,9 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
 
       cartNotifier.clearCart();
       goRouter.go('/new');
+
+      // Refresh payment list in background so orders screen shows the new payment
+      unawaited(ref.read(paymentProvider.notifier).loadPaymentsForDate(DateTime.now(), showGlobalLoading: false));
 
       unawaited(
         PrintUtils.printReceipt(

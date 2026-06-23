@@ -350,13 +350,15 @@ async def create_payment(
             )
         }
 
-    # Create payment
+    # Create payment — explicitly set created_at to UTC now (don't rely on DB server time)
+    from datetime import datetime, timezone
     payment = Payment(
         machine_id=payment_data.machine_id,
         bill_number=normalized_bill,
         amount=payment_data.amount,
         method=payment_data.method,
-        status=payment_data.status
+        status=payment_data.status,
+        created_at=datetime.now(timezone.utc)
     )
     
     try:
