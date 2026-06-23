@@ -137,6 +137,8 @@ async def get_payments_by_machine(
     
     # Apply pagination
     payments = query.order_by(Payment.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    if start_date or period:
+        print(f"📊 GET payments: machine={machine_id}, period={period}, start={start_date}, end={end_date}, found={len(payments)} payments")
     
     return {
         "success": True,
@@ -251,6 +253,8 @@ async def get_all_payments(
 
     # Apply pagination
     payments = query.order_by(Payment.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    if start_date or period:
+        print(f"📊 GET payments: machine={machine_id}, period={period}, start={start_date}, end={end_date}, found={len(payments)} payments")
 
     # Get machine names
     machine_ids = list(set(str(p.machine_id) for p in payments))
@@ -384,13 +388,15 @@ async def create_payment(
         db.add(payment)
         db.commit()
         db.refresh(payment)
+        print(f"✅ Payment saved: bill={payment.bill_number}, machine={payment.machine_id}, created_at={payment.created_at}")
     except Exception as e:
         db.rollback()
+        print(f"❌ Payment save failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create payment: {str(e)}"
         )
-    
+
     return {
         "success": True,
         "data": PaymentResponse(
