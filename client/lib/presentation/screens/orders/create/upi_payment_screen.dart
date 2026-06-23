@@ -118,6 +118,9 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen> {
       ref.read(cartProvider.notifier).clearCart();
       goRouter.go('/new');
 
+      // Refresh payment list in background so orders screen shows the new payment
+      unawaited(ref.read(paymentProvider.notifier).loadPaymentsForDate(DateTime.now(), showGlobalLoading: false));
+
       unawaited(
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
