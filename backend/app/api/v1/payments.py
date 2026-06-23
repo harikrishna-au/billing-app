@@ -297,6 +297,19 @@ async def get_payment(
     }
 
 
+def _normalize_bill_number(bill_number: str) -> str:
+    """
+    Normalize POSID/000123 → POSID/123.
+    Different app versions format the numeric suffix differently (some zero-pad to 6 digits,
+    newer ones don't). Stripping leading zeros before storing means both formats map to the
+    same string, so the unique index on (machine_id, bill_number) catches cross-device
+    duplicates even when two phones are logged into the same machine account.
+    """
+    import re
+    m = re.match(r'^(.+/)0*(\d+)$', bill_number)
+    return f"{m.group(1)}{m.group(2)}" if m else bill_number
+
+
 @router.post("/payments", response_model=SuccessResponse[PaymentResponse], status_code=status.HTTP_201_CREATED)
 async def create_payment(
     payment_data: PaymentCreate,
@@ -314,10 +327,14 @@ async def create_payment(
             detail="Machine not found"
         )
 
+    # Normalize bill number: strip leading zeros from numeric suffix so that
+    # "WSSBI-AP/000330" and "WSSBI-AP/330" are treated as the same bill.
+    normalized_bill = _normalize_bill_number(payment_data.bill_number)
+
     # Idempotency: if this bill_number is already recorded for this machine, return it.
     existing = db.query(Payment).filter(
         Payment.machine_id == payment_data.machine_id,
-        Payment.bill_number == payment_data.bill_number,
+        Payment.bill_number == normalized_bill,
     ).first()
     if existing:
         return {
@@ -336,7 +353,7 @@ async def create_payment(
     # Create payment
     payment = Payment(
         machine_id=payment_data.machine_id,
-        bill_number=payment_data.bill_number,
+        bill_number=normalized_bill,
         amount=payment_data.amount,
         method=payment_data.method,
         status=payment_data.status

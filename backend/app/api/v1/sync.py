@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List
+import re
 
 from app.database import get_db
 from app.models.user import User
@@ -19,6 +20,12 @@ from app.schemas.sync import (
 from app.schemas.common import SuccessResponse
 
 router = APIRouter()
+
+
+def _normalize_bill_number(bill_number: str) -> str:
+    """Strip leading zeros from numeric suffix: POSID/000123 → POSID/123."""
+    m = re.match(r'^(.+/)0*(\d+)$', bill_number)
+    return f"{m.group(1)}{m.group(2)}" if m else bill_number
 
 
 @router.post("/push", response_model=SuccessResponse[SyncPushResponse])
@@ -58,20 +65,22 @@ async def sync_push(
     # Process payments
     for payment_data in sync_data.payments:
         try:
+            normalized_bill = _normalize_bill_number(payment_data.bill_number)
+
             # Check if payment already exists — scoped to this machine
             existing = db.query(Payment).filter(
                 Payment.machine_id == payment_data.machine_id,
-                Payment.bill_number == payment_data.bill_number,
+                Payment.bill_number == normalized_bill,
             ).first()
-            
+
             if existing:
                 # Skip duplicate
                 continue
-            
+
             # Create new payment
             payment = Payment(
                 machine_id=payment_data.machine_id,
-                bill_number=payment_data.bill_number,
+                bill_number=normalized_bill,
                 amount=payment_data.amount,
                 method=payment_data.method,
                 status=payment_data.status,
