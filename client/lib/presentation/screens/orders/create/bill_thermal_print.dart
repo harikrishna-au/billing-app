@@ -3,6 +3,7 @@ import '../../../../core/constants/plutus_config.dart';
 import '../../../../core/services/plutus_smart_service.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/thermal_print_settings_provider.dart';
 
 // ─── Thermal receipt layout (Pine Labs Plutus / SmartPOS fallback) ─────────────
 // Effective line width: 40 chars (utilizes full 80mm paper width).
@@ -138,35 +139,36 @@ List<_ThermalLine> _buildInvoiceSlip({
   required double total,
   required String paymentMethod,
   required String footer,
+  required ThermalPrintSettings settings,
 }) {
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayName, size: 39, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayName, size: settings.orgNameSize, bold: true, align: _kAlignCenter));
   }
-  out.add(const _ThermalLine(
+  out.add(_ThermalLine(
     text:  'INVOICE',
-    size:  52,
+    size:  settings.titleSize,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 29));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: settings.unitNameSize));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
+  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter, size: settings.metadataSize));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
@@ -191,16 +193,16 @@ List<_ThermalLine> _buildInvoiceSlip({
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
-    size: _kSizeHeader,
+    size: settings.headerSize,
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
-  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, bold: true, size: settings.bodySize, align: _kAlignCenter));
 
   return out;
 }
@@ -219,35 +221,36 @@ List<_ThermalLine> _buildTicketSlip({
   required double total,
   required String paymentMethod,
   required String footer,
+  required ThermalPrintSettings settings,
 }) {
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayName, size: 39, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayName, size: settings.orgNameSize, bold: true, align: _kAlignCenter));
   }
-  out.add(const _ThermalLine(
+  out.add(_ThermalLine(
     text:  'TICKET',
-    size:  52,
+    size:  settings.titleSize,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 29));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: settings.unitNameSize));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
+  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter, size: settings.metadataSize));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
@@ -272,16 +275,16 @@ List<_ThermalLine> _buildTicketSlip({
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
-    size: _kSizeHeader,
+    size: settings.headerSize,
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter, size: settings.metadataSize));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
-  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, bold: true, size: settings.bodySize, align: _kAlignCenter));
 
   return out;
 }
@@ -358,6 +361,7 @@ Future<void> printBillThermalInvoiceAndTicket({
   required double sgstAmount,
   required bool hasTax,
   required String paymentMethod,
+  required ThermalPrintSettings settings,
   void Function(String message)? onDebug,
 }) async {
   onDebug?.call('Preparing invoice and ticket print data');
@@ -391,6 +395,7 @@ Future<void> printBillThermalInvoiceAndTicket({
     total:         total,
     paymentMethod: paymentMethod,
     footer:        footer,
+    settings:      settings,
   );
 
   final ticketLines = _buildTicketSlip(
@@ -406,6 +411,7 @@ Future<void> printBillThermalInvoiceAndTicket({
     total:         total,
     paymentMethod: paymentMethod,
     footer:        footer,
+    settings:      settings,
   );
 
   if (PlutusConfig.isConfigured) {
