@@ -269,7 +269,8 @@ class PaymentController extends StateNotifier<PaymentState> {
 
   Future<void> loadPaymentsForDate(DateTime date,
       {bool showGlobalLoading = true}) async {
-    // Calculate start and end of the day
+    // Calculate start and end of the day in local time, then convert to UTC
+    // for the API query. This ensures we're querying the user's calendar day.
     final start = DateTime(date.year, date.month, date.day);
     final end = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
