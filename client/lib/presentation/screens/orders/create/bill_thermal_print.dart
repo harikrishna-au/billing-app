@@ -11,8 +11,8 @@ const int _kLineW      = 40;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody   = 28;
-const int _kSizeHeader = 32;
+const int _kSizeBody   = 32;
+const int _kSizeHeader = 40;
 
 const String _kDash = '----------------------------------------'; // 40 dashes
 
@@ -142,7 +142,6 @@ List<_ThermalLine> _buildInvoiceSlip({
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
-  out.add(_ThermalLine.blank);
   if (orgName.isNotEmpty) {
     for (final line in _wrapWords(orgName, _kLineW)) {
       out.add(_ThermalLine(text: line, size: _kSizeBody, bold: true, align: _kAlignCenter));
@@ -156,7 +155,7 @@ List<_ThermalLine> _buildInvoiceSlip({
   ));
   if (unitName != null && unitName.isNotEmpty) {
     for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter));
+      out.add(_ThermalLine(text: line, align: _kAlignCenter, bold: true, size: _kSizeBody));
     }
   }
 
@@ -205,9 +204,7 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
-  out
-    ..add(_ThermalLine.blank)
-    ..add(_ThermalLine.blank);
+  out.add(_ThermalLine.blank);
 
   return out;
 }
@@ -230,7 +227,6 @@ List<_ThermalLine> _buildTicketSlip({
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
-  out.add(_ThermalLine.blank);
   if (orgName.isNotEmpty) {
     for (final line in _wrapWords(orgName, _kLineW)) {
       out.add(_ThermalLine(
@@ -249,7 +245,7 @@ List<_ThermalLine> _buildTicketSlip({
   ));
   if (unitName != null && unitName.isNotEmpty) {
     for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter));
+      out.add(_ThermalLine(text: line, align: _kAlignCenter, bold: true, size: _kSizeBody));
     }
   }
 
@@ -298,9 +294,7 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
-  out
-    ..add(_ThermalLine.blank)
-    ..add(_ThermalLine.blank);
+  out.add(_ThermalLine.blank);
 
   return out;
 }
