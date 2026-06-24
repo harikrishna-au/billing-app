@@ -5,16 +5,16 @@ import '../../../../services/smart_pos_printer_service.dart';
 import '../../../providers/cart_provider.dart';
 
 // ─── Thermal receipt layout (Pine Labs Plutus / SmartPOS fallback) ─────────────
-// Effective line width: 24 chars (PrinterWidth: 24 passed to Plutus).
+// Effective line width: 40 chars (utilizes full 80mm paper width).
 
-const int _kLineW      = 24;
+const int _kLineW      = 40;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody   = 20;
-const int _kSizeHeader = 24;
+const int _kSizeBody   = 28;
+const int _kSizeHeader = 32;
 
-const String _kDash = '------------------------'; // 24 dashes
+const String _kDash = '----------------------------------------'; // 40 dashes
 
 class _ThermalLine {
   final String text;
@@ -95,9 +95,9 @@ String _paymentMode(String method) {
 
 // ─── Item table ────────────────────────────────────────────────────────────────
 
-const int _kQtyW   = 4;
-const int _kNameW  = 14;
-const int _kPriceW = 6;
+const int _kQtyW   = 6;
+const int _kNameW  = 22;
+const int _kPriceW = 12;
 
 String _itemsHeader() =>
     '${'QTY'.padRight(_kQtyW)}${'ITEM'.padRight(_kNameW)}${'PRICE'.padLeft(_kPriceW)}';
@@ -163,30 +163,30 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
-      out.add(_ThermalLine(text: row));
+      out.add(_ThermalLine(text: row, bold: true));
     }
   }
 
   // ── Tax summary — full breakdown for invoice ──────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (taxes.isNotEmpty) {
-    out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2))));
+    out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)), bold: true));
     for (final entry in taxes.entries) {
-      out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2))));
+      out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2)), bold: true));
     }
     out.add(const _ThermalLine(text: _kDash));
   }
@@ -195,15 +195,16 @@ List<_ThermalLine> _buildInvoiceSlip({
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
+    size: _kSizeHeader,
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
   out
     ..add(_ThermalLine.blank)
     ..add(_ThermalLine.blank);
@@ -255,14 +256,14 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
@@ -278,6 +279,7 @@ List<_ThermalLine> _buildTicketSlip({
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(
       text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
+      bold: true,
     ));
     out.add(const _ThermalLine(text: _kDash));
   }
@@ -286,15 +288,16 @@ List<_ThermalLine> _buildTicketSlip({
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
+    size: _kSizeHeader,
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
   out
     ..add(_ThermalLine.blank)
     ..add(_ThermalLine.blank);
