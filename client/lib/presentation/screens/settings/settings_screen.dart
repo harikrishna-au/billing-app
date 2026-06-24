@@ -10,6 +10,7 @@ import '../../providers/catalogue_provider.dart';
 import '../../providers/service_provider.dart';
 import 'settings_tiles.dart';
 import 'settings_sheets.dart';
+import 'thermal_print_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -112,6 +113,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: 'Attached printer',
               subtitle: 'Use the built-in SmartPOS printer',
               onTap: () => context.push('/settings/printer'),
+            ),
+            const SizedBox(height: 8),
+            SettingsNavTile(
+              icon: Icons.tune_rounded,
+              iconBg: const Color(0xFFDDD6FE),
+              iconColor: const Color(0xFF7C3AED),
+              title: 'Thermal Print Settings',
+              subtitle: 'Adjust bill font sizes',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ThermalPrintSettingsScreen()),
+              ),
             ),
             const SizedBox(height: 28),
             const SettingsSectionLabel('Data'),
