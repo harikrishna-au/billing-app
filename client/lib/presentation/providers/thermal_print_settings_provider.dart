@@ -10,12 +10,12 @@ class ThermalPrintSettings {
   final int metadataSize;
 
   ThermalPrintSettings({
-    this.titleSize = 52,
-    this.orgNameSize = 39,
-    this.unitNameSize = 29,
-    this.bodySize = 34,
-    this.headerSize = 42,
-    this.metadataSize = 34,
+    this.titleSize = 24,
+    this.orgNameSize = 20,
+    this.unitNameSize = 20,
+    this.bodySize = 20,
+    this.headerSize = 24,
+    this.metadataSize = 20,
   });
 
   ThermalPrintSettings copyWith({
@@ -49,12 +49,12 @@ class ThermalPrintSettings {
   static Future<ThermalPrintSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
     return ThermalPrintSettings(
-      titleSize: prefs.getInt('thermal_title_size') ?? 52,
-      orgNameSize: prefs.getInt('thermal_org_size') ?? 39,
-      unitNameSize: prefs.getInt('thermal_unit_size') ?? 29,
-      bodySize: prefs.getInt('thermal_body_size') ?? 34,
-      headerSize: prefs.getInt('thermal_header_size') ?? 42,
-      metadataSize: prefs.getInt('thermal_metadata_size') ?? 34,
+      titleSize: prefs.getInt('thermal_title_size') ?? 24,
+      orgNameSize: prefs.getInt('thermal_org_size') ?? 20,
+      unitNameSize: prefs.getInt('thermal_unit_size') ?? 20,
+      bodySize: prefs.getInt('thermal_body_size') ?? 20,
+      headerSize: prefs.getInt('thermal_header_size') ?? 24,
+      metadataSize: prefs.getInt('thermal_metadata_size') ?? 20,
     );
   }
 }
