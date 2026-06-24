@@ -6,16 +6,16 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/thermal_print_settings_provider.dart';
 
 // ─── Thermal receipt layout (Pine Labs Plutus / SmartPOS fallback) ─────────────
-// Effective line width: 40 chars (utilizes full 80mm paper width).
+// Effective line width: 24 chars (PrinterWidth: 24 passed to Plutus).
 
-const int _kLineW      = 40;
+const int _kLineW      = 24;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody   = 28;
-const int _kSizeHeader = 32;
+const int _kSizeBody   = 20;
+const int _kSizeHeader = 24;
 
-const String _kDash = '----------------------------------------'; // 40 dashes
+const String _kDash = '------------------------'; // 24 dashes
 
 class _ThermalLine {
   final String text;
@@ -96,9 +96,9 @@ String _paymentMode(String method) {
 
 // ─── Item table ────────────────────────────────────────────────────────────────
 
-const int _kQtyW   = 6;
-const int _kNameW  = 22;
-const int _kPriceW = 12;
+const int _kQtyW   = 4;
+const int _kNameW  = 14;
+const int _kPriceW = 6;
 
 String _itemsHeader() =>
     '${'QTY'.padRight(_kQtyW)}${'ITEM'.padRight(_kNameW)}${'PRICE'.padLeft(_kPriceW)}';
@@ -165,30 +165,30 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
-      out.add(_ThermalLine(text: row, bold: true));
+      out.add(_ThermalLine(text: row));
     }
   }
 
   // ── Tax summary — full breakdown for invoice ──────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (taxes.isNotEmpty) {
-    out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)), bold: true));
+    out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2))));
     for (final entry in taxes.entries) {
-      out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2)), bold: true));
+      out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2))));
     }
     out.add(const _ThermalLine(text: _kDash));
   }
@@ -201,12 +201,12 @@ List<_ThermalLine> _buildInvoiceSlip({
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: settings.bodySize));
+  out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
   out
     ..add(_ThermalLine.blank)
     ..add(_ThermalLine.blank);
@@ -259,14 +259,14 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
@@ -282,7 +282,6 @@ List<_ThermalLine> _buildTicketSlip({
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(
       text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
-      bold: true,
     ));
     out.add(const _ThermalLine(text: _kDash));
   }
@@ -295,12 +294,12 @@ List<_ThermalLine> _buildTicketSlip({
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5)));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: settings.bodySize));
+  out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
   out
     ..add(_ThermalLine.blank)
     ..add(_ThermalLine.blank);
