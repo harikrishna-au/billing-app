@@ -41,6 +41,7 @@ class BillConfigResponse(BaseModel):
     toll_free: Optional[str]
     upi_id: Optional[str] = None
     catalog_version: int = 0
+    next_bill_number: int = 1
     created_at: datetime
     updated_at: datetime
 

@@ -12,6 +12,7 @@ from app.dependencies import get_current_user, get_current_admin_user
 from app.models.bill_config import BillConfig
 from app.models.machine import Machine
 from app.models.location import Location
+from app.models.bill_counter import BillCounter
 from app.schemas.bill_config import BillConfigUpdate, BillConfigResponse
 
 router = APIRouter()
@@ -34,11 +35,28 @@ async def get_bill_config(
         if location and location.upi_id:
             upi_id = location.upi_id
 
+    # Get next bill number from bill_counters table (use pos_id from config if available)
+    next_bill_number = 1
+    if config and config.pos_id:
+        counter = db.query(BillCounter).filter(
+            BillCounter.machine_id == machine_id,
+            BillCounter.posid == config.pos_id,
+        ).first()
+        if counter:
+            next_bill_number = counter.next_number
+
     if not config:
-        return {"success": True, "data": {"upi_id": upi_id} if upi_id else None}
+        return {
+            "success": True,
+            "data": {
+                "upi_id": upi_id,
+                "next_bill_number": next_bill_number,
+            } if upi_id or next_bill_number > 1 else None
+        }
 
     data = BillConfigResponse.model_validate(config).model_dump()
     data["upi_id"] = upi_id
+    data["next_bill_number"] = next_bill_number
     return {"success": True, "data": data}
 
 
