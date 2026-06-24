@@ -9,6 +9,7 @@ import '../../../../core/utils/bill_number_generator.dart';
 import '../../../../core/network/providers.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/bill_config_provider.dart';
+import '../../../providers/thermal_print_settings_provider.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import 'bill_thermal_print.dart';
 import 'widgets/bill_actions_footer.dart';
@@ -121,6 +122,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
       final sgstAmount = taxableAmount * sgstRate;
       final hasTax = taxRate > 0;
       final billDisplay = BillNumberGenerator.displayTicketNumber(billNumber);
+      final settings = ref.read(thermalPrintSettingsProvider);
       await printBillThermalInvoiceAndTicket(
         printer: _printer,
         config: config,
@@ -133,6 +135,7 @@ class _BillScreenState extends ConsumerState<BillScreen> {
         sgstAmount: sgstAmount,
         hasTax: hasTax,
         paymentMethod: widget.paymentMethod,
+        settings: settings,
         onDebug: _addPrintDebug,
       );
 
