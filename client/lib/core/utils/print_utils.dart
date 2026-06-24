@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../presentation/providers/cart_provider.dart';
 import '../../presentation/providers/bill_config_provider.dart';
+import '../../presentation/providers/thermal_print_settings_provider.dart';
 import '../network/providers.dart';
 import '../../presentation/screens/orders/create/bill_thermal_print.dart';
 import '../../services/smart_pos_printer_service.dart';
@@ -193,6 +194,7 @@ class PrintUtils {
 
     try {
       final config = provider.read(billConfigProvider);
+      final settings = provider.read(thermalPrintSettingsProvider);
       final cgstRate = config.cgstPercent / 100;
       final sgstRate = config.sgstPercent / 100;
       final taxRate = cgstRate + sgstRate;
@@ -213,6 +215,7 @@ class PrintUtils {
         sgstAmount: sgstAmount,
         hasTax: hasTax,
         paymentMethod: paymentMethod,
+        settings: settings,
         onDebug: debugLines.add,
       );
 
