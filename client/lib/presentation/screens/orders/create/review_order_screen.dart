@@ -10,6 +10,7 @@ import '../../../../data/models/payment_model.dart';
 import '../../../providers/bill_config_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
+import '../../../providers/thermal_print_settings_provider.dart';
 import '../../../../services/smart_pos_printer_service.dart';
 import 'bill_thermal_print.dart';
 import 'widgets/classic_checkout_widgets.dart';
@@ -104,6 +105,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
         final hasTax = taxRate > 0;
         final billDisplay = BillNumberGenerator.displayTicketNumber(billNumber);
         final dateLocal = DateTime.now().toLocal();
+        final settings = ref.read(thermalPrintSettingsProvider);
         await printBillThermalInvoiceAndTicket(
           printer: SmartPosPrinterService(),
           config: config,
@@ -116,6 +118,7 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
           sgstAmount: sgstAmount,
           hasTax: hasTax,
           paymentMethod: 'cash',
+          settings: settings,
         );
         await tracker.markAsPrinted(billNumber);
       } catch (e) {
