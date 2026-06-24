@@ -143,9 +143,8 @@ List<_ThermalLine> _buildInvoiceSlip({
 
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
-    for (final line in _wrapWords(orgName, _kLineW)) {
-      out.add(_ThermalLine(text: line, size: _kSizeBody, bold: true, align: _kAlignCenter));
-    }
+    final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
+    out.add(_ThermalLine(text: displayName, size: 28, bold: true, align: _kAlignCenter));
   }
   out.add(const _ThermalLine(
     text:  'INVOICE',
@@ -154,9 +153,8 @@ List<_ThermalLine> _buildInvoiceSlip({
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
-    for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter, bold: true, size: _kSizeBody));
-    }
+    final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 26));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
@@ -244,9 +242,8 @@ List<_ThermalLine> _buildTicketSlip({
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
-    for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter, bold: true, size: _kSizeBody));
-    }
+    final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 26));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
