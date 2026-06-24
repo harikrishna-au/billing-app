@@ -167,12 +167,19 @@ List<_ThermalLine> _buildInvoiceSlip({
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
+  // Combine POS and Bill on one line
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+    final posStr = 'POS:$posId';
+    final billStr = 'Bill:$billNumber';
+    final combined = '${posStr.padRight(12)}${billStr.substring(0, (12).clamp(0, billStr.length))}';
+    out.add(_ThermalLine(text: combined));
+  } else {
+    out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
+  // Combine Date and Time on one line
+  final dateTime24h = _formatDate(dateTime);
+  final time24h = _formatTime(dateTime);
+  out.add(_ThermalLine(text: '$dateTime24h $time24h'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
@@ -205,11 +212,8 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
-  out
-    ..add(_ThermalLine.blank)
-    ..add(_ThermalLine.blank);
+  out.add(_ThermalLine.blank);
 
   return out;
 }
@@ -261,12 +265,19 @@ List<_ThermalLine> _buildTicketSlip({
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
+  // Combine POS and Bill on one line
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5)));
+    final posStr = 'POS:$posId';
+    final billStr = 'Bill:$billNumber';
+    final combined = '${posStr.padRight(12)}${billStr.substring(0, (12).clamp(0, billStr.length))}';
+    out.add(_ThermalLine(text: combined));
+  } else {
+    out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5)));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5)));
+  // Combine Date and Time on one line
+  final dateTime24h = _formatDate(dateTime);
+  final time24h = _formatTime(dateTime);
+  out.add(_ThermalLine(text: '$dateTime24h $time24h'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
@@ -298,11 +309,8 @@ List<_ThermalLine> _buildTicketSlip({
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
-  out
-    ..add(_ThermalLine.blank)
-    ..add(_ThermalLine.blank);
+  out.add(_ThermalLine.blank);
 
   return out;
 }
