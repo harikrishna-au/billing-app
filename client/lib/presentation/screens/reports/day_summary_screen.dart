@@ -94,28 +94,28 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       String fmt(double v) => v.toStringAsFixed(2);
 
       final lines = <ThermalPrintLine>[];
-      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+      void ln(String text, {int size = 18, bool bold = false, int align = 0}) =>
           lines.add((text: text, size: size, bold: bold, align: align));
 
-      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
-      ln('TRANSACTION SUMMARY', size: 22, bold: true, align: 1);
-      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
-      ln('Sale Date : $dateStr');
-      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
-      ln('------------------------', align: 1);
-      ln('BILL         AMOUNT', bold: true);
-      ln('------------------------', align: 1);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 24, bold: true, align: 1);
+      ln('TRANSACTION SUMMARY', size: 20, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 18, bold: true, align: 1);
+      ln('Sale Date : $dateStr', bold: true);
+      ln('Term: ${terminal.length > 30 ? terminal.substring(0, 30) : terminal}', bold: true);
+      ln('----------------------------------------', align: 1);
+      ln('BILL#        AMOUNT  METHOD', bold: true);
+      ln('----------------------------------------', align: 1);
 
       for (final p in payments) {
-        ln(p.billNumber);
         final method = p.method == PaymentMethod.cash
             ? 'Cash'
             : p.method == PaymentMethod.upi ? 'UPI' : 'Card';
-        ln('  ${method.padRight(5)}${fmt(p.amount).padLeft(15)}');
+        final billNum = p.billNumber.length > 12 ? p.billNumber.substring(0, 12) : p.billNumber;
+        ln('${billNum.padRight(12)}${fmt(p.amount).padLeft(8)}  $method', bold: true);
       }
 
       void stat(String label, String val) =>
-          ln('${label.padRight(13)}:${val.padLeft(10)}');
+          ln('${label.padRight(15)}${val.padLeft(12)}', bold: true);
 
       ln('------------------------', align: 1);
       stat('SUCC TX', successList.length.toString());
@@ -196,54 +196,48 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       String fmt(double v) => v.toStringAsFixed(2);
 
       final lines = <ThermalPrintLine>[];
-      void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
+      void ln(String text, {int size = 18, bool bold = false, int align = 0}) =>
           lines.add((text: text, size: size, bold: bold, align: align));
 
-      if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
-      ln('SALES SUMMARY', size: 22, bold: true, align: 1);
-      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
-      ln('Sale Date  : $dateStr');
-      ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
-      ln('');
-      ln('Start: $startDateStr');
-      ln('End:   $endDateStr');
-      ln('');
-      ln('From: $firstTicket');
-      ln('To:   $lastTicket');
-      ln('');
-      ln('ITEM  CNT    AMOUNT', bold: true);
-      ln('------------------------', align: 1);
+      if (config.orgName.isNotEmpty) ln(config.orgName, size: 24, bold: true, align: 1);
+      ln('SALES SUMMARY', size: 20, bold: true, align: 1);
+      if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 18, bold: true, align: 1);
+      ln('Date: $dateStr', bold: true);
+      ln('----------------------------------------', align: 1);
+      ln('Start: $startDateStr', bold: true);
+      ln('End:   $endDateStr', bold: true);
+      ln('Bills: $firstTicket to $lastTicket', bold: true);
+      ln('----------------------------------------', align: 1);
+      ln('METHOD        CNT      AMOUNT', bold: true);
+      ln('----------------------------------------', align: 1);
 
       void stat(String label, String val) =>
-          ln('${label.padRight(13)}:${val.padLeft(10)}');
+          ln('${label.padRight(18)}${val.padLeft(12)}', bold: true);
       void block(String label, List<Payment> sg, List<Payment> fg) {
         final tickets = sg.length + fg.length;
         if (tickets == 0) return;
         final total = sum(sg) + sum(fg);
-        ln('${label.padRight(5)} ${tickets.toString().padLeft(3)} ${fmt(total).padLeft(11)}');
+        ln('${label.padRight(14)}${tickets.toString().padLeft(3)}  ${fmt(total).padLeft(12)}', bold: true);
         if (fg.isNotEmpty) {
-          ln('  FAIL ${fg.length.toString().padLeft(3)} ${fmt(sum(fg)).padLeft(11)}');
+          ln('  [FAIL] ${fg.length.toString().padLeft(3)}  ${fmt(sum(fg)).padLeft(12)}', bold: true);
         }
-        ln('');
       }
 
       block('CASH', cashSuccess, []);
       block('UPI',  upiSuccess,  upiFailedList);
       block('CARD', cardSuccess, cardFailedList);
 
-      ln('------------------------', align: 1);
-      stat('TRANS AMT', fmt(transTotal));
+      ln('----------------------------------------', align: 1);
+      stat('TOTAL', fmt(transTotal));
+      stat('CASH', fmt(cashAmt));
+      stat('UPI', fmt(upiAmt));
+      stat('CARD', fmt(cardAmt));
+      if (failedUpiAmt > 0) stat('FAIL UPI', fmt(failedUpiAmt));
+      if (failedCardAmt > 0) stat('FAIL CARD', fmt(failedCardAmt));
+      ln('----------------------------------------', align: 1);
+      ln('FINAL TOTAL: ${fmt(transTotal).padLeft(13)}', size: 22, bold: true);
       ln('');
-      stat('CASH AMT', fmt(cashAmt));
-      stat('SUCC UPI AMT', fmt(upiAmt));
-      stat('SUCC CARD AMT', fmt(cardAmt));
-      stat('FAIL UPI AMT', fmt(failedUpiAmt));
-      stat('FAIL CARD AMT', fmt(failedCardAmt));
-      ln('------------------------', align: 1);
-      ln('FINAL AMT    :${fmt(transTotal).padLeft(10)}', size: 22, bold: true);
-      ln('');
-      ln('Prtd: $printedStr');
-      ln('\n\n', align: 1);
+      ln('Printed: $printedStr', size: 16);
 
       await printThermalLineBatch(
         printer: SmartPosPrinterService(),
