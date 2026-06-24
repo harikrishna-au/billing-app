@@ -11,8 +11,8 @@ const int _kLineW      = 40;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody   = 37;
-const int _kSizeHeader = 45;
+const int _kSizeBody   = 34;
+const int _kSizeHeader = 42;
 
 const String _kDash = '----------------------------------------'; // 40 dashes
 
@@ -144,17 +144,17 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayName, size: 42, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayName, size: 39, bold: true, align: _kAlignCenter));
   }
   out.add(const _ThermalLine(
     text:  'INVOICE',
-    size:  46,
+    size:  52,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 32));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 29));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
@@ -166,8 +166,7 @@ List<_ThermalLine> _buildInvoiceSlip({
     out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
   }
   out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
@@ -226,17 +225,17 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayName, size: 42, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayName, size: 39, bold: true, align: _kAlignCenter));
   }
   out.add(const _ThermalLine(
     text:  'TICKET',
-    size:  46,
+    size:  52,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 32));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 29));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
@@ -248,8 +247,7 @@ List<_ThermalLine> _buildTicketSlip({
     out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
   }
   out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: '${_formatDate(dateTime)}  ${_formatTime(dateTime)}', bold: true, align: _kAlignCenter));
 
   // ── Items ──────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
