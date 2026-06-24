@@ -158,7 +158,6 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
   }
@@ -185,10 +184,10 @@ List<_ThermalLine> _buildInvoiceSlip({
     for (final entry in taxes.entries) {
       out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2)), bold: true));
     }
-    out.add(const _ThermalLine(text: _kDash));
   }
 
   // ── Total + payment ───────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
@@ -202,7 +201,6 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
-  out.add(_ThermalLine.blank);
 
   return out;
 }
@@ -274,10 +272,10 @@ List<_ThermalLine> _buildTicketSlip({
       text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
       bold: true,
     ));
-    out.add(const _ThermalLine(text: _kDash));
   }
 
   // ── Total + payment ───────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
@@ -291,7 +289,6 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
-  out.add(_ThermalLine.blank);
 
   return out;
 }
