@@ -200,7 +200,7 @@ List<_ThermalLine> _buildInvoiceSlip({
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
+  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody));
 
   return out;
 }
@@ -261,7 +261,7 @@ List<_ThermalLine> _buildTicketSlip({
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
-      out.add(_ThermalLine(text: row));
+      out.add(_ThermalLine(text: row, bold: true));
     }
   }
 
@@ -288,7 +288,7 @@ List<_ThermalLine> _buildTicketSlip({
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, align: _kAlignCenter, bold: true, size: _kSizeBody));
+  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody));
 
   return out;
 }
