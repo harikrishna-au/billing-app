@@ -11,8 +11,8 @@ const int _kLineW      = 40;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
-const int _kSizeBody   = 32;
-const int _kSizeHeader = 40;
+const int _kSizeBody   = 37;
+const int _kSizeHeader = 45;
 
 const String _kDash = '----------------------------------------'; // 40 dashes
 
@@ -144,32 +144,33 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayName, size: 28, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayName, size: 42, bold: true, align: _kAlignCenter));
   }
   out.add(const _ThermalLine(
     text:  'INVOICE',
-    size:  _kSizeHeader,
+    size:  46,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 26));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 32));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
@@ -178,7 +179,7 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Tax summary — full breakdown for invoice ──────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)), bold: true));
     for (final entry in taxes.entries) {
@@ -187,7 +188,7 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Total + payment ───────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
@@ -195,12 +196,12 @@ List<_ThermalLine> _buildInvoiceSlip({
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody, align: _kAlignCenter));
 
   return out;
 }
@@ -224,40 +225,34 @@ List<_ThermalLine> _buildTicketSlip({
 
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
-    for (final line in _wrapWords(orgName, _kLineW)) {
-      out.add(_ThermalLine(
-        text:  line,
-        size:  _kSizeBody,
-        bold:  true,
-        align: _kAlignCenter,
-      ));
-    }
+    final displayName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
+    out.add(_ThermalLine(text: displayName, size: 42, bold: true, align: _kAlignCenter));
   }
   out.add(const _ThermalLine(
     text:  'TICKET',
-    size:  _kSizeHeader,
+    size:  46,
     bold:  true,
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
     final displayUnit = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 26));
+    out.add(_ThermalLine(text: displayUnit, align: _kAlignCenter, bold: true, size: 32));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5), bold: true, align: _kAlignCenter));
   }
   if (posId != null && posId.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('POS', posId, keyW: 5), bold: true, align: _kAlignCenter));
   }
-  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true));
-  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true));
+  out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Date', _formatDate(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
+  out.add(_ThermalLine(text: _kv('Time', _formatTime(dateTime), keyW: 5), bold: true, align: _kAlignCenter));
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
@@ -266,7 +261,7 @@ List<_ThermalLine> _buildTicketSlip({
   }
 
   // ── Summary — Subtotal only (no CGST/SGST) ───────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(
       text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
@@ -275,7 +270,7 @@ List<_ThermalLine> _buildTicketSlip({
   }
 
   // ── Total + payment ───────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
@@ -283,12 +278,12 @@ List<_ThermalLine> _buildTicketSlip({
   ));
   final mode = _paymentMode(paymentMethod);
   if (mode.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true));
+    out.add(_ThermalLine(text: _kv('Pay', mode, keyW: 5), bold: true, align: _kAlignCenter));
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
-  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody));
+  out.add(const _ThermalLine(text: _kDash, align: _kAlignCenter));
+  out.add(_ThermalLine(text: footer, bold: true, size: _kSizeBody, align: _kAlignCenter));
 
   return out;
 }
