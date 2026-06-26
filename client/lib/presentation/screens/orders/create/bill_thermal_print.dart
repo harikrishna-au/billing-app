@@ -42,7 +42,8 @@ String _formatDate(DateTime dt) =>
 
 String _formatTime(DateTime dt) =>
     '${dt.hour.toString().padLeft(2, '0')}:'
-    '${dt.minute.toString().padLeft(2, '0')}';
+    '${dt.minute.toString().padLeft(2, '0')}:'
+    '${dt.second.toString().padLeft(2, '0')}';
 
 /// Wraps [text] at word boundaries to fit within [width] chars per line.
 List<String> _wrapWords(String text, int width) {
