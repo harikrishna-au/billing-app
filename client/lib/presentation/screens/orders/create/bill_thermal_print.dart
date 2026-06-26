@@ -178,7 +178,6 @@ List<_ThermalLine> _buildInvoiceSlip({
   out.add(_ThermalLine(text: '$dateTime24h $time24h'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
@@ -187,13 +186,11 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Tax summary — full breakdown for invoice ──────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2))));
     for (final entry in taxes.entries) {
       out.add(_ThermalLine(text: _summaryRow(entry.key, entry.value.toStringAsFixed(2))));
     }
-    out.add(const _ThermalLine(text: _kDash));
   }
 
   // ── Total + payment ───────────────────────────────────────────────────────
@@ -276,7 +273,6 @@ List<_ThermalLine> _buildTicketSlip({
   out.add(_ThermalLine(text: '$dateTime24h $time24h'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
