@@ -145,23 +145,12 @@ List<_ThermalLine> _buildInvoiceSlip({
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
-  out.add(_ThermalLine.blank);
-  if (orgName.isNotEmpty) {
-    // Org name on single line - truncate if too long
-    final displayOrgName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayOrgName, size: settings.bodySize, bold: true, align: _kAlignCenter));
-  }
   out.add(_ThermalLine(
     text:  'INVOICE',
     size:  settings.headerSize,
     bold:  true,
     align: _kAlignCenter,
   ));
-  if (unitName != null && unitName.isNotEmpty) {
-    // Unit name on single line - truncate if too long
-    final displayUnitName = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
-    out.add(_ThermalLine(text: displayUnitName, align: _kAlignCenter, size: settings.bodySize));
-  }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
