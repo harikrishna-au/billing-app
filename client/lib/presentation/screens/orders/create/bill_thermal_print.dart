@@ -145,6 +145,12 @@ List<_ThermalLine> _buildInvoiceSlip({
   final out = <_ThermalLine>[];
 
   // ── Header ──────────────────────────────────────────────────────────────────
+  out.add(_ThermalLine.blank);
+  if (orgName.isNotEmpty) {
+    // Org name on single line - truncate if too long
+    final displayOrgName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
+    out.add(_ThermalLine(text: displayOrgName, size: settings.bodySize, bold: true, align: _kAlignCenter));
+  }
   out.add(_ThermalLine(
     text:  'INVOICE',
     size:  settings.headerSize,

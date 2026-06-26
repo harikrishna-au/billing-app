@@ -233,16 +233,6 @@
         <div class="control-panel">
             <h3>Bill Preview Settings</h3>
 
-            <div class="control-group">
-                <label>
-                    Organization
-                    <input type="text" id="orgName" value="Water Sports Pvt Ltd">
-                </label>
-                <label>
-                    Unit/Branch
-                    <input type="text" id="unitName" value="Bangalore Branch">
-                </label>
-            </div>
 
             <div class="control-group">
                 <label>
@@ -285,9 +275,7 @@
 
             <!-- Header -->
             <div class="bill-section">
-                <div class="org-name" id="previewOrgName">Water Sports Pvt Ltd</div>
                 <div class="title">INVOICE</div>
-                <div class="unit-name" id="previewUnitName">Bangalore Branch</div>
             </div>
 
             <!-- Metadata -->
@@ -360,15 +348,11 @@
 
     <script>
         function updatePreview() {
-            const orgName = document.getElementById('orgName').value;
-            const unitName = document.getElementById('unitName').value;
             const gstin = document.getElementById('gstin').value;
             const posId = document.getElementById('posId').value;
             const billNumber = document.getElementById('billNumber').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
 
-            document.getElementById('previewOrgName').textContent = orgName;
-            document.getElementById('previewUnitName').textContent = unitName;
             document.getElementById('previewGstin').textContent = gstin ? `GSTIN : ${gstin}` : '';
             document.getElementById('previewPosBill').textContent = posId ? `POS:${posId}  Bill:${billNumber}` : `Bill:${billNumber}`;
             document.getElementById('previewPayment').textContent = `Pay : ${paymentMethod}`;
