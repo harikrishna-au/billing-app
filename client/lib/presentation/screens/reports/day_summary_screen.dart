@@ -189,9 +189,6 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final printedStr   = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
       final startDateStr = DateFormat('dd-MM-yy HH:mm').format(startingDate);
       final endDateStr   = DateFormat('dd-MM-yy HH:mm').format(endingDate);
-      final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
-          ? config.unitName!
-          : config.orgName;
 
       String fmt(double v) => v.toStringAsFixed(2);
 
