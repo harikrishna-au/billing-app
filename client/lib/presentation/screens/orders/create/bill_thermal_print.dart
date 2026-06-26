@@ -162,21 +162,15 @@ List<_ThermalLine> _buildInvoiceSlip({
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
   }
-  // Combine POS and Bill on one line
-  if (posId != null && posId.isNotEmpty) {
-    final posStr = 'POS:$posId';
-    final billStr = 'Bill:$billNumber';
-    final combined = '${posStr.padRight(12)}${billStr.substring(0, (12).clamp(0, billStr.length))}';
-    out.add(_ThermalLine(text: combined));
-  } else {
-    out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  }
-  // Combine Date and Time on one line
-  final dateTime24h = _formatDate(dateTime);
-  final time24h = _formatTime(dateTime);
-  out.add(_ThermalLine(text: '$dateTime24h $time24h'));
+  // Bill No only (POS already embedded in bill number prefix e.g. WSSBI-AP/1)
+  out.add(_ThermalLine(text: 'Bill No : $billNumber'));
+  // Date & Time on single line with label
+  final dateStr = _formatDate(dateTime);
+  final timeStr = _formatTime(dateTime);
+  out.add(_ThermalLine(text: 'Date & Time : $dateStr $timeStr'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
@@ -185,6 +179,7 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Tax summary — full breakdown for invoice ──────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   if (taxes.isNotEmpty) {
     out.add(_ThermalLine(text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2))));
     for (final entry in taxes.entries) {
@@ -254,24 +249,15 @@ List<_ThermalLine> _buildTicketSlip({
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  if (gstin != null && gstin.isNotEmpty) {
-    out.add(_ThermalLine(text: _kv('GSTIN', gstin, keyW: 5)));
-  }
-  // Combine POS and Bill on one line
-  if (posId != null && posId.isNotEmpty) {
-    final posStr = 'POS:$posId';
-    final billStr = 'Bill:$billNumber';
-    final combined = '${posStr.padRight(12)}${billStr.substring(0, (12).clamp(0, billStr.length))}';
-    out.add(_ThermalLine(text: combined));
-  } else {
-    out.add(_ThermalLine(text: _kv('Bill', billNumber, keyW: 5)));
-  }
-  // Combine Date and Time on one line
-  final dateTime24h = _formatDate(dateTime);
-  final time24h = _formatTime(dateTime);
-  out.add(_ThermalLine(text: '$dateTime24h $time24h'));
+  // Bill No only (no separate POS line — POS prefix already in bill number)
+  out.add(_ThermalLine(text: 'Bill No : $billNumber'));
+  // Date & Time on single line with label
+  final dateStr = _formatDate(dateTime);
+  final timeStr = _formatTime(dateTime);
+  out.add(_ThermalLine(text: 'Date & Time : $dateStr $timeStr'));
 
   // ── Items ──────────────────────────────────────────────────────────────────
+  out.add(const _ThermalLine(text: _kDash));
   out.add(_ThermalLine(text: _itemsHeader(), bold: true));
   for (final it in items) {
     for (final row in _itemRows(it.qty, it.name, it.amount.toStringAsFixed(2))) {
@@ -279,16 +265,8 @@ List<_ThermalLine> _buildTicketSlip({
     }
   }
 
-  // ── Summary — Subtotal only (no CGST/SGST) ───────────────────────────────
+  // ── Total only (no subtotal/tax in ticket) ───────────────────────────────
   out.add(const _ThermalLine(text: _kDash));
-  if (taxes.isNotEmpty) {
-    out.add(_ThermalLine(
-      text: _summaryRow('Subtotal', subtotal.toStringAsFixed(2)),
-    ));
-    out.add(const _ThermalLine(text: _kDash));
-  }
-
-  // ── Total + payment ───────────────────────────────────────────────────────
   out.add(_ThermalLine(
     text: _summaryRow('TOTAL', 'Rs.${total.toStringAsFixed(2)}'),
     bold: true,
@@ -448,10 +426,15 @@ Future<void> printBillThermalInvoiceAndTicket({
     return;
   }
 
+  // Dotted separator line between invoice and ticket
+  const separatorLines = [
+    _ThermalLine(text: '........................', align: _kAlignCenter),
+  ];
+
   onDebug?.call('Plutus disabled — using SmartPOS fallback');
   await printer.initSdk();
   await _sendToPrinter(printer, invoiceLines);
-  await printer.cutPaper();
+  await _sendToPrinter(printer, separatorLines);
   await _sendToPrinter(printer, ticketLines);
   await printer.cutPaper();
   onDebug?.call('Invoice and ticket print completed');
