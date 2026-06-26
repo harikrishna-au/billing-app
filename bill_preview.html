@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Bill Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .preview-label {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .bill-preview {
+            background: white;
+            border: 2px solid #333;
+            padding: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            line-height: 1.2;
+            font-size: 14px;
+            color: #000;
+            width: 80mm;
+            margin: 0 auto;
+        }
+
+        .bill-section {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .bill-section:last-child {
+            border-bottom: none;
+        }
+
+        .header-line {
+            text-align: center;
+            font-weight: bold;
+            margin: 4px 0;
+        }
+
+        .org-name {
+            font-size: 18px;
+            text-align: center;
+            margin: 8px 0 4px 0;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            padding: 0 5px;
+        }
+
+        .title {
+            font-size: 22px;
+            text-align: center;
+            font-weight: bold;
+            margin: 4px 0 8px 0;
+            letter-spacing: 2px;
+        }
+
+        .unit-name {
+            font-size: 16px;
+            text-align: center;
+            margin: 4px 0 8px 0;
+            font-weight: bold;
+        }
+
+        .dash-line {
+            text-align: center;
+            letter-spacing: -2px;
+            margin: 4px 0;
+            font-weight: bold;
+        }
+
+        .metadata-line {
+            margin: 2px 0;
+            font-size: 12px;
+        }
+
+        .items-header {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1.2fr;
+            gap: 4px;
+            font-weight: bold;
+            margin: 4px 0;
+            font-size: 12px;
+        }
+
+        .items-header span {
+            text-align: right;
+        }
+
+        .items-header span:nth-child(2) {
+            text-align: left;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1.2fr;
+            gap: 4px;
+            margin: 2px 0;
+            font-size: 12px;
+        }
+
+        .item-row span {
+            text-align: right;
+        }
+
+        .item-row span:nth-child(2) {
+            text-align: left;
+        }
+
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 12px;
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 4px 0;
+        }
+
+        .pay-line {
+            margin: 2px 0;
+            font-size: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            margin: 8px 0 4px 0;
+            font-weight: bold;
+        }
+
+        .blank-line {
+            height: 8px;
+        }
+
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-panel h3 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: flex;
+            flex-direction: column;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .control-group input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #0051CC;
+        }
+
+        .print-hint {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h3>Bill Preview Settings</h3>
+
+            <div class="control-group">
+                <label>
+                    Organization
+                    <input type="text" id="orgName" value="Water Sports Pvt Ltd">
+                </label>
+                <label>
+                    Unit/Branch
+                    <input type="text" id="unitName" value="Bangalore Branch">
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    GSTIN
+                    <input type="text" id="gstin" value="18AACCU5055K1Z5">
+                </label>
+                <label>
+                    POS ID
+                    <input type="text" id="posId" value="WSSBI">
+                </label>
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Bill Number
+                    <input type="text" id="billNumber" value="001">
+                </label>
+                <label>
+                    Payment Method
+                    <input type="text" id="paymentMethod" value="CASH">
+                </label>
+            </div>
+
+            <button onclick="updatePreview()">Update Preview</button>
+
+            <div class="print-hint">
+                💡 Adjust values above and click "Update Preview" to see changes in real-time
+            </div>
+        </div>
+
+        <div class="preview-label">
+            Thermal Bill Preview (80mm width)
+        </div>
+
+        <div class="bill-preview">
+            <!-- Blank line -->
+            <div class="bill-section">
+                <div class="blank-line"></div>
+            </div>
+
+            <!-- Header -->
+            <div class="bill-section">
+                <div class="org-name" id="previewOrgName">Water Sports Pvt Ltd</div>
+                <div class="title">INVOICE</div>
+                <div class="unit-name" id="previewUnitName">Bangalore Branch</div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="bill-section">
+                <div class="dash-line">────────────────────────</div>
+                <div class="metadata-line" id="previewGstin">GSTIN : 18AACCU5055K1Z5</div>
+                <div class="metadata-line" id="previewPosBill">POS:WSSBI  Bill:001</div>
+                <div class="metadata-line" id="previewDateTime">01-06-2026 14:30:45</div>
+            </div>
+
+            <!-- Items -->
+            <div class="bill-section">
+                <div class="dash-line">────────────────────────</div>
+                <div class="items-header">
+                    <span>QTY</span>
+                    <span>ITEM</span>
+                    <span>PRICE</span>
+                </div>
+                <div class="item-row">
+                    <span>2x</span>
+                    <span>Coffee Cup</span>
+                    <span>200.00</span>
+                </div>
+                <div class="item-row">
+                    <span>1x</span>
+                    <span>Jet Ski</span>
+                    <span>1500.00</span>
+                </div>
+                <div class="item-row">
+                    <span>3x</span>
+                    <span>Life Jacket</span>
+                    <span>150.00</span>
+                </div>
+            </div>
+
+            <!-- Tax Summary -->
+            <div class="bill-section">
+                <div class="dash-line">────────────────────────</div>
+                <div class="summary-line">
+                    <span>Subtotal</span>
+                    <span>1850.00</span>
+                </div>
+                <div class="summary-line">
+                    <span>CGST (9%)</span>
+                    <span>166.50</span>
+                </div>
+                <div class="summary-line">
+                    <span>SGST (9%)</span>
+                    <span>166.50</span>
+                </div>
+                <div class="dash-line">────────────────────────</div>
+            </div>
+
+            <!-- Total -->
+            <div class="bill-section">
+                <div class="total-line">
+                    <span>TOTAL</span>
+                    <span>Rs.2183.50</span>
+                </div>
+                <div class="pay-line" id="previewPayment">Pay : CASH</div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bill-section">
+                <div class="footer">Thank you. Visit again!</div>
+                <div class="blank-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updatePreview() {
+            const orgName = document.getElementById('orgName').value;
+            const unitName = document.getElementById('unitName').value;
+            const gstin = document.getElementById('gstin').value;
+            const posId = document.getElementById('posId').value;
+            const billNumber = document.getElementById('billNumber').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+
+            document.getElementById('previewOrgName').textContent = orgName;
+            document.getElementById('previewUnitName').textContent = unitName;
+            document.getElementById('previewGstin').textContent = gstin ? `GSTIN : ${gstin}` : '';
+            document.getElementById('previewPosBill').textContent = posId ? `POS:${posId}  Bill:${billNumber}` : `Bill:${billNumber}`;
+            document.getElementById('previewPayment').textContent = `Pay : ${paymentMethod}`;
+
+            // Update current date/time
+            const now = new Date();
+            const date = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const dateTime = `${date}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+            document.getElementById('previewDateTime').textContent = dateTime;
+        }
+
+        // Update on page load
+        updatePreview();
+
+        // Update time every second
+        setInterval(() => {
+            const now = new Date();
+            const date = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const dateTime = `${date}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+            document.getElementById('previewDateTime').textContent = dateTime;
+        }, 1000);
+    </script>
+</body>
+</html>
