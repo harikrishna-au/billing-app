@@ -147,9 +147,9 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   out.add(_ThermalLine.blank);
   if (orgName.isNotEmpty) {
-    for (final line in _wrapWords(orgName, _kLineW)) {
-      out.add(_ThermalLine(text: line, size: settings.bodySize, bold: true, align: _kAlignCenter));
-    }
+    // Org name on single line - truncate if too long
+    final displayOrgName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
+    out.add(_ThermalLine(text: displayOrgName, size: settings.bodySize, bold: true, align: _kAlignCenter));
   }
   out.add(_ThermalLine(
     text:  'INVOICE',
@@ -158,9 +158,9 @@ List<_ThermalLine> _buildInvoiceSlip({
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
-    for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter, size: settings.bodySize));
-    }
+    // Unit name on single line - truncate if too long
+    final displayUnitName = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
+    out.add(_ThermalLine(text: displayUnitName, align: _kAlignCenter, size: settings.bodySize));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
@@ -256,9 +256,9 @@ List<_ThermalLine> _buildTicketSlip({
     align: _kAlignCenter,
   ));
   if (unitName != null && unitName.isNotEmpty) {
-    for (final line in _wrapWords(unitName, _kLineW)) {
-      out.add(_ThermalLine(text: line, align: _kAlignCenter, size: settings.bodySize));
-    }
+    // Unit name on single line - truncate if too long
+    final displayUnitName = unitName.length > _kLineW ? unitName.substring(0, _kLineW) : unitName;
+    out.add(_ThermalLine(text: displayUnitName, align: _kAlignCenter, size: settings.bodySize));
   }
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
