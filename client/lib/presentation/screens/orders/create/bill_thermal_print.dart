@@ -13,7 +13,6 @@ const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
 const int _kSizeBody   = 20;
-const int _kSizeHeader = 24;
 
 const String _kDash = '------------------------'; // 24 dashes
 
