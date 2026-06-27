@@ -59,7 +59,7 @@ export default function LandingPage() {
         </div>
         <Magnetic>
           <button className="mb-btn mb-btn-ghost" onClick={goLogin}>
-            Staff Login <span className="mb-arrow">→</span>
+            Admin Login <span className="mb-arrow">→</span>
           </button>
         </Magnetic>
       </nav>
