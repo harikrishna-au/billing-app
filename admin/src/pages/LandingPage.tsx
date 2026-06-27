@@ -225,6 +225,81 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── PRICING ── */}
+      <section className="mb-section">
+        <div className="mb-section-head">
+          <p className="mb-eyebrow reveal" data-reveal>Pricing</p>
+          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
+            Plans for every <em>scale.</em>
+          </h2>
+        </div>
+
+        <div className="mb-pricing-grid">
+          {/* Single Device Plan */}
+          <div className="mb-pricing-card mb-pricing-starter reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
+            <div className="mb-pricing-tier">Single Device</div>
+            <div className="mb-pricing-desc">Perfect for small shops and single counters</div>
+
+            <div className="mb-pricing-breakdown">
+              <div className="mb-pricing-row">
+                <span className="mb-pricing-label">Monthly subscription</span>
+                <span className="mb-pricing-amount">₹5,000<i>/mo</i></span>
+              </div>
+              <div className="mb-pricing-row mb-pricing-row-secondary">
+                <span className="mb-pricing-label">POS Hardware</span>
+                <span className="mb-pricing-amount">₹12,000<i>one-time</i></span>
+              </div>
+            </div>
+
+            <ul className="mb-pricing-features">
+              <li><span className="mb-check">✓</span> 1 Thermal Printer</li>
+              <li><span className="mb-check">✓</span> Cash, Card & UPI</li>
+              <li><span className="mb-check">✓</span> Daily Reports</li>
+              <li><span className="mb-check">✓</span> Offline Sync</li>
+              <li><span className="mb-check">✓</span> Cloud Dashboard</li>
+            </ul>
+
+            <Magnetic>
+              <button className="mb-btn mb-btn-primary mb-pricing-btn" onClick={goLogin}>
+                Get Started
+              </button>
+            </Magnetic>
+          </div>
+
+          {/* Enterprise Plan */}
+          <div className="mb-pricing-card mb-pricing-enterprise reveal" data-reveal style={{ ["--d" as string]: "200ms" }}>
+            <div className="mb-pricing-badge">Recommended</div>
+            <div className="mb-pricing-tier">Enterprise</div>
+            <div className="mb-pricing-desc">Multi-location chains and high-volume merchants</div>
+
+            <div className="mb-pricing-breakdown">
+              <div className="mb-pricing-row">
+                <span className="mb-pricing-label">Custom pricing</span>
+                <span className="mb-pricing-amount">Based on volume</span>
+              </div>
+              <div className="mb-pricing-row mb-pricing-row-secondary">
+                <span className="mb-pricing-label">Hardware & Setup</span>
+                <span className="mb-pricing-amount">Custom quote</span>
+              </div>
+            </div>
+
+            <ul className="mb-pricing-features">
+              <li><span className="mb-check">✓</span> Unlimited Machines</li>
+              <li><span className="mb-check">✓</span> Multi-Location</li>
+              <li><span className="mb-check">✓</span> Superadmin Console</li>
+              <li><span className="mb-check">✓</span> Priority Support</li>
+              <li><span className="mb-check">✓</span> Custom Integration</li>
+            </ul>
+
+            <Magnetic>
+              <button className="mb-btn mb-btn-line mb-pricing-btn" onClick={goLogin}>
+                Contact Us
+              </button>
+            </Magnetic>
+          </div>
+        </div>
+      </section>
+
       {/* ── FINAL CTA ── */}
       <section className="mb-final">
         <div className="mb-final-card reveal" data-reveal>
@@ -670,6 +745,36 @@ const CSS = `
 .mb-bento-icon{font-size:30px;display:block;margin-bottom:16px;}
 .mb-bento-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;letter-spacing:-.02em;margin:0 0 9px;}
 .mb-bento-desc{font-size:14px;line-height:1.6;color:var(--muted);font-weight:300;margin:0;max-width:48ch;}
+
+/* pricing */
+.mb-pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:28px;}
+.mb-pricing-card{position:relative;padding:40px 36px;border-radius:24px;border:1.5px solid var(--line);
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+  transition:transform .35s,border-color .35s,box-shadow .35s;display:flex;flex-direction:column;}
+.mb-pricing-card:hover{transform:translateY(-6px);border-color:rgba(124,108,255,.36);
+  box-shadow:0 24px 60px -20px rgba(124,108,255,.32);}
+.mb-pricing-enterprise{border-color:rgba(124,108,255,.5);background:linear-gradient(160deg,rgba(124,108,255,.12),rgba(255,255,255,.02));}
+.mb-pricing-enterprise:hover{border-color:rgba(124,108,255,.8);}
+.mb-pricing-badge{position:absolute;top:-14px;right:24px;display:inline-block;padding:6px 16px;border-radius:999px;
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;
+  text-transform:uppercase;color:#022;background:linear-gradient(135deg,var(--indigo),#5b8cff);
+  box-shadow:0 8px 24px rgba(124,108,255,.3);}
+.mb-pricing-tier{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:26px;
+  letter-spacing:-.02em;margin:0 0 8px;color:#fff;}
+.mb-pricing-desc{font-size:14px;color:var(--muted);margin:0 0 28px;line-height:1.5;}
+.mb-pricing-breakdown{margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid var(--line);}
+.mb-pricing-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.mb-pricing-row:last-child{margin-bottom:0;}
+.mb-pricing-row-secondary .mb-pricing-label{color:var(--faint);}
+.mb-pricing-label{font-size:14px;color:var(--muted);}
+.mb-pricing-amount{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;
+  letter-spacing:-.02em;color:var(--cyan);}
+.mb-pricing-amount i{font-style:normal;font-size:12px;font-weight:400;color:var(--faint);margin-left:4px;}
+.mb-pricing-features{list-style:none;padding:0;margin:0 0 32px;display:flex;flex-direction:column;gap:12px;flex-grow:1;}
+.mb-pricing-features li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);}
+.mb-check{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;
+  border-radius:4px;background:rgba(52,211,153,.15);color:var(--mint);font-size:11px;font-weight:700;}
+.mb-pricing-btn{width:100%;}
 
 /* final CTA */
 .mb-final{padding:clamp(56px,9vw,120px) clamp(20px,5vw,40px);}
