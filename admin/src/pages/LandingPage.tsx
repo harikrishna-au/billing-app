@@ -226,7 +226,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section className="mb-section">
+      <section id="pricing" className="mb-section">
         <div className="mb-section-head">
           <p className="mb-eyebrow reveal" data-reveal>Pricing</p>
           <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
@@ -300,112 +300,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── ABOUT US ── */}
-      <section id="about" className="mb-section mb-about">
-        <div className="mb-section-head">
-          <p className="mb-eyebrow reveal" data-reveal>About MIT</p>
-          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
-            Built for Indian <em>retail.</em>
-          </h2>
-        </div>
-
-        <div className="mb-about-grid">
-          <div className="mb-about-col reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
-            <h3 className="mb-about-title">Our Mission</h3>
-            <p className="mb-about-text">
-              We believe every small business deserves enterprise-grade billing software.
-              From single-counter shops to multi-location chains, MIT Billing makes it
-              simple to ring up a sale, print an invoice, and watch the money land in
-              your dashboard—all without technical headaches.
-            </p>
-          </div>
-
-          <div className="mb-about-col reveal" data-reveal style={{ ["--d" as string]: "180ms" }}>
-            <h3 className="mb-about-title">Why We Built This</h3>
-            <p className="mb-about-text">
-              After years watching Indian retailers struggle with clunky, unreliable POS systems,
-              we decided to build something better. Offline-first. Fast. GST-ready. And made to
-              work with the thermal printers and payment terminals already on your counter.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TEAM ── */}
-      <section className="mb-section mb-team">
-        <div className="mb-section-head">
-          <p className="mb-eyebrow reveal" data-reveal>Team</p>
-          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
-            Crafted by <em>builders.</em>
-          </h2>
-        </div>
-
-        <div className="mb-team-grid">
-          <div className="mb-team-card reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
-            <div className="mb-team-avatar">HK</div>
-            <h3 className="mb-team-name">Hari Krishna</h3>
-            <p className="mb-team-role">Founder &amp; Lead Developer</p>
-            <p className="mb-team-bio">
-              Full-stack engineer obsessed with making billing software that actually works.
-              Built MIT Billing from the ground up for counters, not corporates.
-            </p>
-            <a href="mailto:nallanahk@gmail.com" className="mb-team-contact">nallanahk@gmail.com</a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CONTACT ── */}
-      <section id="contact" className="mb-section mb-contact">
-        <div className="mb-section-head">
-          <p className="mb-eyebrow reveal" data-reveal>Get in Touch</p>
-          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
-            Let's talk <em>billing.</em>
-          </h2>
-        </div>
-
-        <div className="mb-contact-grid">
-          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
-            <div className="mb-contact-icon">✉️</div>
-            <h3 className="mb-contact-title">Email</h3>
-            <a href="mailto:nallanahk@gmail.com" className="mb-contact-link">nallanahk@gmail.com</a>
-            <p className="mb-contact-desc">Questions? Drop us a line anytime.</p>
-          </div>
-
-          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "180ms" }}>
-            <div className="mb-contact-icon">🚀</div>
-            <h3 className="mb-contact-title">Enterprise</h3>
-            <p className="mb-contact-link">Custom Solutions</p>
-            <p className="mb-contact-desc">Multi-location setups, integrations, white-label.</p>
-          </div>
-
-          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "260ms" }}>
-            <div className="mb-contact-icon">📱</div>
-            <h3 className="mb-contact-title">Support</h3>
-            <p className="mb-contact-link">24/7 Assistance</p>
-            <p className="mb-contact-desc">Your billing system never sleeps.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <section className="mb-final">
-        <div className="mb-final-card reveal" data-reveal>
-          <div className="mb-final-glow" />
-          <p className="mb-eyebrow" style={{ position: "relative" }}>Ready to bill smarter?</p>
-          <h2 className="mb-final-title">
-            Your counter,<br /><em>upgraded.</em>
-          </h2>
-          <p className="mb-final-sub">
-            Sign in to manage machines, track every payment, and print your next bill.
-          </p>
-          <Magnetic>
-            <button className="mb-btn mb-btn-primary mb-btn-lg" onClick={goLogin}>
-              Open the Dashboard <span className="mb-arrow">→</span>
-            </button>
-          </Magnetic>
-        </div>
-      </section>
-
       {/* ── FOOTER ── */}
       <footer className="mb-footer">
         <div className="mb-footer-top">
@@ -421,8 +315,8 @@ export default function LandingPage() {
             <h4 className="mb-footer-title">Quick Links</h4>
             <nav className="mb-footer-nav">
               <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">Features</button>
-              <button onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">About Us</button>
-              <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">Contact</button>
+              <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">Pricing</button>
+              <a href="#" className="mb-footer-link">Documentation</a>
             </nav>
           </div>
 
@@ -891,57 +785,6 @@ const CSS = `
 .mb-check{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;
   border-radius:4px;background:rgba(52,211,153,.15);color:var(--mint);font-size:11px;font-weight:700;}
 .mb-pricing-btn{width:100%;}
-
-/* about */
-.mb-about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:48px;}
-.mb-about-col{display:flex;flex-direction:column;}
-.mb-about-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;
-  letter-spacing:-.02em;margin:0 0 16px;color:#fff;}
-.mb-about-text{font-size:16px;line-height:1.8;color:var(--muted);margin:0;font-weight:300;}
-
-/* team */
-.mb-team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:32px;}
-.mb-team-card{padding:40px;border-radius:24px;border:1.5px solid var(--line);
-  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
-  text-align:center;transition:transform .35s,border-color .35s;}
-.mb-team-card:hover{transform:translateY(-6px);border-color:rgba(124,108,255,.36);}
-.mb-team-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--cyan));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque',sans-serif;
-  font-weight:800;font-size:28px;margin:0 auto 20px;box-shadow:0 12px 30px rgba(124,108,255,.3);}
-.mb-team-name{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;
-  letter-spacing:-.02em;margin:0 0 6px;color:#fff;}
-.mb-team-role{font-size:13px;color:var(--cyan);font-weight:600;letter-spacing:1px;
-  text-transform:uppercase;margin:0 0 16px;}
-.mb-team-bio{font-size:14px;line-height:1.7;color:var(--muted);margin:0 0 20px;font-weight:300;}
-.mb-team-contact{display:inline-block;padding:8px 20px;border-radius:999px;border:1.5px solid rgba(124,108,255,.35);
-  color:var(--indigo);font-size:13px;font-weight:600;text-decoration:none;transition:all .3s;cursor:pointer;}
-.mb-team-contact:hover{border-color:var(--indigo);background:rgba(124,108,255,.1);}
-
-/* contact */
-.mb-contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;}
-.mb-contact-box{padding:36px 30px;border-radius:22px;border:1.5px solid var(--line);
-  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
-  text-align:center;transition:transform .35s,border-color .35s;}
-.mb-contact-box:hover{transform:translateY(-4px);border-color:rgba(124,108,255,.36);}
-.mb-contact-icon{font-size:40px;margin-bottom:16px;}
-.mb-contact-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;
-  letter-spacing:-.02em;margin:0 0 8px;color:#fff;}
-.mb-contact-link{font-size:15px;font-weight:600;color:var(--cyan);text-decoration:none;display:block;
-  margin:0 0 12px;transition:color .3s;}
-.mb-contact-link:hover{color:#fff;}
-.mb-contact-desc{font-size:14px;color:var(--muted);margin:0;font-weight:300;line-height:1.6;}
-
-/* final CTA */
-.mb-final{padding:clamp(56px,9vw,120px) clamp(20px,5vw,40px);}
-.mb-final-card{position:relative;max-width:760px;margin:0 auto;text-align:center;overflow:hidden;
-  padding:clamp(48px,7vw,84px) clamp(28px,5vw,56px);border-radius:32px;border:1px solid rgba(124,108,255,.24);
-  background:linear-gradient(160deg,rgba(124,108,255,.12),rgba(34,211,238,.05) 60%,transparent);}
-.mb-final-glow{position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:460px;height:460px;border-radius:50%;
-  pointer-events:none;background:radial-gradient(circle,rgba(124,108,255,.2),transparent 65%);}
-.mb-final-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;position:relative;
-  font-size:clamp(34px,6vw,64px);line-height:.98;letter-spacing:-.035em;margin:14px 0 16px;}
-.mb-final-title em{font-family:'Instrument Serif',serif;font-style:italic;font-weight:400;color:var(--cyan);}
-.mb-final-sub{position:relative;font-size:16px;color:var(--muted);font-weight:300;margin:0 0 36px;}
 
 /* footer */
 .mb-footer{padding:clamp(56px,7vw,80px) clamp(20px,5vw,56px);border-top:1px solid var(--line);background:rgba(9,11,22,.6);}
