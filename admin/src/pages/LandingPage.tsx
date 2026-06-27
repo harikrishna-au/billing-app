@@ -301,7 +301,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── ABOUT US ── */}
-      <section className="mb-section mb-about">
+      <section id="about" className="mb-section mb-about">
         <div className="mb-section-head">
           <p className="mb-eyebrow reveal" data-reveal>About MIT</p>
           <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
@@ -355,7 +355,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CONTACT ── */}
-      <section className="mb-section mb-contact">
+      <section id="contact" className="mb-section mb-contact">
         <div className="mb-section-head">
           <p className="mb-eyebrow reveal" data-reveal>Get in Touch</p>
           <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
@@ -408,11 +408,39 @@ export default function LandingPage() {
 
       {/* ── FOOTER ── */}
       <footer className="mb-footer">
-        <div className="mb-brand">
-          <img src="/logo.png" alt="MIT Billing" className="mb-logo-sm" />
-          <span className="mb-brand-name">MIT&nbsp;Billing</span>
+        <div className="mb-footer-top">
+          <div className="mb-footer-col">
+            <div className="mb-brand">
+              <img src="/logo.png" alt="MIT Billing" className="mb-logo-sm" />
+              <span className="mb-brand-name">MIT&nbsp;Billing</span>
+            </div>
+            <p className="mb-footer-tagline">Enterprise billing, built for India.</p>
+          </div>
+
+          <div className="mb-footer-col">
+            <h4 className="mb-footer-title">Quick Links</h4>
+            <nav className="mb-footer-nav">
+              <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">Features</button>
+              <button onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">About Us</button>
+              <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })} className="mb-footer-link">Contact</button>
+            </nav>
+          </div>
+
+          <div className="mb-footer-col">
+            <h4 className="mb-footer-title">Get Started</h4>
+            <nav className="mb-footer-nav">
+              <button onClick={goLogin} className="mb-footer-link">Admin Login</button>
+              <a href="mailto:nallanahk@gmail.com" className="mb-footer-link">Email Us</a>
+            </nav>
+          </div>
         </div>
-        <span className="mb-footer-note">© {new Date().getFullYear()} · Billing &amp; POS platform · GST-compliant · Built in India</span>
+
+        <div className="mb-footer-divider" />
+
+        <div className="mb-footer-bottom">
+          <span className="mb-footer-note">© {new Date().getFullYear()} MIT Billing. All rights reserved. GST-compliant · Built in India</span>
+          <span className="mb-footer-version">v1.0 • Made with ❤️ for Indian retail</span>
+        </div>
       </footer>
     </div>
   );
@@ -916,9 +944,22 @@ const CSS = `
 .mb-final-sub{position:relative;font-size:16px;color:var(--muted);font-weight:300;margin:0 0 36px;}
 
 /* footer */
-.mb-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
-  padding:32px clamp(20px,5vw,56px);border-top:1px solid var(--line);}
-.mb-footer-note{font-size:12px;color:var(--faint);letter-spacing:.4px;}
+.mb-footer{padding:clamp(56px,7vw,80px) clamp(20px,5vw,56px);border-top:1px solid var(--line);background:rgba(9,11,22,.6);}
+.mb-footer-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:56px;max-width:1160px;margin:0 auto 48px;}
+.mb-footer-col:first-child{grid-column:span 1;}
+.mb-footer-col{display:flex;flex-direction:column;}
+.mb-footer-tagline{font-size:14px;color:var(--muted);margin:12px 0 0;line-height:1.6;font-weight:300;}
+.mb-footer-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;letter-spacing:.5px;
+  text-transform:uppercase;margin:0 0 20px;color:#fff;}
+.mb-footer-nav{display:flex;flex-direction:column;gap:12px;}
+.mb-footer-link{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;
+  text-align:left;font-family:inherit;font-weight:400;transition:color .3s;padding:0;}
+.mb-footer-link:hover{color:var(--cyan);}
+.mb-footer-divider{height:1px;background:var(--line);margin:0 0 32px;}
+.mb-footer-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;
+  max-width:1160px;margin:0 auto;}
+.mb-footer-note{font-size:13px;color:var(--faint);letter-spacing:.3px;}
+.mb-footer-version{font-size:12px;color:var(--faint);letter-spacing:.2px;}
 
 /* reveal */
 .reveal{opacity:0;transform:translateY(28px);
@@ -943,6 +984,8 @@ const CSS = `
   .mb-cta-row{flex-direction:column;width:100%;}
   .mb-cta-row .mb-magnetic,.mb-cta-row .mb-btn{width:100%;justify-content:center;}
   .mb-trust{gap:10px 18px;}
+  .mb-footer-top{grid-template-columns:1fr;gap:40px;}
+  .mb-footer-bottom{flex-direction:column;text-align:center;gap:12px;}
 }
 @media(prefers-reduced-motion:reduce){
   .reveal{opacity:1!important;transform:none!important;transition:none;}
