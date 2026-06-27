@@ -261,16 +261,15 @@ function ReceiptMock() {
   return (
     <div className="mb-receipt-wrap">
       <div className="mb-receipt">
-        <div className="mb-rcpt-org">Water Sports Pvt Ltd</div>
         <div className="mb-rcpt-title">INVOICE</div>
         <div className="mb-rcpt-dash" />
-        <div className="mb-rcpt-row"><span>GSTIN</span><span>18AACCU5055K1Z5</span></div>
-        <div className="mb-rcpt-row"><span>Bill No</span><span>WSSBI-AP/142</span></div>
+        <div className="mb-rcpt-row"><span>GSTIN</span><span>27AABCO1234H1Z0</span></div>
+        <div className="mb-rcpt-row"><span>Bill No</span><span>B/2024/00142</span></div>
         <div className="mb-rcpt-row"><span>Date</span><span>27-06-26 17:30:24</span></div>
         <div className="mb-rcpt-dash" />
         <div className="mb-rcpt-cols mb-rcpt-head"><span>QTY ITEM</span><span>PRICE</span></div>
-        <div className="mb-rcpt-cols"><span>2x Jet Ski</span><span>1500.00</span></div>
-        <div className="mb-rcpt-cols"><span>1x Parasail</span><span>1200.00</span></div>
+        <div className="mb-rcpt-cols"><span>2x Service</span><span>1500.00</span></div>
+        <div className="mb-rcpt-cols"><span>1x Product</span><span>1200.00</span></div>
         <div className="mb-rcpt-dash" />
         <div className="mb-rcpt-cols"><span>Subtotal</span><span>2288.14</span></div>
         <div className="mb-rcpt-cols mb-rcpt-mute"><span>CGST 9%</span><span>205.93</span></div>
