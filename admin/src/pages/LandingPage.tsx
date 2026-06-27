@@ -54,7 +54,7 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav className="mb-nav">
         <div className="mb-brand">
-          <span className="mb-brand-mark">⟢</span>
+          <img src="/logo.png" alt="MIT Billing" className="mb-logo" />
           <span className="mb-brand-name">MIT&nbsp;Billing</span>
         </div>
         <Magnetic>
@@ -300,6 +300,93 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── ABOUT US ── */}
+      <section className="mb-section mb-about">
+        <div className="mb-section-head">
+          <p className="mb-eyebrow reveal" data-reveal>About MIT</p>
+          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
+            Built for Indian <em>retail.</em>
+          </h2>
+        </div>
+
+        <div className="mb-about-grid">
+          <div className="mb-about-col reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
+            <h3 className="mb-about-title">Our Mission</h3>
+            <p className="mb-about-text">
+              We believe every small business deserves enterprise-grade billing software.
+              From single-counter shops to multi-location chains, MIT Billing makes it
+              simple to ring up a sale, print an invoice, and watch the money land in
+              your dashboard—all without technical headaches.
+            </p>
+          </div>
+
+          <div className="mb-about-col reveal" data-reveal style={{ ["--d" as string]: "180ms" }}>
+            <h3 className="mb-about-title">Why We Built This</h3>
+            <p className="mb-about-text">
+              After years watching Indian retailers struggle with clunky, unreliable POS systems,
+              we decided to build something better. Offline-first. Fast. GST-ready. And made to
+              work with the thermal printers and payment terminals already on your counter.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── TEAM ── */}
+      <section className="mb-section mb-team">
+        <div className="mb-section-head">
+          <p className="mb-eyebrow reveal" data-reveal>Team</p>
+          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
+            Crafted by <em>builders.</em>
+          </h2>
+        </div>
+
+        <div className="mb-team-grid">
+          <div className="mb-team-card reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
+            <div className="mb-team-avatar">HK</div>
+            <h3 className="mb-team-name">Hari Krishna</h3>
+            <p className="mb-team-role">Founder &amp; Lead Developer</p>
+            <p className="mb-team-bio">
+              Full-stack engineer obsessed with making billing software that actually works.
+              Built MIT Billing from the ground up for counters, not corporates.
+            </p>
+            <a href="mailto:nallanahk@gmail.com" className="mb-team-contact">nallanahk@gmail.com</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONTACT ── */}
+      <section className="mb-section mb-contact">
+        <div className="mb-section-head">
+          <p className="mb-eyebrow reveal" data-reveal>Get in Touch</p>
+          <h2 className="mb-h2 reveal" data-reveal style={{ ["--d" as string]: "80ms" }}>
+            Let's talk <em>billing.</em>
+          </h2>
+        </div>
+
+        <div className="mb-contact-grid">
+          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "100ms" }}>
+            <div className="mb-contact-icon">✉️</div>
+            <h3 className="mb-contact-title">Email</h3>
+            <a href="mailto:nallanahk@gmail.com" className="mb-contact-link">nallanahk@gmail.com</a>
+            <p className="mb-contact-desc">Questions? Drop us a line anytime.</p>
+          </div>
+
+          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "180ms" }}>
+            <div className="mb-contact-icon">🚀</div>
+            <h3 className="mb-contact-title">Enterprise</h3>
+            <p className="mb-contact-link">Custom Solutions</p>
+            <p className="mb-contact-desc">Multi-location setups, integrations, white-label.</p>
+          </div>
+
+          <div className="mb-contact-box reveal" data-reveal style={{ ["--d" as string]: "260ms" }}>
+            <div className="mb-contact-icon">📱</div>
+            <h3 className="mb-contact-title">Support</h3>
+            <p className="mb-contact-link">24/7 Assistance</p>
+            <p className="mb-contact-desc">Your billing system never sleeps.</p>
+          </div>
+        </div>
+      </section>
+
       {/* ── FINAL CTA ── */}
       <section className="mb-final">
         <div className="mb-final-card reveal" data-reveal>
@@ -322,10 +409,10 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="mb-footer">
         <div className="mb-brand">
-          <span className="mb-brand-mark">⟢</span>
+          <img src="/logo.png" alt="MIT Billing" className="mb-logo-sm" />
           <span className="mb-brand-name">MIT&nbsp;Billing</span>
         </div>
-        <span className="mb-footer-note">© {new Date().getFullYear()} · Billing &amp; POS platform · GST-compliant</span>
+        <span className="mb-footer-note">© {new Date().getFullYear()} · Billing &amp; POS platform · GST-compliant · Built in India</span>
       </footer>
     </div>
   );
@@ -582,7 +669,8 @@ const CSS = `
   background:linear-gradient(180deg,rgba(7,9,18,.72),transparent);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 .mb-brand{display:flex;align-items:center;gap:11px;}
-.mb-brand-mark{font-size:20px;color:var(--indigo);line-height:1;text-shadow:0 0 18px rgba(124,108,255,.7);}
+.mb-logo{width:40px;height:40px;border-radius:10px;object-fit:cover;}
+.mb-logo-sm{width:32px;height:32px;border-radius:8px;object-fit:cover;}
 .mb-brand-name{font-weight:700;font-size:15px;letter-spacing:1px;}
 
 /* buttons */
@@ -775,6 +863,45 @@ const CSS = `
 .mb-check{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;
   border-radius:4px;background:rgba(52,211,153,.15);color:var(--mint);font-size:11px;font-weight:700;}
 .mb-pricing-btn{width:100%;}
+
+/* about */
+.mb-about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:48px;}
+.mb-about-col{display:flex;flex-direction:column;}
+.mb-about-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:24px;
+  letter-spacing:-.02em;margin:0 0 16px;color:#fff;}
+.mb-about-text{font-size:16px;line-height:1.8;color:var(--muted);margin:0;font-weight:300;}
+
+/* team */
+.mb-team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:32px;}
+.mb-team-card{padding:40px;border-radius:24px;border:1.5px solid var(--line);
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+  text-align:center;transition:transform .35s,border-color .35s;}
+.mb-team-card:hover{transform:translateY(-6px);border-color:rgba(124,108,255,.36);}
+.mb-team-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--cyan));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bricolage Grotesque',sans-serif;
+  font-weight:800;font-size:28px;margin:0 auto 20px;box-shadow:0 12px 30px rgba(124,108,255,.3);}
+.mb-team-name{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:22px;
+  letter-spacing:-.02em;margin:0 0 6px;color:#fff;}
+.mb-team-role{font-size:13px;color:var(--cyan);font-weight:600;letter-spacing:1px;
+  text-transform:uppercase;margin:0 0 16px;}
+.mb-team-bio{font-size:14px;line-height:1.7;color:var(--muted);margin:0 0 20px;font-weight:300;}
+.mb-team-contact{display:inline-block;padding:8px 20px;border-radius:999px;border:1.5px solid rgba(124,108,255,.35);
+  color:var(--indigo);font-size:13px;font-weight:600;text-decoration:none;transition:all .3s;cursor:pointer;}
+.mb-team-contact:hover{border-color:var(--indigo);background:rgba(124,108,255,.1);}
+
+/* contact */
+.mb-contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;}
+.mb-contact-box{padding:36px 30px;border-radius:22px;border:1.5px solid var(--line);
+  background:linear-gradient(160deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+  text-align:center;transition:transform .35s,border-color .35s;}
+.mb-contact-box:hover{transform:translateY(-4px);border-color:rgba(124,108,255,.36);}
+.mb-contact-icon{font-size:40px;margin-bottom:16px;}
+.mb-contact-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;
+  letter-spacing:-.02em;margin:0 0 8px;color:#fff;}
+.mb-contact-link{font-size:15px;font-weight:600;color:var(--cyan);text-decoration:none;display:block;
+  margin:0 0 12px;transition:color .3s;}
+.mb-contact-link:hover{color:#fff;}
+.mb-contact-desc{font-size:14px;color:var(--muted);margin:0;font-weight:300;line-height:1.6;}
 
 /* final CTA */
 .mb-final{padding:clamp(56px,9vw,120px) clamp(20px,5vw,40px);}
