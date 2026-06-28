@@ -324,7 +324,7 @@ export default function LandingPage() {
             <h4 className="mb-footer-title">Get Started</h4>
             <nav className="mb-footer-nav">
               <button onClick={goLogin} className="mb-footer-link">Admin Login</button>
-              <a href="mailto:nallanahk@gmail.com" className="mb-footer-link">Email Us</a>
+              <button onClick={() => navigate("/contact")} className="mb-footer-link">Contact Us</button>
             </nav>
           </div>
         </div>
