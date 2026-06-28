@@ -20,7 +20,11 @@ from app.schemas.analytics import (
     RevenueAnalyticsResponse,
     RevenuePeriod,
     TopMachine,
-    MachinePerformance
+    MachinePerformance,
+    TransactionSummaryResponse,
+    SalesSummaryResponse,
+    PaymentDetail,
+    MethodBreakdown
 )
 
 router = APIRouter()
@@ -346,3 +350,162 @@ async def export_data(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail=f"Export type '{export_type}' not yet implemented."
         )
+
+
+@router.get("/transaction-summary/{date_str}", response_model=SuccessResponse[TransactionSummaryResponse])
+async def get_transaction_summary(
+    date_str: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get transaction summary for a specific day (00:00:00 to 23:59:59)."""
+
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD"
+        )
+
+    # Get all payments for the day (00:00:00 to 23:59:59)
+    start_time = datetime.combine(date, datetime.min.time())
+    end_time = datetime.combine(date, datetime.max.time())
+
+    payments = db.query(Payment).filter(
+        Payment.created_at >= start_time,
+        Payment.created_at <= end_time
+    ).order_by(Payment.created_at).all()
+
+    # Separate by status
+    successful = [p for p in payments if p.status == 'success']
+    failed = [p for p in payments if p.status != 'success']
+
+    # Calculate totals
+    def sum_by_method(payment_list, method):
+        return sum(float(p.amount) for p in payment_list if p.method == method)
+
+    success_total = sum(float(p.amount) for p in successful)
+    failed_total = sum(float(p.amount) for p in failed)
+
+    success_cash = sum_by_method(successful, 'cash')
+    success_upi = sum_by_method(successful, 'upi')
+    success_card = sum_by_method(successful, 'card')
+    failed_cash = sum_by_method(failed, 'cash')
+    failed_upi = sum_by_method(failed, 'upi')
+    failed_card = sum_by_method(failed, 'card')
+
+    # Build payment details
+    payment_details = [
+        PaymentDetail(
+            bill_number=p.bill_number,
+            amount=float(p.amount),
+            method=p.method.upper(),
+            status=p.status.upper()
+        )
+        for p in payments
+    ]
+
+    return {
+        "success": True,
+        "data": TransactionSummaryResponse(
+            date=date.isoformat(),
+            start_time=start_time.strftime("%d-%m-%y %H:%M"),
+            end_time=end_time.strftime("%d-%m-%y %H:%M"),
+            payments=payment_details,
+            successful_count=len(successful),
+            successful_amount=success_total,
+            successful_cash=success_cash,
+            successful_upi=success_upi,
+            successful_card=success_card,
+            failed_count=len(failed),
+            failed_amount=failed_total,
+            failed_cash=failed_cash,
+            failed_upi=failed_upi,
+            failed_card=failed_card
+        )
+    }
+
+
+@router.get("/sales-summary/{date_str}", response_model=SuccessResponse[SalesSummaryResponse])
+async def get_sales_summary(
+    date_str: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get sales summary for a specific day (00:00:00 to 23:59:59)."""
+
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD"
+        )
+
+    # Get all payments for the day (00:00:00 to 23:59:59)
+    start_time = datetime.combine(date, datetime.min.time())
+    end_time = datetime.combine(date, datetime.max.time())
+
+    payments = db.query(Payment).filter(
+        Payment.created_at >= start_time,
+        Payment.created_at <= end_time
+    ).order_by(Payment.created_at).all()
+
+    if not payments:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No payments found for this date"
+        )
+
+    # Separate by status
+    successful = [p for p in payments if p.status == 'success']
+    failed = [p for p in payments if p.status != 'success']
+
+    # Calculate totals
+    def sum_by_method(payment_list, method):
+        return sum(float(p.amount) for p in payment_list if p.method == method)
+
+    def count_by_method(payment_list, method):
+        return len([p for p in payment_list if p.method == method])
+
+    total_amount = sum(float(p.amount) for p in successful)
+    failed_upi_total = sum_by_method(failed, 'upi')
+    failed_card_total = sum_by_method(failed, 'card')
+
+    # Build method breakdown
+    methods = ['cash', 'upi', 'card']
+    method_breakdown = []
+
+    for method in methods:
+        success_count = count_by_method(successful, method)
+        success_amount = sum_by_method(successful, method)
+        fail_count = count_by_method(failed, method)
+        fail_amount = sum_by_method(failed, method)
+
+        if success_count > 0 or fail_count > 0:
+            method_breakdown.append(
+                MethodBreakdown(
+                    method=method.upper(),
+                    count=success_count,
+                    amount=success_amount,
+                    failed_count=fail_count,
+                    failed_amount=fail_amount
+                )
+            )
+
+    return {
+        "success": True,
+        "data": SalesSummaryResponse(
+            date=date.isoformat(),
+            start_time=start_time.strftime("%d-%m-%y %H:%M"),
+            end_time=end_time.strftime("%d-%m-%y %H:%M"),
+            first_bill=payments[0].bill_number,
+            last_bill=payments[-1].bill_number,
+            total_count=len(successful),
+            total_amount=total_amount,
+            by_method=method_breakdown,
+            failed_upi_amount=failed_upi_total,
+            failed_card_amount=failed_card_total
+        )
+    }
