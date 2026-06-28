@@ -352,6 +352,154 @@ async def export_data(
         )
 
 
+@router.get("/payments-report/{date_str}")
+async def get_payments_report(
+    date_str: str,
+    machine_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate comprehensive payment report with insights (00:00:00 to 23:59:59)."""
+
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD"
+        )
+
+    start_time = datetime.combine(date, datetime.min.time())
+    end_time = datetime.combine(date, datetime.max.time())
+
+    query = db.query(Payment).filter(
+        Payment.created_at >= start_time,
+        Payment.created_at <= end_time
+    )
+    if machine_id:
+        query = query.filter(Payment.machine_id == machine_id)
+
+    payments = query.order_by(Payment.created_at).all()
+
+    # Separate by status
+    successful = [p for p in payments if p.status == 'success']
+    failed = [p for p in payments if p.status != 'success']
+
+    # Helper function
+    def sum_by_method(payment_list, method):
+        return sum(float(p.amount) for p in payment_list if p.method == method)
+
+    def count_by_method(payment_list, method):
+        return len([p for p in payment_list if p.method == method])
+
+    # Totals
+    success_total = sum(float(p.amount) for p in successful)
+    success_cash = sum_by_method(successful, 'cash')
+    success_upi = sum_by_method(successful, 'upi')
+    success_card = sum_by_method(successful, 'card')
+
+    failed_total = sum(float(p.amount) for p in failed)
+    failed_cash = sum_by_method(failed, 'cash')
+    failed_upi = sum_by_method(failed, 'upi')
+    failed_card = sum_by_method(failed, 'card')
+
+    # Generate CSV report
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header with report title
+    writer.writerow([f'PAYMENT REPORT - {date.strftime("%d %B %Y")}'])
+    writer.writerow(['Report Generated At', datetime.now(timezone.utc).strftime("%d-%m-%Y %H:%M:%S UTC")])
+    writer.writerow([])
+
+    # Executive Summary
+    writer.writerow(['EXECUTIVE SUMMARY'])
+    writer.writerow(['Metric', 'Value'])
+    writer.writerow(['Total Successful Transactions', len(successful)])
+    writer.writerow(['Total Failed Transactions', len(failed)])
+    writer.writerow(['Total Payments', len(payments)])
+    writer.writerow(['Success Rate', f"{(len(successful) / len(payments) * 100):.1f}%" if payments else "0%"])
+    writer.writerow(['Total Revenue (Successful)', f"₹ {success_total:.2f}"])
+    writer.writerow(['Total Failed Amount', f"₹ {failed_total:.2f}"])
+    writer.writerow([])
+
+    # Payment Method Breakdown
+    writer.writerow(['PAYMENT METHOD BREAKDOWN (SUCCESSFUL)'])
+    writer.writerow(['Method', 'Count', 'Amount', '% of Total'])
+
+    for method, label in [('cash', 'CASH'), ('upi', 'UPI'), ('card', 'CARD')]:
+        count = count_by_method(successful, method)
+        amount = sum_by_method(successful, method)
+        percentage = (amount / success_total * 100) if success_total > 0 else 0
+        if count > 0:
+            writer.writerow([label, count, f"₹ {amount:.2f}", f"{percentage:.1f}%"])
+
+    writer.writerow([])
+
+    # Failed Transactions Summary
+    writer.writerow(['FAILED TRANSACTIONS SUMMARY'])
+    writer.writerow(['Method', 'Count', 'Amount'])
+    for method, label in [('cash', 'CASH'), ('upi', 'UPI'), ('card', 'CARD')]:
+        count = count_by_method(failed, method)
+        amount = sum_by_method(failed, method)
+        if count > 0:
+            writer.writerow([label, count, f"₹ {amount:.2f}"])
+
+    writer.writerow([])
+
+    # Hourly Distribution
+    writer.writerow(['HOURLY TRANSACTION DISTRIBUTION'])
+    writer.writerow(['Hour', 'Transactions', 'Revenue', 'Avg Transaction'])
+
+    hourly = {}
+    for p in successful:
+        hour = p.created_at.hour
+        if hour not in hourly:
+            hourly[hour] = {'count': 0, 'amount': 0.0}
+        hourly[hour]['count'] += 1
+        hourly[hour]['amount'] += float(p.amount)
+
+    for hour in range(24):
+        if hour in hourly:
+            data = hourly[hour]
+            avg = data['amount'] / data['count'] if data['count'] > 0 else 0
+            writer.writerow([f"{hour:02d}:00-{hour:02d}:59", data['count'], f"₹ {data['amount']:.2f}", f"₹ {avg:.2f}"])
+
+    writer.writerow([])
+
+    # Top 10 Transactions
+    writer.writerow(['TOP 10 TRANSACTIONS'])
+    writer.writerow(['Bill Number', 'Amount', 'Method', 'Time'])
+
+    sorted_payments = sorted(successful, key=lambda p: float(p.amount), reverse=True)[:10]
+    for p in sorted_payments:
+        time_str = p.created_at.strftime("%H:%M:%S")
+        writer.writerow([p.bill_number, f"₹ {float(p.amount):.2f}", p.method.upper(), time_str])
+
+    writer.writerow([])
+
+    # Key Metrics Summary
+    writer.writerow(['KEY METRICS'])
+    writer.writerow(['Metric', 'Value'])
+    avg_transaction = success_total / len(successful) if successful else 0
+    writer.writerow(['Average Transaction Value', f"₹ {avg_transaction:.2f}"])
+    writer.writerow(['Highest Single Transaction', f"₹ {max(float(p.amount) for p in successful):.2f}" if successful else "N/A"])
+    writer.writerow(['Lowest Single Transaction', f"₹ {min(float(p.amount) for p in successful):.2f}" if successful else "N/A"])
+
+    if successful:
+        sorted_amounts = sorted([float(p.amount) for p in successful])
+        median = sorted_amounts[len(sorted_amounts)//2]
+        writer.writerow(['Median Transaction Value', f"₹ {median:.2f}"])
+
+    from fastapi.responses import StreamingResponse
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=payment_report_{date_str}.csv"}
+    )
+
+
 @router.get("/transaction-summary/{date_str}", response_model=SuccessResponse[TransactionSummaryResponse])
 async def get_transaction_summary(
     date_str: str,
