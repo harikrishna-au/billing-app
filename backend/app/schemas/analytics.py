@@ -44,3 +44,52 @@ class MachinePerformance(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PaymentDetail(BaseModel):
+    """Schema for individual payment in summary."""
+    bill_number: str
+    amount: float
+    method: str
+    status: str
+
+
+class TransactionSummaryResponse(BaseModel):
+    """Schema for transaction summary report."""
+    date: str
+    start_time: str
+    end_time: str
+    payments: List[PaymentDetail]
+    successful_count: int
+    successful_amount: float
+    successful_cash: float
+    successful_upi: float
+    successful_card: float
+    failed_count: int
+    failed_amount: float
+    failed_cash: float
+    failed_upi: float
+    failed_card: float
+
+
+class MethodBreakdown(BaseModel):
+    """Schema for payment method breakdown in sales summary."""
+    method: str
+    count: int
+    amount: float
+    failed_count: int = 0
+    failed_amount: float = 0.0
+
+
+class SalesSummaryResponse(BaseModel):
+    """Schema for sales summary report."""
+    date: str
+    start_time: str
+    end_time: str
+    first_bill: str
+    last_bill: str
+    total_count: int
+    total_amount: float
+    by_method: List[MethodBreakdown]
+    failed_upi_amount: float = 0.0
+    failed_card_amount: float = 0.0
