@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/payment_model.dart';
+import '../../../data/repositories/api_analytics_repository.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../../services/smart_pos_printer_service.dart';
+import '../../../core/network/providers.dart';
 import '../orders/create/bill_thermal_print.dart';
 
 class DaySummaryScreen extends ConsumerStatefulWidget {
@@ -67,31 +69,19 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
     try {
-      final payments = ref.read(paymentProvider).payments;
+      final apiClient = ref.read(apiClientProvider);
+      final analytics = ApiAnalyticsRepository(apiClient);
       final config = ref.read(billConfigProvider);
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-      final successList = payments.where((p) => p.isSuccess).toList();
-      final failedList = payments.where((p) => p.isFailed).toList();
+      // Fetch summary from backend
+      final summary = await analytics.getTransactionSummary(dateStr);
 
-      double sum(Iterable<Payment> list) =>
-          list.fold(0.0, (s, p) => s + p.amount);
-
-      final successTotal = sum(successList);
-      final failedTotal = sum(failedList);
-      final successCash = sum(successList.where((p) => p.method == PaymentMethod.cash));
-      final successUpi = sum(successList.where((p) => p.method == PaymentMethod.upi));
-      final successCard = sum(successList.where((p) => p.method == PaymentMethod.card));
-      final failedCash = sum(failedList.where((p) => p.method == PaymentMethod.cash));
-      final failedUpi = sum(failedList.where((p) => p.method == PaymentMethod.upi));
-      final failedCard = sum(failedList.where((p) => p.method == PaymentMethod.card));
-
-      final dateStr = DateFormat('dd-MM-yyyy').format(_selectedDate);
+      String fmt(double v) => v.toStringAsFixed(2);
       final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
       final terminal = (config.unitName != null && config.unitName!.isNotEmpty)
           ? config.unitName!
           : config.orgName;
-
-      String fmt(double v) => v.toStringAsFixed(2);
 
       final lines = <ThermalPrintLine>[];
       void ln(String text, {int size = 18, bool bold = false, int align = 0}) =>
@@ -100,35 +90,32 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       if (config.orgName.isNotEmpty) ln(config.orgName, size: 24, bold: true, align: 1);
       ln('TRANSACTION SUMMARY', size: 20, bold: true, align: 1);
       if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 18, bold: true, align: 1);
-      ln('Sale Date : $dateStr', bold: true);
+      ln('Sale Date : ${DateFormat('dd-MM-yyyy').format(_selectedDate)}', bold: true);
       ln('Term: ${terminal.length > 30 ? terminal.substring(0, 30) : terminal}', bold: true);
       ln('----------------------------------------', align: 1);
       ln('BILL#        AMOUNT  METHOD', bold: true);
       ln('----------------------------------------', align: 1);
 
-      for (final p in payments) {
-        final method = p.method == PaymentMethod.cash
-            ? 'Cash'
-            : p.method == PaymentMethod.upi ? 'UPI' : 'Card';
+      for (final p in summary.payments) {
         final billNum = p.billNumber.length > 12 ? p.billNumber.substring(0, 12) : p.billNumber;
-        ln('${billNum.padRight(12)}${fmt(p.amount).padLeft(8)}  $method', bold: true);
+        ln('${billNum.padRight(12)}${fmt(p.amount).padLeft(8)}  ${p.method}', bold: true);
       }
 
       void stat(String label, String val) =>
           ln('${label.padRight(15)}${val.padLeft(12)}', bold: true);
 
       ln('------------------------', align: 1);
-      stat('SUCC TX', successList.length.toString());
-      stat('SUCC AMT', fmt(successTotal));
-      stat('SUCC CASH', fmt(successCash));
-      stat('SUCC UPI', fmt(successUpi));
-      stat('SUCC CARD', fmt(successCard));
+      stat('SUCC TX', summary.successfulCount.toString());
+      stat('SUCC AMT', fmt(summary.successfulAmount));
+      stat('SUCC CASH', fmt(summary.successfulCash));
+      stat('SUCC UPI', fmt(summary.successfulUpi));
+      stat('SUCC CARD', fmt(summary.successfulCard));
       ln('');
-      stat('FAIL TX', failedList.length.toString());
-      stat('FAIL AMT', fmt(failedTotal));
-      stat('FAIL CASH', fmt(failedCash));
-      stat('FAIL UPI', fmt(failedUpi));
-      stat('FAIL CARD', fmt(failedCard));
+      stat('FAIL TX', summary.failedCount.toString());
+      stat('FAIL AMT', fmt(summary.failedAmount));
+      stat('FAIL CASH', fmt(summary.failedCash));
+      stat('FAIL UPI', fmt(summary.failedUpi));
+      stat('FAIL CARD', fmt(summary.failedCard));
       ln('');
       ln('Prtd: $printedStr');
       ln('\n\n', align: 1);
@@ -156,41 +143,13 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       final payments = ref.read(paymentProvider).payments;
       final config = ref.read(billConfigProvider);
 
-      if (payments.isEmpty) return;
 
-      // Sort by date to get date range and ticket range
-      final sorted = [...payments]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final firstTicket = sorted.first.billNumber;
-      final lastTicket = sorted.last.billNumber;
-      final startingDate = sorted.first.createdAtLocal;
-      final endingDate = sorted.last.createdAtLocal;
-
-      final successList = payments.where((p) => p.isSuccess).toList();
-      final failedList = payments.where((p) => p.isFailed).toList();
-
-      double sum(Iterable<Payment> list) =>
-          list.fold(0.0, (s, p) => s + p.amount);
-
-      // Per-method groups
-      final cashSuccess = successList.where((p) => p.method == PaymentMethod.cash).toList();
-      final upiSuccess  = successList.where((p) => p.method == PaymentMethod.upi).toList();
-      final cardSuccess = successList.where((p) => p.method == PaymentMethod.card).toList();
-      final upiFailedList  = failedList.where((p) => p.method == PaymentMethod.upi).toList();
-      final cardFailedList = failedList.where((p) => p.method == PaymentMethod.card).toList();
-
-      final transTotal  = sum(successList);
-      final cashAmt     = sum(cashSuccess);
-      final upiAmt      = sum(upiSuccess);
-      final cardAmt     = sum(cardSuccess);
-      final failedUpiAmt  = sum(upiFailedList);
-      final failedCardAmt = sum(cardFailedList);
-
-      final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr   = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
-      final startDateStr = DateFormat('dd-MM-yy HH:mm').format(startingDate);
-      final endDateStr   = DateFormat('dd-MM-yy HH:mm').format(endingDate);
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final summary = await ApiAnalyticsRepository(ref.read(apiClientProvider))
+          .getSalesSummary(dateStr);
 
       String fmt(double v) => v.toStringAsFixed(2);
+      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
 
       final lines = <ThermalPrintLine>[];
       void ln(String text, {int size = 18, bool bold = false, int align = 0}) =>
@@ -199,40 +158,37 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
       if (config.orgName.isNotEmpty) ln(config.orgName, size: 24, bold: true, align: 1);
       ln('SALES SUMMARY', size: 20, bold: true, align: 1);
       if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 18, bold: true, align: 1);
-      ln('Date: $dateStr', bold: true);
+      ln('Date: ${DateFormat('dd-MM-yyyy').format(_selectedDate)}', bold: true);
       ln('----------------------------------------', align: 1);
-      ln('Start: $startDateStr', bold: true);
-      ln('End:   $endDateStr', bold: true);
-      ln('Bills: $firstTicket to $lastTicket', bold: true);
+      ln('Start: ${summary.startTime}', bold: true);
+      ln('End:   ${summary.endTime}', bold: true);
+      ln('Bills: ${summary.firstBill} to ${summary.lastBill}', bold: true);
       ln('----------------------------------------', align: 1);
       ln('METHOD        CNT      AMOUNT', bold: true);
       ln('----------------------------------------', align: 1);
 
       void stat(String label, String val) =>
           ln('${label.padRight(18)}${val.padLeft(12)}', bold: true);
-      void block(String label, List<Payment> sg, List<Payment> fg) {
-        final tickets = sg.length + fg.length;
-        if (tickets == 0) return;
-        final total = sum(sg) + sum(fg);
-        ln('${label.padRight(14)}${tickets.toString().padLeft(3)}  ${fmt(total).padLeft(12)}', bold: true);
-        if (fg.isNotEmpty) {
-          ln('  [FAIL] ${fg.length.toString().padLeft(3)}  ${fmt(sum(fg)).padLeft(12)}', bold: true);
+
+      for (final method in summary.byMethod) {
+        final tickets = method.count + method.failedCount;
+        if (tickets == 0) continue;
+        final total = method.amount + method.failedAmount;
+        ln('${method.method.padRight(14)}${tickets.toString().padLeft(3)}  ${fmt(total).padLeft(12)}', bold: true);
+        if (method.failedCount > 0) {
+          ln('  [FAIL] ${method.failedCount.toString().padLeft(3)}  ${fmt(method.failedAmount).padLeft(12)}', bold: true);
         }
       }
 
-      block('CASH', cashSuccess, []);
-      block('UPI',  upiSuccess,  upiFailedList);
-      block('CARD', cardSuccess, cardFailedList);
-
       ln('----------------------------------------', align: 1);
-      stat('TOTAL', fmt(transTotal));
-      stat('CASH', fmt(cashAmt));
-      stat('UPI', fmt(upiAmt));
-      stat('CARD', fmt(cardAmt));
-      if (failedUpiAmt > 0) stat('FAIL UPI', fmt(failedUpiAmt));
-      if (failedCardAmt > 0) stat('FAIL CARD', fmt(failedCardAmt));
+      stat('TOTAL', fmt(summary.totalAmount));
+      for (final method in summary.byMethod) {
+        stat(method.method, fmt(method.amount));
+      }
+      if (summary.failedUpiAmount > 0) stat('FAIL UPI', fmt(summary.failedUpiAmount));
+      if (summary.failedCardAmount > 0) stat('FAIL CARD', fmt(summary.failedCardAmount));
       ln('----------------------------------------', align: 1);
-      ln('FINAL TOTAL: ${fmt(transTotal).padLeft(13)}', size: 22, bold: true);
+      ln('FINAL TOTAL: ${fmt(summary.totalAmount).padLeft(13)}', size: 22, bold: true);
       ln('');
       ln('Printed: $printedStr', size: 16);
 
