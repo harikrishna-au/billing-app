@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import '../../../config/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/payment_model.dart';
+import '../../../data/repositories/api_analytics_repository.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/bill_config_provider.dart';
 import '../../widgets/shimmer_loader.dart';
 import '../../widgets/app_error_widget.dart';
 import '../../../services/smart_pos_printer_service.dart';
+import '../../../core/network/providers.dart';
 import 'create/bill_thermal_print.dart';
 import 'widgets/payment_card.dart';
 
@@ -138,26 +140,17 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     if (_isPrinting) return;
     setState(() => _isPrinting = true);
     try {
-      final payments = ref.read(paymentProvider).payments;
+      final apiClient = ref.read(apiClientProvider);
+      final analytics = ApiAnalyticsRepository(apiClient);
       final config = ref.read(billConfigProvider);
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-      final successList = payments.where((p) => p.isSuccess).toList();
-      final failedList  = payments.where((p) => p.isFailed).toList();
-      double sum(Iterable<Payment> l) => l.fold(0.0, (s, p) => s + p.amount);
+      // Fetch summary from backend
+      final summary = await analytics.getTransactionSummary(dateStr);
 
-      final successTotal = sum(successList);
-      final failedTotal  = sum(failedList);
-      final successCash  = sum(successList.where((p) => p.method == PaymentMethod.cash));
-      final successUpi   = sum(successList.where((p) => p.method == PaymentMethod.upi));
-      final successCard  = sum(successList.where((p) => p.method == PaymentMethod.card));
-      final failedCash   = sum(failedList.where((p) => p.method == PaymentMethod.cash));
-      final failedUpi    = sum(failedList.where((p) => p.method == PaymentMethod.upi));
-      final failedCard   = sum(failedList.where((p) => p.method == PaymentMethod.card));
-
-      final dateStr    = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
-      final terminal   = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
       String fmt(double v) => v.toStringAsFixed(2);
+      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
+      final terminal = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
 
       final lines = <ThermalPrintLine>[];
       void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
@@ -166,33 +159,32 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
       ln('TRANSACTION SUMMARY', size: 22, bold: true, align: 1);
       if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
-      ln('Sale Date : $dateStr');
+      ln('Sale Date : ${DateFormat('dd-MM-yyyy').format(_selectedDate)}');
       ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
       ln('------------------------', align: 1);
       ln('BILL         AMOUNT', bold: true);
       ln('------------------------', align: 1);
 
-      for (final p in payments) {
+      for (final p in summary.payments) {
         ln(p.billNumber);
-        final m = p.method == PaymentMethod.cash ? 'Cash' : p.method == PaymentMethod.upi ? 'UPI' : 'Card';
-        ln('  ${m.padRight(5)}${fmt(p.amount).padLeft(15)}');
+        ln('  ${p.method.padRight(5)}${fmt(p.amount).padLeft(15)}');
       }
 
       void stat(String label, String val) =>
           ln('${label.padRight(13)}:${val.padLeft(10)}');
 
       ln('------------------------', align: 1);
-      stat('SUCC TX', successList.length.toString());
-      stat('SUCC AMT', fmt(successTotal));
-      stat('SUCC CASH', fmt(successCash));
-      stat('SUCC UPI', fmt(successUpi));
-      stat('SUCC CARD', fmt(successCard));
+      stat('SUCC TX', summary.successfulCount.toString());
+      stat('SUCC AMT', fmt(summary.successfulAmount));
+      stat('SUCC CASH', fmt(summary.successfulCash));
+      stat('SUCC UPI', fmt(summary.successfulUpi));
+      stat('SUCC CARD', fmt(summary.successfulCard));
       ln('');
-      stat('FAIL TX', failedList.length.toString());
-      stat('FAIL AMT', fmt(failedTotal));
-      stat('FAIL CASH', fmt(failedCash));
-      stat('FAIL UPI', fmt(failedUpi));
-      stat('FAIL CARD', fmt(failedCard));
+      stat('FAIL TX', summary.failedCount.toString());
+      stat('FAIL AMT', fmt(summary.failedAmount));
+      stat('FAIL CASH', fmt(summary.failedCash));
+      stat('FAIL UPI', fmt(summary.failedUpi));
+      stat('FAIL CARD', fmt(summary.failedCard));
       ln('');
       ln('Prtd: $printedStr');
       ln('\n\n', align: 1);
@@ -213,34 +205,17 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     if (_isPrinting) return;
     setState(() => _isPrinting = true);
     try {
-      final payments = ref.read(paymentProvider).payments;
-      final config   = ref.read(billConfigProvider);
-      if (payments.isEmpty) return;
+      final apiClient = ref.read(apiClientProvider);
+      final analytics = ApiAnalyticsRepository(apiClient);
+      final config = ref.read(billConfigProvider);
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-      final sorted = [...payments]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final successList    = payments.where((p) => p.isSuccess).toList();
-      final failedList     = payments.where((p) => p.isFailed).toList();
-      double sum(Iterable<Payment> l) => l.fold(0.0, (s, p) => s + p.amount);
+      // Fetch summary from backend
+      final summary = await analytics.getSalesSummary(dateStr);
 
-      final cashSuccess    = successList.where((p) => p.method == PaymentMethod.cash).toList();
-      final upiSuccess     = successList.where((p) => p.method == PaymentMethod.upi).toList();
-      final cardSuccess    = successList.where((p) => p.method == PaymentMethod.card).toList();
-      final upiFailedList  = failedList.where((p) => p.method == PaymentMethod.upi).toList();
-      final cardFailedList = failedList.where((p) => p.method == PaymentMethod.card).toList();
-
-      final transTotal  = sum(successList);
-      final cashAmt     = sum(cashSuccess);
-      final upiAmt      = sum(upiSuccess);
-      final cardAmt     = sum(cardSuccess);
-      final failUpiAmt  = sum(upiFailedList);
-      final failCardAmt = sum(cardFailedList);
-
-      final dateStr      = DateFormat('dd-MM-yyyy').format(_selectedDate);
-      final printedStr   = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
-      final startDateStr = DateFormat('dd-MM-yy HH:mm').format(sorted.first.createdAtLocal);
-      final endDateStr   = DateFormat('dd-MM-yy HH:mm').format(sorted.last.createdAtLocal);
-      final terminal     = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
       String fmt(double v) => v.toStringAsFixed(2);
+      final printedStr = DateFormat('dd-MM-yy HH:mm').format(DateTime.now());
+      final terminal = (config.unitName?.isNotEmpty == true) ? config.unitName! : config.orgName;
 
       final lines = <ThermalPrintLine>[];
       void ln(String text, {int size = 20, bool bold = false, int align = 0}) =>
@@ -249,45 +224,42 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       if (config.orgName.isNotEmpty) ln(config.orgName, size: 26, bold: true, align: 1);
       ln('SALES SUMMARY', size: 22, bold: true, align: 1);
       if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
-      ln('Sale Date  : $dateStr');
+      ln('Sale Date  : ${DateFormat('dd-MM-yyyy').format(_selectedDate)}');
       ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
       ln('');
-      ln('Start: $startDateStr');
-      ln('End:   $endDateStr');
+      ln('Start: ${summary.startTime}');
+      ln('End:   ${summary.endTime}');
       ln('');
-      ln('From: ${sorted.first.billNumber}');
-      ln('To:   ${sorted.last.billNumber}');
+      ln('From: ${summary.firstBill}');
+      ln('To:   ${summary.lastBill}');
       ln('');
       ln('ITEM  CNT    AMOUNT', bold: true);
       ln('------------------------', align: 1);
 
       void stat(String label, String val) =>
           ln('${label.padRight(13)}:${val.padLeft(10)}');
-      void block(String label, List<Payment> sg, List<Payment> fg) {
-        final tickets = sg.length + fg.length;
-        if (tickets == 0) return;
-        final total = sum(sg) + sum(fg);
-        ln('${label.padRight(5)} ${tickets.toString().padLeft(3)} ${fmt(total).padLeft(11)}');
-        if (fg.isNotEmpty) {
-          ln('  FAIL ${fg.length.toString().padLeft(3)} ${fmt(sum(fg)).padLeft(11)}');
+
+      for (final method in summary.byMethod) {
+        final tickets = method.count + method.failedCount;
+        if (tickets == 0) continue;
+        final total = method.amount + method.failedAmount;
+        ln('${method.method.padRight(5)} ${tickets.toString().padLeft(3)} ${fmt(total).padLeft(11)}');
+        if (method.failedCount > 0) {
+          ln('  FAIL ${method.failedCount.toString().padLeft(3)} ${fmt(method.failedAmount).padLeft(11)}');
         }
         ln('');
       }
 
-      block('CASH', cashSuccess, []);
-      block('UPI',  upiSuccess,  upiFailedList);
-      block('CARD', cardSuccess, cardFailedList);
-
       ln('------------------------', align: 1);
-      stat('TRANS AMT', fmt(transTotal));
+      stat('TRANS AMT', fmt(summary.totalAmount));
       ln('');
-      stat('CASH AMT', fmt(cashAmt));
-      stat('SUCC UPI AMT', fmt(upiAmt));
-      stat('SUCC CARD AMT', fmt(cardAmt));
-      stat('FAIL UPI AMT', fmt(failUpiAmt));
-      stat('FAIL CARD AMT', fmt(failCardAmt));
+      for (final method in summary.byMethod) {
+        stat('${method.method} AMT', fmt(method.amount));
+      }
+      if (summary.failedUpiAmount > 0) stat('FAIL UPI AMT', fmt(summary.failedUpiAmount));
+      if (summary.failedCardAmount > 0) stat('FAIL CARD AMT', fmt(summary.failedCardAmount));
       ln('------------------------', align: 1);
-      ln('FINAL AMT    :${fmt(transTotal).padLeft(10)}', size: 22, bold: true);
+      ln('FINAL AMT    :${fmt(summary.totalAmount).padLeft(10)}', size: 22, bold: true);
       ln('');
       ln('Prtd: $printedStr');
       ln('\n\n', align: 1);
