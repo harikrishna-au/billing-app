@@ -43,6 +43,9 @@ String _formatTime(DateTime dt) =>
     '${dt.minute.toString().padLeft(2, '0')}:'
     '${dt.second.toString().padLeft(2, '0')}';
 
+String _formatDateTime(DateTime dt) =>
+    '${_formatDate(dt)} ${_formatTime(dt)}';
+
 /// Label left, value right, total [_kLineW] chars.
 String _summaryRow(String label, String value) {
   final space = _kLineW - label.length - value.length;
@@ -120,19 +123,16 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayOrgName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayOrgName, size: settings.bodySize, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayOrgName, size: settings.headerSize, bold: true, align: _kAlignCenter));
   }
   out.add(_ThermalLine(text: 'INVOICE', size: settings.headerSize, bold: true, align: _kAlignCenter));
-  out.add(const _ThermalLine(text: _kDash));
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
+  out.add(_ThermalLine(text: 'Bill # $billNumber', size: settings.bodySize, bold: true));
+  out.add(_ThermalLine(text: 'Date & Time : ${_formatDateTime(dateTime)}', size: settings.bodySize));
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: 'GSTIN : $gstin', size: settings.bodySize));
   }
-  out.add(_ThermalLine(text: 'Bill No : $billNumber', size: settings.bodySize));
-  final dateStr = _formatDate(dateTime);
-  final timeStr = _formatTime(dateTime);
-  out.add(_ThermalLine(text: 'Date & Time : $dateStr $timeStr', size: settings.bodySize));
   out.add(const _ThermalLine(text: _kDash));
 
   // ── Items ──────────────────────────────────────────────────────────────────
@@ -187,16 +187,13 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Header ──────────────────────────────────────────────────────────────────
   if (orgName.isNotEmpty) {
     final displayOrgName = orgName.length > _kLineW ? orgName.substring(0, _kLineW) : orgName;
-    out.add(_ThermalLine(text: displayOrgName, size: settings.bodySize, bold: true, align: _kAlignCenter));
+    out.add(_ThermalLine(text: displayOrgName, size: settings.headerSize, bold: true, align: _kAlignCenter));
   }
   out.add(_ThermalLine(text: 'TICKET', size: settings.headerSize, bold: true, align: _kAlignCenter));
-  out.add(const _ThermalLine(text: _kDash));
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
-  out.add(_ThermalLine(text: 'Bill No : $billNumber', size: settings.bodySize));
-  final dateStr = _formatDate(dateTime);
-  final timeStr = _formatTime(dateTime);
-  out.add(_ThermalLine(text: 'Date & Time : $dateStr $timeStr', size: settings.bodySize));
+  out.add(_ThermalLine(text: 'Bill # $billNumber', size: settings.bodySize, bold: true));
+  out.add(_ThermalLine(text: 'Date & Time : ${_formatDateTime(dateTime)}', size: settings.bodySize));
   out.add(const _ThermalLine(text: _kDash));
 
   // ── Items ──────────────────────────────────────────────────────────────────
@@ -366,7 +363,7 @@ Future<void> printBillThermalInvoiceAndTicket({
 
   // Dotted separator line between invoice and ticket
   const separatorLines = [
-    _ThermalLine(text: '........................', align: _kAlignCenter),
+    _ThermalLine(text: '.........................'),
   ];
 
   onDebug?.call('Plutus disabled — using SmartPOS fallback');
