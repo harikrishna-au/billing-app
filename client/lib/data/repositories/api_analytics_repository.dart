@@ -171,7 +171,7 @@ class ApiAnalyticsRepository {
   Future<SalesSummary> getSalesSummary(String dateStr) async {
     try {
       final response = await _apiClient.get(
-        '${ApiConstants.baseUrl}/api/v1/analytics/sales-summary/$dateStr',
+        '/analytics/sales-summary/$dateStr',
       );
 
       if (response.statusCode == 200) {
