@@ -130,7 +130,7 @@ List<_ThermalLine> _buildInvoiceSlip({
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: 'Bill # $billNumber', size: settings.bodySize, bold: true));
-  out.add(_ThermalLine(text: 'Date & Time : ${_formatDateTime(dateTime)}', size: settings.bodySize));
+  out.add(_ThermalLine(text: _formatDateTime(dateTime), size: settings.bodySize));
   if (gstin != null && gstin.isNotEmpty) {
     out.add(_ThermalLine(text: 'GSTIN : $gstin', size: settings.bodySize));
   }
@@ -198,7 +198,7 @@ List<_ThermalLine> _buildTicketSlip({
 
   // ── Bill metadata ─────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: 'Bill # $billNumber', size: settings.bodySize, bold: true));
-  out.add(_ThermalLine(text: 'Date & Time : ${_formatDateTime(dateTime)}', size: settings.bodySize));
+  out.add(_ThermalLine(text: _formatDateTime(dateTime), size: settings.bodySize));
   out.add(const _ThermalLine(text: _kDash));
 
   // ── Items ──────────────────────────────────────────────────────────────────
