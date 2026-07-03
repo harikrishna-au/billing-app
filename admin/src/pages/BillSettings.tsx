@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ArrowLeft, Save, Loader2, FileText, Building2, Receipt, Phone } from "lucide-react";
+import { ArrowLeft, Save, Loader2, FileText, Building2, Receipt, Phone, Hash } from "lucide-react";
 import { configApi, machinesApi } from "@/lib/api";
 import type { BillConfigUpdate } from "@/lib/api";
 
@@ -145,13 +145,19 @@ export default function BillSettings() {
   const qc = useQueryClient();
 
   const [form, setForm] = useState<BillConfigUpdate>(EMPTY_FORM);
+  const [billCounter, setBillCounter] = useState<string>("");
 
-  // Fetch machine name for breadcrumb
+  // Fetch machine name for breadcrumb (also carries bill_counter)
   const { data: machine } = useQuery({
     queryKey: ["machine", machineId],
     queryFn: () => machinesApi.getById(machineId!),
     enabled: !!machineId,
   });
+
+  // Populate bill counter when machine loads
+  useEffect(() => {
+    if (machine) setBillCounter(String(machine.bill_counter ?? 0));
+  }, [machine]);
 
   // Fetch existing config
   const { data: config, isLoading } = useQuery({
@@ -180,11 +186,18 @@ export default function BillSettings() {
     }
   }, [config]);
 
-  // Save mutation
+  // Save mutation — bill config plus the machine's bill counter when changed
   const saveMutation = useMutation({
-    mutationFn: () => configApi.upsert(machineId!, form),
+    mutationFn: async () => {
+      await configApi.upsert(machineId!, form);
+      const counter = parseInt(billCounter, 10);
+      if (!Number.isNaN(counter) && counter >= 0 && counter !== (machine?.bill_counter ?? 0)) {
+        await machinesApi.update(machineId!, { bill_counter: counter });
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bill-config", machineId] });
+      qc.invalidateQueries({ queryKey: ["machine", machineId] });
       toast({ title: "Saved", description: "Bill configuration updated successfully." });
     },
     onError: (err: any) => {
@@ -319,6 +332,25 @@ export default function BillSettings() {
                 value={form.pos_id ?? ""}
                 onChange={set("pos_id")}
               />
+            </Section>
+
+            {/* Bill sequence */}
+            <Section icon={Hash} title="Bill Sequence">
+              <div className="space-y-1.5">
+                <Label htmlFor="bill_counter">Bill counter (last used number)</Label>
+                <Input
+                  id="bill_counter"
+                  type="number"
+                  min={0}
+                  value={billCounter}
+                  onChange={(e) => setBillCounter(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  The next bill prints as this + 1 (with the POS ID as prefix).
+                  Set 0 to restart from 1. Never set it below a bill number
+                  that has already been used on this machine.
+                </p>
+              </div>
             </Section>
 
             {/* Tax */}
