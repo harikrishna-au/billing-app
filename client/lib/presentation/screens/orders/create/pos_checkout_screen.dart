@@ -187,8 +187,11 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       overlayMustClear = true;
 
       final billConfig = ref.read(billConfigProvider);
-      final billNumberGen = ref.read(billNumberServiceProvider);
-      final billNumber = billNumberGen.generatePreview(posId: billConfig.posId);
+      // Server-issued bill number — reserved atomically before charging so the
+      // Plutus billingRefNo and the recorded payment always carry it.
+      final billNumber = await ref
+          .read(paymentProvider.notifier)
+          .acquireBillNumber(posId: billConfig.posId);
 
       if (!PlutusConfig.isConfigured) {
         throw Exception('Plutus ApplicationId not configured');
@@ -230,16 +233,10 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'UPI transaction not approved');
       }
 
-      // Lock bill number before touching the backend — Plutus already debited
-      // the customer. Record the CONFIRMED number: it is the one actually
-      // consumed from the sequence (the preview can go stale if the counter
-      // moved during the transaction window).
-      final confirmedBill =
-          await billNumberGen.confirmBillNumber(posId: billConfig.posId);
-
+      // Bill number was already reserved on the server before the charge.
       final payment = Payment(
         id: '',
-        billNumber: confirmedBill,
+        billNumber: billNumber,
         amount: total,
         method: PaymentMethod.upi,
         status: PaymentStatus.success,
@@ -294,7 +291,7 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
           provider: container,
-          billNumber: confirmedBill,
+          billNumber: billNumber,
           total: total,
           date: created.createdAt,
           cartState: savedCart,
@@ -324,8 +321,11 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       overlayMustClear = true;
 
       final billConfig = ref.read(billConfigProvider);
-      final billNumberGen = ref.read(billNumberServiceProvider);
-      final billNumber = billNumberGen.generatePreview(posId: billConfig.posId);
+      // Server-issued bill number — reserved atomically before charging so the
+      // Plutus billingRefNo and the recorded payment always carry it.
+      final billNumber = await ref
+          .read(paymentProvider.notifier)
+          .acquireBillNumber(posId: billConfig.posId);
 
       if (!PlutusConfig.isConfigured) {
         throw Exception('Plutus ApplicationId not configured');
@@ -347,16 +347,10 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'Card transaction declined');
       }
 
-      // Lock bill number before touching the backend — Plutus already debited
-      // the customer. Record the CONFIRMED number: it is the one actually
-      // consumed from the sequence (the preview can go stale if the counter
-      // moved during the transaction window).
-      final confirmedBill =
-          await billNumberGen.confirmBillNumber(posId: billConfig.posId);
-
+      // Bill number was already reserved on the server before the charge.
       final payment = Payment(
         id: '',
-        billNumber: confirmedBill,
+        billNumber: billNumber,
         amount: total,
         method: PaymentMethod.card,
         status: PaymentStatus.success,
@@ -411,7 +405,7 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
           provider: container,
-          billNumber: confirmedBill,
+          billNumber: billNumber,
           total: total,
           date: created.createdAt,
           cartState: savedCart,
@@ -528,9 +522,10 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
 
       final billConfig = ref.read(billConfigProvider);
 
-      final billNumberGen = ref.read(billNumberServiceProvider);
-      // Cashier confirmed receipt — lock the bill number immediately.
-      final billNumber = await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+      // Cashier confirmed receipt — reserve the bill number from the server.
+      final billNumber = await ref
+          .read(paymentProvider.notifier)
+          .acquireBillNumber(posId: billConfig.posId);
 
       final savedCart = ref.read(cartProvider);
 

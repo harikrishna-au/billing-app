@@ -54,8 +54,10 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
 
     try {
       final billConfig = ref.read(billConfigProvider);
-      final billGen   = ref.read(billNumberServiceProvider);
-      final billNumber = billGen.generatePreview(posId: billConfig.posId);
+      // Server-issued bill number — reserved atomically before charging.
+      final billNumber = await ref
+          .read(paymentProvider.notifier)
+          .acquireBillNumber(posId: billConfig.posId);
 
       final paise = (widget.amount * 100).round();
 
@@ -105,13 +107,7 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
     _done = true;
 
     try {
-      final billConfig = ref.read(billConfigProvider);
-      final billGen   = ref.read(billNumberServiceProvider);
-
-      // Lock the bill number first — the card is already charged, so this
-      // number is consumed no matter what the backend says.
-      await billGen.confirmBillNumber(posId: billConfig.posId);
-
+      // Bill number was already reserved on the server before the charge.
       final payment = Payment(
         id:         '',
         billNumber: billNumber,

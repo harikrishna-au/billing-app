@@ -26,6 +26,19 @@ class PaymentCreate(BaseModel):
         return v.capitalize()
 
 
+class BillNumberReserveRequest(BaseModel):
+    """Schema for reserving the next bill number from the server."""
+    machine_id: str = Field(..., description="Machine UUID")
+    posid: Optional[str] = Field(None, max_length=50, description="POS ID prefix, e.g. WSSBI")
+
+
+class BillNumberReserveResponse(BaseModel):
+    """Schema for a server-issued bill number reservation."""
+    bill_number: str
+    number: int
+    posid: str
+
+
 class PaymentUpdate(BaseModel):
     """Schema for updating an existing payment."""
     bill_number: Optional[str] = Field(None, min_length=1, max_length=100)

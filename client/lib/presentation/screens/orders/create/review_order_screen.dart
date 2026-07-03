@@ -52,12 +52,11 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
     try {
       final total = cartState.totalAmount;
       final billConfig = ref.read(billConfigProvider);
-      final billGen = ref.read(billNumberServiceProvider);
 
-      // Cashier confirmed receipt — lock the bill number immediately so a
-      // failure after this point can never reuse it for the next sale.
-      final billNumber =
-          await billGen.confirmBillNumber(posId: billConfig.posId);
+      // Cashier confirmed receipt — reserve the bill number from the server.
+      final billNumber = await ref
+          .read(paymentProvider.notifier)
+          .acquireBillNumber(posId: billConfig.posId);
 
       final payment = Payment(
         id: '',
