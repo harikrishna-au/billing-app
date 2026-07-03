@@ -19,6 +19,8 @@ export interface MachineUpdate {
     status?: 'online' | 'offline' | 'maintenance';
     upi_id?: string;
     location_id?: string;
+    /** Last used bill number — next bill prints as this + 1 */
+    bill_counter?: number;
 }
 
 export interface Machine {
@@ -32,6 +34,7 @@ export interface Machine {
     last_sync: string | null;
     online_collection: number;
     offline_collection: number;
+    bill_counter?: number;
     created_at: string;
     updated_at: string;
 }

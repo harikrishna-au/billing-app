@@ -38,7 +38,7 @@ const Clients = () => {
     password: ""
   });
   const [editingMachine, setEditingMachine] = useState<MachineType | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", password: "" });
+  const [editForm, setEditForm] = useState({ name: "", location: "", location_id: "", password: "", bill_counter: "" });
   const [upiRequestMachine, setUpiRequestMachine] = useState<MachineType | null>(null);
   const [newUpiId, setNewUpiId] = useState("");
 
@@ -191,6 +191,7 @@ const Clients = () => {
       location: machine.location,
       location_id: machine.location_id ?? "",
       password: "",
+      bill_counter: String(machine.bill_counter ?? 0),
     });
     setEditingMachine(machine);
   };
@@ -204,6 +205,10 @@ const Clients = () => {
       location_id: editForm.location_id || undefined,
     };
     if (editForm.password) data.password = editForm.password;
+    const counter = parseInt(editForm.bill_counter, 10);
+    if (!Number.isNaN(counter) && counter >= 0 && counter !== (editingMachine.bill_counter ?? 0)) {
+      data.bill_counter = counter;
+    }
     updateMutation.mutate({ id: editingMachine.id, data });
   };
 
@@ -405,6 +410,21 @@ const Clients = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   UPI changes require superadmin approval.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="edit-bill-counter">Bill Counter (last used number)</Label>
+                <Input
+                  id="edit-bill-counter"
+                  type="number"
+                  min={0}
+                  value={editForm.bill_counter}
+                  onChange={(e) => setEditForm({ ...editForm, bill_counter: e.target.value })}
+                  className="bg-secondary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  The next bill prints as this + 1. Set 0 to restart the sequence from 1.
+                  Don't set it below an already-used bill number.
                 </p>
               </div>
               <Separator />

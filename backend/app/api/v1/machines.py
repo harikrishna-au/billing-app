@@ -102,6 +102,7 @@ async def create_machine(
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
+            bill_counter=machine.bill_counter or 0,
             created_at=machine.created_at,
             updated_at=machine.updated_at
         )
@@ -192,6 +193,7 @@ async def get_machines(
             last_sync=m.last_sync,
             online_collection=online_map.get(str(m.id), 0.0),
             offline_collection=offline_map.get(str(m.id), 0.0),
+            bill_counter=m.bill_counter or 0,
             created_at=m.created_at,
             updated_at=m.updated_at
         )
@@ -268,6 +270,7 @@ async def get_machine(
             last_sync=machine.last_sync,
             online_collection=float(online_total),
             offline_collection=float(offline_total),
+            bill_counter=machine.bill_counter or 0,
             created_at=machine.created_at,
             updated_at=machine.updated_at
         )
@@ -338,6 +341,11 @@ async def update_machine(
     if machine_data.location_id is not None:
         machine.location_id = machine_data.location_id or None
 
+    if machine_data.bill_counter is not None:
+        # Admin knob for the bill sequence: last used number, next bill is +1.
+        # The reserve endpoint detects the change and re-seeds automatically.
+        machine.bill_counter = machine_data.bill_counter
+
     new_status = machine_data.status
     if new_status is not None:
         machine.status = new_status
@@ -380,6 +388,7 @@ async def update_machine(
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
+            bill_counter=machine.bill_counter or 0,
             created_at=machine.created_at,
             updated_at=machine.updated_at
         )
@@ -457,6 +466,7 @@ async def update_machine_status(
             last_sync=machine.last_sync,
             online_collection=float(machine.online_collection),
             offline_collection=float(machine.offline_collection),
+            bill_counter=machine.bill_counter or 0,
             created_at=machine.created_at,
             updated_at=machine.updated_at
         )
