@@ -621,26 +621,21 @@ async def get_sales_summary(
     failed_upi_total = sum_by_method(failed, 'upi')
     failed_card_total = sum_by_method(failed, 'card')
 
-    # Build method breakdown
+    # Build method breakdown — always include all three methods so the
+    # printed report shows 0.00 rows instead of dropping them.
     methods = ['cash', 'upi', 'card']
     method_breakdown = []
 
     for method in methods:
-        success_count = count_by_method(successful, method)
-        success_amount = sum_by_method(successful, method)
-        fail_count = count_by_method(failed, method)
-        fail_amount = sum_by_method(failed, method)
-
-        if success_count > 0 or fail_count > 0:
-            method_breakdown.append(
-                MethodBreakdown(
-                    method=method.upper(),
-                    count=success_count,
-                    amount=success_amount,
-                    failed_count=fail_count,
-                    failed_amount=fail_amount
-                )
+        method_breakdown.append(
+            MethodBreakdown(
+                method=method.upper(),
+                count=count_by_method(successful, method),
+                amount=sum_by_method(successful, method),
+                failed_count=count_by_method(failed, method),
+                failed_amount=sum_by_method(failed, method)
             )
+        )
 
     return {
         "success": True,
