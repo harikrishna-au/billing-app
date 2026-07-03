@@ -24,6 +24,10 @@ class MachineUpdate(BaseModel):
     status: Optional[str] = Field(None, pattern="^(online|offline|maintenance)$")
     upi_id: Optional[str] = Field(None, max_length=255, description="UPI ID for QR payment (e.g. merchant@upi)")
     location_id: Optional[str] = Field(None, description="Location UUID to associate with")
+    bill_counter: Optional[int] = Field(
+        None, ge=0,
+        description="Last used bill number — next bill is this + 1. Set to reset/continue the sequence."
+    )
 
 
 class MachineResponse(BaseModel):
@@ -39,6 +43,7 @@ class MachineResponse(BaseModel):
     last_sync: Optional[datetime]
     online_collection: float
     offline_collection: float
+    bill_counter: int = 0
     created_at: datetime
     updated_at: datetime
 
