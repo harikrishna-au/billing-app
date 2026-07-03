@@ -214,6 +214,50 @@ class PaymentController extends StateNotifier<PaymentState> {
     await syncQueuedTicketsNow();
   }
 
+  /// Get the next bill number. The SERVER owns the sequence: this reserves
+  /// the next number atomically via POST /payments/reserve-bill-number, so
+  /// numbers can never collide across devices, reinstalls, or stale caches.
+  ///
+  /// Any queued offline tickets are flushed first so the server counter is
+  /// current before it issues a number. Only when the server is unreachable
+  /// does this fall back to the local mirror counter (offline sales), which
+  /// is kept in step with every server reservation.
+  Future<String> acquireBillNumber({String? posId}) async {
+    final billGen = ref.read(billNumberServiceProvider);
+    final user = ref.read(authProvider).user;
+
+    if (user != null) {
+      // Server must know about offline sales before issuing the next number.
+      await syncQueuedTicketsNow();
+
+      try {
+        final response = await ref.read(apiClientProvider).post(
+          '${ApiConstants.payments}/reserve-bill-number',
+          data: {
+            'machine_id': user.id,
+            'posid': (posId ?? '').trim(),
+          },
+        );
+        final data = response.data['data'] as Map<String, dynamic>?;
+        final number = data?['number'] as int?;
+        final billNumber = data?['bill_number'] as String?;
+        if (number != null && billNumber != null) {
+          // Keep the local mirror at the server's last-used number, but never
+          // move it backwards past locally issued (still unsynced) numbers.
+          if (number > billGen.currentCounter) {
+            await billGen.setCounter(number);
+            return billNumber;
+          }
+          // Server behind local — unsynced offline sales exist; stay local.
+        }
+      } catch (_) {
+        // Server unreachable — fall through to the local mirror.
+      }
+    }
+
+    return billGen.confirmBillNumber(posId: posId);
+  }
+
   /// Manual or periodic sync: uploads queued offline tickets, updates bill counter on success.
   Future<QueuedTicketsSyncResult> syncQueuedTicketsNow() async {
     final queue = ref.read(syncQueueServiceProvider);

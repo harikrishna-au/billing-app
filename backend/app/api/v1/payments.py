@@ -12,8 +12,9 @@ from app.models.payment import Payment
 from app.models.bill_counter import BillCounter
 from app.dependencies import get_current_user, assert_machine_owns
 from app.schemas.payment import (
-    PaymentCreate, PaymentUpdate, PaymentResponse, 
-    PaymentWithMachineResponse, PaymentSummary, PaymentListResponse
+    PaymentCreate, PaymentUpdate, PaymentResponse,
+    PaymentWithMachineResponse, PaymentSummary, PaymentListResponse,
+    BillNumberReserveRequest, BillNumberReserveResponse
 )
 from app.schemas.common import SuccessResponse, MessageResponse
 
@@ -333,6 +334,74 @@ def _normalize_bill_number(bill_number: str) -> str:
     import re
     m = re.match(r'^(.+/)0*(\d+)$', bill_number)
     return f"{m.group(1)}{m.group(2)}" if m else bill_number
+
+
+@router.post("/payments/reserve-bill-number", response_model=SuccessResponse[BillNumberReserveResponse])
+async def reserve_bill_number(
+    request: BillNumberReserveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Atomically reserve the next bill number for a machine.
+
+    The server is the single source of truth for the sequence: the client
+    calls this BEFORE billing, gets e.g. WSSBI/678, charges the customer,
+    then records the payment via POST /payments with that number.
+    A reserved number that is never used (declined card) stays as a gap —
+    it is never re-issued, so numbers can never collide across devices,
+    reinstalls, or stale local caches.
+    """
+    assert_machine_owns(current_user, str(request.machine_id))
+
+    machine = db.query(Machine).filter(Machine.id == request.machine_id).first()
+    if not machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Machine not found"
+        )
+
+    posid = (request.posid or '').strip() or 'BILL'
+
+    # Row lock so two devices reserving concurrently get distinct numbers.
+    # (FOR UPDATE on Postgres; SQLite serializes writes anyway.)
+    counter = db.query(BillCounter).filter(
+        BillCounter.machine_id == request.machine_id,
+        BillCounter.posid == posid,
+    ).with_for_update().first()
+
+    if not counter:
+        # First reservation for this machine/POSID — continue from the
+        # machine's global last-used number so the sequence never restarts.
+        counter = BillCounter(
+            machine_id=request.machine_id,
+            posid=posid,
+            next_number=(machine.bill_counter or 0) + 1
+        )
+        db.add(counter)
+
+    number = counter.next_number
+    counter.next_number = number + 1
+    # machines.bill_counter keeps LAST USED semantics (login recovery).
+    machine.bill_counter = max(machine.bill_counter or 0, number)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reserve bill number: {str(e)}"
+        )
+
+    return {
+        "success": True,
+        "data": BillNumberReserveResponse(
+            bill_number=f"{posid}/{number}",
+            number=number,
+            posid=posid
+        )
+    }
 
 
 @router.post("/payments", response_model=SuccessResponse[PaymentResponse], status_code=status.HTTP_201_CREATED)
