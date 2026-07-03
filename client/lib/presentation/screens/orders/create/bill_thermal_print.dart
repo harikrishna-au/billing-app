@@ -163,6 +163,11 @@ List<_ThermalLine> _buildInvoiceSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
 
+  // ── End spacing (.5cm) ─────────────────────────────────────────────────────
+  for (int i = 0; i < 5; i++) {
+    out.add(const _ThermalLine(text: ''));
+  }
+
   return out;
 }
 
@@ -215,6 +220,11 @@ List<_ThermalLine> _buildTicketSlip({
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
+
+  // ── End spacing (.5cm) ─────────────────────────────────────────────────────
+  for (int i = 0; i < 5; i++) {
+    out.add(const _ThermalLine(text: ''));
+  }
 
   return out;
 }
