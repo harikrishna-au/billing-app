@@ -436,8 +436,10 @@ async def create_payment(
         db.add(payment)
         db.commit()
         db.refresh(payment)
-        # Sync machines.bill_counter so app reads correct value on next login
-        machine.bill_counter = counter.next_number
+        # Sync machines.bill_counter so app reads correct value on next login.
+        # Semantics: LAST USED number (client generates next = counter + 1),
+        # matching what /sync/push stores and what machine-login returns.
+        machine.bill_counter = max(machine.bill_counter or 0, bill_num)
         db.commit()
         print(f"✅ Payment saved: bill={payment.bill_number}, machine={payment.machine_id}, created_at={payment.created_at}")
     except Exception as e:

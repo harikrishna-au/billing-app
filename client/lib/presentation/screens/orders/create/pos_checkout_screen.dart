@@ -230,12 +230,16 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'UPI transaction not approved');
       }
 
-      // Lock bill number before touching the backend — Plutus already debited the customer.
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+      // Lock bill number before touching the backend — Plutus already debited
+      // the customer. Record the CONFIRMED number: it is the one actually
+      // consumed from the sequence (the preview can go stale if the counter
+      // moved during the transaction window).
+      final confirmedBill =
+          await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       final payment = Payment(
         id: '',
-        billNumber: billNumber,
+        billNumber: confirmedBill,
         amount: total,
         method: PaymentMethod.upi,
         status: PaymentStatus.success,
@@ -290,7 +294,7 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
           provider: container,
-          billNumber: billNumber,
+          billNumber: confirmedBill,
           total: total,
           date: created.createdAt,
           cartState: savedCart,
@@ -343,12 +347,16 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         throw Exception(parsed.responseMsg ?? 'Card transaction declined');
       }
 
-      // Lock bill number before touching the backend — Plutus already debited the customer.
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+      // Lock bill number before touching the backend — Plutus already debited
+      // the customer. Record the CONFIRMED number: it is the one actually
+      // consumed from the sequence (the preview can go stale if the counter
+      // moved during the transaction window).
+      final confirmedBill =
+          await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       final payment = Payment(
         id: '',
-        billNumber: billNumber,
+        billNumber: confirmedBill,
         amount: total,
         method: PaymentMethod.card,
         status: PaymentStatus.success,
@@ -403,7 +411,7 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
         PrintUtils.printReceipt(
           context: goRouter.routerDelegate.navigatorKey.currentContext,
           provider: container,
-          billNumber: billNumber,
+          billNumber: confirmedBill,
           total: total,
           date: created.createdAt,
           cartState: savedCart,

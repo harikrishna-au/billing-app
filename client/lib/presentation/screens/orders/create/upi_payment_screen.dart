@@ -60,11 +60,11 @@ class _UpiPaymentScreenState extends ConsumerState<UpiPaymentScreen> {
       final billConfig = ref.read(billConfigProvider);
       final billNumberGen = ref.read(billNumberServiceProvider);
 
+      // Lock bill number before calling backend — staff confirmed they received
+      // the payment. When [invoiceNumber] is passed, the caller already locked
+      // it; confirming again here would skip a number in the sequence.
       final billNumber = widget.invoiceNumber ??
-          billNumberGen.generatePreview(posId: billConfig.posId);
-
-      // Lock bill number before calling backend — staff confirmed they received the payment.
-      await billNumberGen.confirmBillNumber(posId: billConfig.posId);
+          await billNumberGen.confirmBillNumber(posId: billConfig.posId);
 
       final payment = Payment(
         id: '',

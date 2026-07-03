@@ -12,6 +12,7 @@ from app.models.user import User
 from app.models.machine import Machine
 from app.models.service import Service
 from app.models.payment import Payment
+from app.models.bill_counter import BillCounter
 from app.dependencies import get_current_user, assert_machine_owns
 from app.schemas.sync import (
     SyncPushRequest, SyncPushResponse,
@@ -61,7 +62,8 @@ async def sync_push(
 
     synced_count = 0
     failed_count = 0
-    
+    max_num_by_posid = {}  # highest bill number synced per POSID
+
     # Process payments
     for payment_data in sync_data.payments:
         try:
@@ -86,17 +88,44 @@ async def sync_push(
                 status=payment_data.status,
                 created_at=payment_data.created_at or datetime.now(timezone.utc)
             )
-            
+
             db.add(payment)
             synced_count += 1
-            
+
+            bill_match = re.match(r'^(.+?)/(\d+)$', normalized_bill)
+            if bill_match:
+                posid, num = bill_match.group(1), int(bill_match.group(2))
+                max_num_by_posid[posid] = max(max_num_by_posid.get(posid, 0), num)
+
         except Exception as e:
             failed_count += 1
             continue
-    
-    # Update machine last_sync and bill_counter (take the max so we never go backwards)
+
+    # Keep the per-POSID counters (used by POST /payments validation) in step
+    # with offline-synced payments so they don't flag later bills as resets.
+    for posid, max_num in max_num_by_posid.items():
+        counter = db.query(BillCounter).filter(
+            BillCounter.machine_id == sync_data.machine_id,
+            BillCounter.posid == posid,
+        ).first()
+        if counter:
+            counter.next_number = max(counter.next_number, max_num + 1)
+        else:
+            db.add(BillCounter(
+                machine_id=sync_data.machine_id,
+                posid=posid,
+                next_number=max_num + 1
+            ))
+
+    # Update machine last_sync and bill_counter (take the max so we never go
+    # backwards). Semantics: LAST USED number — same as POST /payments and login.
     machine.last_sync = datetime.now(timezone.utc)
-    machine.bill_counter = max(machine.bill_counter or 0, sync_data.client_bill_counter)
+    highest_synced = max(max_num_by_posid.values(), default=0)
+    machine.bill_counter = max(
+        machine.bill_counter or 0,
+        sync_data.client_bill_counter,
+        highest_synced,
+    )
 
     try:
         db.commit()

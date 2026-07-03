@@ -7,6 +7,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../core/utils/bill_number_generator.dart';
 import '../../../../data/models/payment_model.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/bill_config_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
@@ -52,9 +53,11 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
       final total = cartState.totalAmount;
       final billConfig = ref.read(billConfigProvider);
       final billGen = ref.read(billNumberServiceProvider);
-      final billNumber = billGen.generatePreview(
-        posId: billConfig.posId,
-      );
+
+      // Cashier confirmed receipt — lock the bill number immediately so a
+      // failure after this point can never reuse it for the next sale.
+      final billNumber =
+          await billGen.confirmBillNumber(posId: billConfig.posId);
 
       final payment = Payment(
         id: '',
@@ -67,17 +70,21 @@ class _ReviewOrderScreenState extends ConsumerState<ReviewOrderScreen> {
 
       final created =
           await ref.read(paymentProvider.notifier).createPayment(payment);
-      if (!mounted) return;
       if (created == null) {
-        setState(() => _cashOverlay = _CashOverlay.none);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not record payment')),
-        );
-        return;
+        // Backend unreachable — queue so it syncs later; cash is already collected.
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          await ref.read(syncQueueServiceProvider).enqueue({
+            'machine_id': user.id,
+            'bill_number': payment.billNumber,
+            'amount': payment.amount,
+            'method': 'CASH',
+            'status': 'success',
+            'created_at': payment.createdAt.toUtc().toIso8601String(),
+          });
+        }
       }
-
-      // Permanently consume the bill number
-      await billGen.confirmBillNumber(posId: billConfig.posId);
+      if (!mounted) return;
 
       final tracker = ref.read(printedBillsTrackerProvider);
       if (tracker.hasBeenPrinted(billNumber)) {
