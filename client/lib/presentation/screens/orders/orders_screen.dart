@@ -258,8 +258,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       for (final method in summary.byMethod) {
         stat('${method.method} AMT', fmt(method.amount));
       }
-      if (summary.failedUpiAmount > 0) stat('FAIL UPI AMT', fmt(summary.failedUpiAmount));
-      if (summary.failedCardAmount > 0) stat('FAIL CARD AMT', fmt(summary.failedCardAmount));
+      stat('FAIL UPI AMT', fmt(summary.failedUpiAmount));
+      stat('FAIL CARD AMT', fmt(summary.failedCardAmount));
       ln('------------------------', align: 1);
       ln('FINAL AMT    :${fmt(summary.totalAmount).padLeft(10)}', size: 22, bold: true);
       ln('');
