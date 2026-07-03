@@ -290,6 +290,44 @@ async def get_all_payments(
     }
 
 
+@router.get("/payments/next-bill-number", response_model=SuccessResponse[BillNumberReserveResponse])
+async def peek_next_bill_number(
+    machine_id: str = Query(...),
+    posid: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Peek at the next bill number WITHOUT reserving it (read-only).
+
+    Use this to display the upcoming number on screen. To actually consume
+    a number for billing, call POST /payments/reserve-bill-number — a GET
+    must never change server state, which is why reserving is a POST.
+    """
+    assert_machine_owns(current_user, machine_id)
+
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    if not machine:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Machine not found"
+        )
+
+    posid_clean = (posid or '').strip() or 'BILL'
+    # machines.bill_counter is the last used number (and the admin knob),
+    # so the next one issued is always bill_counter + 1.
+    number = (machine.bill_counter or 0) + 1
+
+    return {
+        "success": True,
+        "data": BillNumberReserveResponse(
+            bill_number=f"{posid_clean}/{number}",
+            number=number,
+            posid=posid_clean
+        )
+    }
+
+
 @router.get("/payments/{payment_id}", response_model=SuccessResponse[PaymentWithMachineResponse])
 async def get_payment(
     payment_id: str,

@@ -457,19 +457,18 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
     );
   }
 
-  /// Opens the dedicated UPI screen (QR + timer). Does not record payment until staff confirms.
+  /// Opens the dedicated UPI screen (QR + timer). Does not record payment until
+  /// staff confirms — the bill number is reserved from the server at that
+  /// moment, so no invoice is passed here (a local preview would bypass the
+  /// server-owned sequence).
   void _pushUpiPayment(BuildContext context, double total) {
     ref.read(paymentProvider.notifier).clearPaymentError();
     if (mounted) setState(() => _lastError = null);
 
-    final billConfig = ref.read(billConfigProvider);
-    final billNumberGen = ref.read(billNumberServiceProvider);
-    final preview = billNumberGen.generatePreview(posId: billConfig.posId);
     final location = Uri(
       path: '/new/review/upi',
       queryParameters: {
         'amount': total.toStringAsFixed(2),
-        'invoice': preview,
       },
     ).toString();
     context.push(location);
