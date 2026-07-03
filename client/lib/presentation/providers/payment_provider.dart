@@ -214,53 +214,37 @@ class PaymentController extends StateNotifier<PaymentState> {
     await syncQueuedTicketsNow();
   }
 
-  /// Get the next bill number. The SERVER owns the sequence: this reserves
-  /// the next number atomically via POST /payments/reserve-bill-number, so
-  /// numbers can never collide across devices, reinstalls, or stale caches.
-  ///
-  /// Any queued offline tickets are flushed first so the server counter is
-  /// current before it issues a number. Only when the server is unreachable
-  /// does this fall back to the local mirror counter (offline sales), which
-  /// is kept in step with every server reservation.
+  /// Get the next bill number from the server. The server is the ONLY source
+  /// of bill numbers — there is no local counter and no offline fallback.
+  /// Reservation is atomic on the server (POST /payments/reserve-bill-number),
+  /// so numbers can never collide or go out of sequence. If the server cannot
+  /// be reached, billing fails with an error instead of inventing a number.
   Future<String> acquireBillNumber({String? posId}) async {
-    final billGen = ref.read(billNumberServiceProvider);
     final user = ref.read(authProvider).user;
-
-    if (user != null) {
-      // Server must know about offline sales before issuing the next number.
-      await syncQueuedTicketsNow();
-
-      // Only trust the server's number when it has seen everything: if the
-      // flush failed and unsynced offline tickets remain, their numbers are
-      // unknown to the server, so stay on the local mirror.
-      final queueEmpty =
-          await ref.read(syncQueueServiceProvider).pendingCount == 0;
-
-      if (queueEmpty) {
-        try {
-          final response = await ref.read(apiClientProvider).post(
-            '${ApiConstants.payments}/reserve-bill-number',
-            data: {
-              'machine_id': user.id,
-              'posid': (posId ?? '').trim(),
-            },
-          );
-          final data = response.data['data'] as Map<String, dynamic>?;
-          final number = data?['number'] as int?;
-          final billNumber = data?['bill_number'] as String?;
-          if (number != null && billNumber != null) {
-            // The server owns the sequence — adopt its number even when it is
-            // lower than the local mirror (admin reset the counter server-side).
-            await billGen.setCounter(number);
-            return billNumber;
-          }
-        } catch (_) {
-          // Server unreachable — fall through to the local mirror.
-        }
-      }
+    if (user == null) {
+      throw Exception('Not logged in — cannot get a bill number');
     }
 
-    return billGen.confirmBillNumber(posId: posId);
+    try {
+      final response = await ref.read(apiClientProvider).post(
+        '${ApiConstants.payments}/reserve-bill-number',
+        data: {
+          'machine_id': user.id,
+          'posid': (posId ?? '').trim(),
+        },
+      );
+      final data = response.data['data'] as Map<String, dynamic>?;
+      final billNumber = data?['bill_number'] as String?;
+      if (billNumber == null) {
+        throw Exception('Server did not return a bill number');
+      }
+      return billNumber;
+    } on DioException catch (e) {
+      final err = e.error;
+      throw Exception(err is NetworkException
+          ? 'No internet — bill number comes from the server. Reconnect and try again.'
+          : _paymentErrorMessage(e));
+    }
   }
 
   /// Manual or periodic sync: uploads queued offline tickets, updates bill counter on success.
