@@ -158,7 +158,6 @@ List<_ThermalLine> _buildInvoiceSlip({
   if (mode.isNotEmpty) {
     out.add(_ThermalLine(text: 'Pay : ${mode}', size: settings.bodySize));
   }
-  out.add(const _ThermalLine(text: _kDash));
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
@@ -216,7 +215,6 @@ List<_ThermalLine> _buildTicketSlip({
   if (mode.isNotEmpty) {
     out.add(_ThermalLine(text: 'Pay : ${mode}', size: settings.bodySize));
   }
-  out.add(const _ThermalLine(text: _kDash));
 
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
