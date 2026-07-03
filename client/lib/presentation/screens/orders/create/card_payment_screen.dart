@@ -11,6 +11,7 @@ import '../../../../core/services/plutus_smart_service.dart';
 import '../../../../core/network/providers.dart';
 import '../../../../core/utils/print_utils.dart';
 import '../../../../data/models/payment_model.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/bill_config_provider.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/payment_provider.dart';
@@ -107,6 +108,10 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
       final billConfig = ref.read(billConfigProvider);
       final billGen   = ref.read(billNumberServiceProvider);
 
+      // Lock the bill number first — the card is already charged, so this
+      // number is consumed no matter what the backend says.
+      await billGen.confirmBillNumber(posId: billConfig.posId);
+
       final payment = Payment(
         id:         '',
         billNumber: billNumber,
@@ -116,10 +121,29 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
         createdAt:  DateTime.now(),
       );
 
-      final created = await ref.read(paymentProvider.notifier).createPayment(payment);
-      if (created == null) throw Exception('Failed to record payment');
-
-      await billGen.confirmBillNumber(posId: billConfig.posId);
+      var created = await ref.read(paymentProvider.notifier).createPayment(payment);
+      if (created == null) {
+        // Backend unreachable — queue so it syncs later; do not lose a charged card payment.
+        final user = ref.read(authProvider).user;
+        if (user != null) {
+          await ref.read(syncQueueServiceProvider).enqueue({
+            'machine_id': user.id,
+            'bill_number': payment.billNumber,
+            'amount': payment.amount,
+            'method': 'CARD',
+            'status': 'success',
+            'created_at': payment.createdAt.toUtc().toIso8601String(),
+          });
+        }
+        created = Payment(
+          id: payment.billNumber,
+          billNumber: payment.billNumber,
+          amount: payment.amount,
+          method: payment.method,
+          status: PaymentStatus.pending,
+          createdAt: payment.createdAt,
+        );
+      }
 
       if (!mounted) return;
       await PrintUtils.showTicketBooked(context);
