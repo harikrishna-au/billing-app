@@ -6,15 +6,16 @@ import '../../../providers/cart_provider.dart';
 import '../../../providers/thermal_print_settings_provider.dart';
 
 // ─── Thermal receipt layout (Pine Labs Plutus / SmartPOS fallback) ─────────────
-// Effective line width: 24 chars (PrinterWidth: 24 passed to Plutus).
+// Effective line width: 32 chars — full width of the 58mm (384-dot) A910S
+// printer at normal font (PrinterWidth: 32 passed to Plutus).
 
-const int _kLineW      = 24;
+const int _kLineW      = 32;
 const int _kAlignLeft   = 0;
 const int _kAlignCenter = 1;
 
 const int _kSizeBody   = 20;
 
-const String _kDash = '------------------------'; // 24 dashes
+const String _kDash = '--------------------------------'; // 32 dashes
 
 class _ThermalLine {
   final String text;
@@ -74,8 +75,8 @@ String _paymentMode(String method) {
 // ─── Item table ────────────────────────────────────────────────────────────────
 
 const int _kQtyW   = 4;
-const int _kNameW  = 14;
-const int _kPriceW = 6;
+const int _kNameW  = 19;
+const int _kPriceW = 9;
 
 String _itemsHeader() =>
     '${'QTY'.padRight(_kQtyW)}${'ITEM'.padRight(_kNameW)}${'PRICE'.padLeft(_kPriceW)}';
@@ -371,7 +372,7 @@ Future<void> printBillThermalInvoiceAndTicket({
 
   // Dotted separator line between invoice and ticket
   const separatorLines = [
-    _ThermalLine(text: '.........................'),
+    _ThermalLine(text: '................................'),
   ];
 
   onDebug?.call('Plutus disabled — using SmartPOS fallback');
