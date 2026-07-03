@@ -230,28 +230,33 @@ class PaymentController extends StateNotifier<PaymentState> {
       // Server must know about offline sales before issuing the next number.
       await syncQueuedTicketsNow();
 
-      try {
-        final response = await ref.read(apiClientProvider).post(
-          '${ApiConstants.payments}/reserve-bill-number',
-          data: {
-            'machine_id': user.id,
-            'posid': (posId ?? '').trim(),
-          },
-        );
-        final data = response.data['data'] as Map<String, dynamic>?;
-        final number = data?['number'] as int?;
-        final billNumber = data?['bill_number'] as String?;
-        if (number != null && billNumber != null) {
-          // Keep the local mirror at the server's last-used number, but never
-          // move it backwards past locally issued (still unsynced) numbers.
-          if (number > billGen.currentCounter) {
+      // Only trust the server's number when it has seen everything: if the
+      // flush failed and unsynced offline tickets remain, their numbers are
+      // unknown to the server, so stay on the local mirror.
+      final queueEmpty =
+          await ref.read(syncQueueServiceProvider).pendingCount == 0;
+
+      if (queueEmpty) {
+        try {
+          final response = await ref.read(apiClientProvider).post(
+            '${ApiConstants.payments}/reserve-bill-number',
+            data: {
+              'machine_id': user.id,
+              'posid': (posId ?? '').trim(),
+            },
+          );
+          final data = response.data['data'] as Map<String, dynamic>?;
+          final number = data?['number'] as int?;
+          final billNumber = data?['bill_number'] as String?;
+          if (number != null && billNumber != null) {
+            // The server owns the sequence — adopt its number even when it is
+            // lower than the local mirror (admin reset the counter server-side).
             await billGen.setCounter(number);
             return billNumber;
           }
-          // Server behind local — unsynced offline sales exist; stay local.
+        } catch (_) {
+          // Server unreachable — fall through to the local mirror.
         }
-      } catch (_) {
-        // Server unreachable — fall through to the local mirror.
       }
     }
 
