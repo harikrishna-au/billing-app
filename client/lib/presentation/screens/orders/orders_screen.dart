@@ -161,19 +161,21 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       if (config.unitName?.isNotEmpty == true) ln(config.unitName!, size: 20, align: 1);
       ln('Sale Date : ${DateFormat('dd-MM-yyyy').format(_selectedDate)}');
       ln('Term: ${terminal.length > 18 ? terminal.substring(0, 18) : terminal}');
-      ln('------------------------', align: 1);
-      ln('BILL         AMOUNT', bold: true);
-      ln('------------------------', align: 1);
+      ln('--------------------------------', align: 1);
+      ln('${'BILL'.padRight(14)}${'TYPE'.padRight(6)}${'AMOUNT'.padLeft(12)}', bold: true);
+      ln('--------------------------------', align: 1);
 
       for (final p in summary.payments) {
-        ln(p.billNumber);
-        ln('  ${p.method.padRight(5)}${fmt(p.amount).padLeft(15)}');
+        final billNum = p.billNumber.length > 14
+            ? p.billNumber.substring(0, 14)
+            : p.billNumber;
+        ln('${billNum.padRight(14)}${p.method.padRight(6)}${fmt(p.amount).padLeft(12)}');
       }
 
       void stat(String label, String val) =>
-          ln('${label.padRight(13)}:${val.padLeft(10)}');
+          ln('${label.padRight(13)}:${val.padLeft(18)}');
 
-      ln('------------------------', align: 1);
+      ln('--------------------------------', align: 1);
       stat('SUCC TX', summary.successfulCount.toString());
       stat('SUCC AMT', fmt(summary.successfulAmount));
       stat('SUCC CASH', fmt(summary.successfulCash));
