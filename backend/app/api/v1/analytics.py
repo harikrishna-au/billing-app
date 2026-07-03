@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Literal
 import csv
 import io
+import pytz
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -15,6 +16,31 @@ from app.models.user import User
 from app.models.machine import Machine
 from app.models.payment import Payment
 from app.models.log import Log
+
+IST = pytz.timezone('Asia/Kolkata')
+
+
+def _ist_day_bounds(date):
+    """UTC bounds of the given calendar date in IST — matches how the
+    payments list and the client define a 'day'."""
+    start = IST.localize(datetime(date.year, date.month, date.day, 0, 0, 0)).astimezone(timezone.utc)
+    end = IST.localize(datetime(date.year, date.month, date.day, 23, 59, 59)).astimezone(timezone.utc)
+    return start, end
+
+
+def _to_ist(dt):
+    """Convert a stored (UTC) timestamp to IST for display."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(IST)
+
+
+def _effective_machine_id(current_user, machine_id):
+    """Machine tokens are always scoped to their own machine; admin tokens
+    may pass an explicit machine_id (or None for all machines)."""
+    if isinstance(current_user, Machine):
+        return str(current_user.id)
+    return machine_id
 from app.schemas.common import SuccessResponse
 from app.schemas.analytics import (
     RevenueAnalyticsResponse,
@@ -369,15 +395,15 @@ async def get_payments_report(
             detail="Invalid date format. Use YYYY-MM-DD"
         )
 
-    start_time = datetime.combine(date, datetime.min.time())
-    end_time = datetime.combine(date, datetime.max.time())
+    start_time, end_time = _ist_day_bounds(date)
 
     query = db.query(Payment).filter(
         Payment.created_at >= start_time,
         Payment.created_at <= end_time
     )
-    if machine_id:
-        query = query.filter(Payment.machine_id == machine_id)
+    effective_machine = _effective_machine_id(current_user, machine_id)
+    if effective_machine:
+        query = query.filter(Payment.machine_id == effective_machine)
 
     payments = query.order_by(Payment.created_at).all()
 
@@ -453,7 +479,7 @@ async def get_payments_report(
 
     hourly = {}
     for p in successful:
-        hour = p.created_at.hour
+        hour = _to_ist(p.created_at).hour
         if hour not in hourly:
             hourly[hour] = {'count': 0, 'amount': 0.0}
         hourly[hour]['count'] += 1
@@ -473,7 +499,7 @@ async def get_payments_report(
 
     sorted_payments = sorted(successful, key=lambda p: float(p.amount), reverse=True)[:10]
     for p in sorted_payments:
-        time_str = p.created_at.strftime("%H:%M:%S")
+        time_str = _to_ist(p.created_at).strftime("%H:%M:%S")
         writer.writerow([p.bill_number, f"₹ {float(p.amount):.2f}", p.method.upper(), time_str])
 
     writer.writerow([])
@@ -503,10 +529,11 @@ async def get_payments_report(
 @router.get("/transaction-summary/{date_str}", response_model=SuccessResponse[TransactionSummaryResponse])
 async def get_transaction_summary(
     date_str: str,
+    machine_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get transaction summary for a specific day (00:00:00 to 23:59:59)."""
+    """Get transaction summary for a specific IST day (00:00:00 to 23:59:59)."""
 
     try:
         date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -516,14 +543,18 @@ async def get_transaction_summary(
             detail="Invalid date format. Use YYYY-MM-DD"
         )
 
-    # Get all payments for the day (00:00:00 to 23:59:59)
-    start_time = datetime.combine(date, datetime.min.time())
-    end_time = datetime.combine(date, datetime.max.time())
+    # IST day boundaries — matches the payments list and the client's calendar day
+    start_time, end_time = _ist_day_bounds(date)
 
-    payments = db.query(Payment).filter(
+    query = db.query(Payment).filter(
         Payment.created_at >= start_time,
         Payment.created_at <= end_time
-    ).order_by(Payment.created_at).all()
+    )
+    effective_machine = _effective_machine_id(current_user, machine_id)
+    if effective_machine:
+        query = query.filter(Payment.machine_id == effective_machine)
+
+    payments = query.order_by(Payment.created_at).all()
 
     # Separate by status
     successful = [p for p in payments if p.status == 'success']
@@ -558,8 +589,8 @@ async def get_transaction_summary(
         "success": True,
         "data": TransactionSummaryResponse(
             date=date.isoformat(),
-            start_time=start_time.strftime("%d-%m-%y %H:%M"),
-            end_time=end_time.strftime("%d-%m-%y %H:%M"),
+            start_time=_to_ist(start_time).strftime("%d-%m-%y %H:%M"),
+            end_time=_to_ist(end_time).strftime("%d-%m-%y %H:%M"),
             payments=payment_details,
             successful_count=len(successful),
             successful_amount=success_total,
@@ -578,10 +609,11 @@ async def get_transaction_summary(
 @router.get("/sales-summary/{date_str}", response_model=SuccessResponse[SalesSummaryResponse])
 async def get_sales_summary(
     date_str: str,
+    machine_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get sales summary for a specific day (00:00:00 to 23:59:59)."""
+    """Get sales summary for a specific IST day (00:00:00 to 23:59:59)."""
 
     try:
         date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -591,14 +623,18 @@ async def get_sales_summary(
             detail="Invalid date format. Use YYYY-MM-DD"
         )
 
-    # Get all payments for the day (00:00:00 to 23:59:59)
-    start_time = datetime.combine(date, datetime.min.time())
-    end_time = datetime.combine(date, datetime.max.time())
+    # IST day boundaries — matches the payments list and the client's calendar day
+    start_time, end_time = _ist_day_bounds(date)
 
-    payments = db.query(Payment).filter(
+    query = db.query(Payment).filter(
         Payment.created_at >= start_time,
         Payment.created_at <= end_time
-    ).order_by(Payment.created_at).all()
+    )
+    effective_machine = _effective_machine_id(current_user, machine_id)
+    if effective_machine:
+        query = query.filter(Payment.machine_id == effective_machine)
+
+    payments = query.order_by(Payment.created_at).all()
 
     if not payments:
         raise HTTPException(
@@ -641,8 +677,8 @@ async def get_sales_summary(
         "success": True,
         "data": SalesSummaryResponse(
             date=date.isoformat(),
-            start_time=start_time.strftime("%d-%m-%y %H:%M"),
-            end_time=end_time.strftime("%d-%m-%y %H:%M"),
+            start_time=_to_ist(start_time).strftime("%d-%m-%y %H:%M"),
+            end_time=_to_ist(end_time).strftime("%d-%m-%y %H:%M"),
             first_bill=payments[0].bill_number,
             last_bill=payments[-1].bill_number,
             total_count=len(successful),

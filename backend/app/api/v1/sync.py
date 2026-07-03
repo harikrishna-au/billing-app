@@ -119,11 +119,14 @@ async def sync_push(
 
     # Update machine last_sync and bill_counter (take the max so we never go
     # backwards). Semantics: LAST USED number — same as POST /payments and login.
+    # NOTE: sync_data.client_bill_counter is deliberately IGNORED — bill numbers
+    # are server-issued now, and the client's legacy local counter is stale; it
+    # must not be able to drag the server counter forward (e.g. after an admin
+    # resets machines.bill_counter). Only real synced payments count.
     machine.last_sync = datetime.now(timezone.utc)
     highest_synced = max(max_num_by_posid.values(), default=0)
     machine.bill_counter = max(
         machine.bill_counter or 0,
-        sync_data.client_bill_counter,
         highest_synced,
     )
 
