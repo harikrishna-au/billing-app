@@ -370,15 +370,22 @@ async def reserve_bill_number(
         BillCounter.posid == posid,
     ).with_for_update().first()
 
+    # machines.bill_counter is the admin-facing knob. Every reservation keeps
+    # the invariant bill_counter + 1 == next_number, so if they disagree the
+    # value was changed on the server (admin/DB edit) — adopt it, up OR down.
+    expected_next = (machine.bill_counter or 0) + 1
+
     if not counter:
         # First reservation for this machine/POSID — continue from the
         # machine's global last-used number so the sequence never restarts.
         counter = BillCounter(
             machine_id=request.machine_id,
             posid=posid,
-            next_number=(machine.bill_counter or 0) + 1
+            next_number=expected_next
         )
         db.add(counter)
+    elif counter.next_number != expected_next:
+        counter.next_number = expected_next
 
     number = counter.next_number
     counter.next_number = number + 1
