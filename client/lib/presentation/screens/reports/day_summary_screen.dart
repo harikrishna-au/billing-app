@@ -140,9 +140,7 @@ class _DaySummaryScreenState extends ConsumerState<DaySummaryScreen> {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
     try {
-      final payments = ref.read(paymentProvider).payments;
       final config = ref.read(billConfigProvider);
-
 
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final summary = await ApiAnalyticsRepository(ref.read(apiClientProvider))
