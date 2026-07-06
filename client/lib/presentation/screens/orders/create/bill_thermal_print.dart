@@ -161,14 +161,8 @@ List<_ThermalLine> _buildInvoiceSlip({
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────
+  // No end spacing here: the ticket prints right below, gap comes after it.
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
-
-  // ── End spacing (~1cm) so the bill can be cut cleanly ──────────────────────
-  // Lines carry a real space character: empty strings get dropped by the
-  // printer and feed no paper, so the bill would stop at the footer.
-  for (int i = 0; i < 4; i++) {
-    out.add(const _ThermalLine(text: ' '));
-  }
 
   return out;
 }
@@ -222,10 +216,10 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
 
-  // ── End spacing (~1cm) so the bill can be cut cleanly ──────────────────────
+  // ── End spacing (~0.5cm) after the ticket so the bill can be cut ───────────
   // Lines carry a real space character: empty strings get dropped by the
   // printer and feed no paper, so the bill would stop at the footer.
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 2; i++) {
     out.add(const _ThermalLine(text: ' '));
   }
 
