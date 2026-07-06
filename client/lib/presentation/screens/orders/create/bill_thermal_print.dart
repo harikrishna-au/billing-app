@@ -216,13 +216,6 @@ List<_ThermalLine> _buildTicketSlip({
   // ── Footer ────────────────────────────────────────────────────────────────
   out.add(_ThermalLine(text: footer, align: _kAlignCenter, size: settings.bodySize));
 
-  // ── End spacing (~0.5cm) after the ticket so the bill can be cut ───────────
-  // Lines carry a real space character: empty strings get dropped by the
-  // printer and feed no paper, so the bill would stop at the footer.
-  for (int i = 0; i < 2; i++) {
-    out.add(const _ThermalLine(text: ' '));
-  }
-
   return out;
 }
 
@@ -351,20 +344,44 @@ Future<void> printBillThermalInvoiceAndTicket({
     settings:      settings,
   );
 
+  // Which slips to print comes from settings (both default ON).
+  final wantInvoice = settings.printInvoice;
+  final wantTicket = settings.printTicket;
+  if (!wantInvoice && !wantTicket) {
+    onDebug?.call('Both invoice and ticket disabled in print settings — nothing to print');
+    return;
+  }
+
+  // ~0.5cm cut gap after the LAST printed slip. Lines carry a real space:
+  // empty strings get dropped by the printer and feed no paper.
+  const endSpacing = [
+    _ThermalLine(text: ' '),
+    _ThermalLine(text: ' '),
+  ];
+  if (wantTicket) {
+    ticketLines.addAll(endSpacing);
+  } else {
+    invoiceLines.addAll(endSpacing);
+  }
+
   if (PlutusConfig.isConfigured) {
     onDebug?.call('Using Pine Labs print path');
     onDebug?.call('Plutus ApplicationId: ${PlutusConfig.applicationId.trim()}');
-    await _sendToPlutusPrinter(
-      printRefNo: billDisplay,
-      lines:      invoiceLines,
-      onDebug:    onDebug,
-    );
-    await _sendToPlutusPrinter(
-      printRefNo: '$billDisplay-T',
-      lines:      ticketLines,
-      onDebug:    onDebug,
-    );
-    onDebug?.call('Invoice and ticket print completed');
+    if (wantInvoice) {
+      await _sendToPlutusPrinter(
+        printRefNo: billDisplay,
+        lines:      invoiceLines,
+        onDebug:    onDebug,
+      );
+    }
+    if (wantTicket) {
+      await _sendToPlutusPrinter(
+        printRefNo: '$billDisplay-T',
+        lines:      ticketLines,
+        onDebug:    onDebug,
+      );
+    }
+    onDebug?.call('Print completed');
     return;
   }
 
@@ -375,11 +392,11 @@ Future<void> printBillThermalInvoiceAndTicket({
 
   onDebug?.call('Plutus disabled — using SmartPOS fallback');
   await printer.initSdk();
-  await _sendToPrinter(printer, invoiceLines);
-  await _sendToPrinter(printer, separatorLines);
-  await _sendToPrinter(printer, ticketLines);
+  if (wantInvoice) await _sendToPrinter(printer, invoiceLines);
+  if (wantInvoice && wantTicket) await _sendToPrinter(printer, separatorLines);
+  if (wantTicket) await _sendToPrinter(printer, ticketLines);
   await printer.cutPaper();
-  onDebug?.call('Invoice and ticket print completed');
+  onDebug?.call('Print completed');
 }
 
 // ─── Public summary-print helper ──────────────────────────────────────────────
