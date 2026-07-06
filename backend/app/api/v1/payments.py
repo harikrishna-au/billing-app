@@ -315,8 +315,15 @@ async def peek_next_bill_number(
 
     posid_clean = (posid or '').strip() or 'BILL'
     # machines.bill_counter is the last used number (and the admin knob),
-    # so the next one issued is always bill_counter + 1.
+    # so the next one issued is bill_counter + 1 — unless that number is
+    # already taken by a recorded payment (reserve skips past used numbers).
     number = (machine.bill_counter or 0) + 1
+    already_used = db.query(Payment.id).filter(
+        Payment.machine_id == machine_id,
+        Payment.bill_number == f"{posid_clean}/{number}",
+    ).first()
+    if already_used:
+        number = _max_used_bill_number(db, machine_id, posid_clean) + 1
 
     return {
         "success": True,
@@ -374,6 +381,21 @@ def _normalize_bill_number(bill_number: str) -> str:
     return f"{m.group(1)}{m.group(2)}" if m else bill_number
 
 
+def _max_used_bill_number(db: Session, machine_id, posid: str) -> int:
+    """Highest numeric suffix already recorded for this machine+POSID."""
+    import re
+    max_used = 0
+    rows = db.query(Payment.bill_number).filter(
+        Payment.machine_id == machine_id,
+        Payment.bill_number.like(f"{posid}/%"),
+    ).all()
+    for (bn,) in rows:
+        m = re.match(r'^(.+?)/(\d+)$', bn)
+        if m and m.group(1) == posid:
+            max_used = max(max_used, int(m.group(2)))
+    return max_used
+
+
 @router.post("/payments/reserve-bill-number", response_model=SuccessResponse[BillNumberReserveResponse])
 async def reserve_bill_number(
     request: BillNumberReserveRequest,
@@ -426,6 +448,18 @@ async def reserve_bill_number(
         counter.next_number = expected_next
 
     number = counter.next_number
+
+    # Data safety net: NEVER re-issue a number an existing payment already
+    # uses (stale counter, POSID switched back to an old series, counter set
+    # below used numbers). Cheap indexed lookup normally; on conflict, jump
+    # past the highest used number for this POSID.
+    already_used = db.query(Payment.id).filter(
+        Payment.machine_id == request.machine_id,
+        Payment.bill_number == f"{posid}/{number}",
+    ).first()
+    if already_used:
+        number = _max_used_bill_number(db, request.machine_id, posid) + 1
+
     counter.next_number = number + 1
     # machines.bill_counter keeps LAST USED semantics (login recovery).
     machine.bill_counter = max(machine.bill_counter or 0, number)
