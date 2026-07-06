@@ -72,6 +72,10 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
 
       _log('Sending card sale — Rs ${widget.amount.toStringAsFixed(2)} (${paise}p)');
       _log('BillingRefNo: $billNumber');
+
+      // Bind before the transaction — an unbound MasterApp service returns
+      // an empty response, which reads as a decline even when nothing ran.
+      await PlutusSmartService.bindToService();
       _log('Waiting for customer card…');
 
       if (mounted) setState(() => _state = _CardState.processing);
@@ -89,6 +93,19 @@ class _CardPaymentScreenState extends ConsumerState<CardPaymentScreen> {
       if (!parsed.isApproved) {
         final hint = _codeHint(parsed.responseCode, parsed.responseMsg);
         _log('REJECTED: $hint');
+        // Record the failed attempt so it shows in orders and FAIL CARD totals.
+        unawaited(ref.read(paymentProvider.notifier).createPayment(Payment(
+          id: '',
+          billNumber: billNumber,
+          amount: widget.amount,
+          method: PaymentMethod.card,
+          status: PaymentStatus.failed,
+          createdAt: DateTime.now(),
+        )));
+        if (response == null || response.trim().isEmpty) {
+          _log('WARNING: empty terminal response — check the terminal screen '
+              'before retrying; the card may already be charged.');
+        }
         if (mounted) setState(() => _state = _CardState.failed);
         return;
       }

@@ -344,7 +344,20 @@ class _POSCheckoutScreenState extends ConsumerState<POSCheckoutScreen> {
       final raw = await PlutusSmartService.startTransaction(transactionJson: payload);
       final parsed = PlutusResponse.tryParse(raw);
       if (!parsed.isApproved) {
-        throw Exception(parsed.responseMsg ?? 'Card transaction declined');
+        // Record the failed attempt so it shows in orders and FAIL CARD
+        // totals — otherwise failed card sales leave no trace at all.
+        unawaited(ref.read(paymentProvider.notifier).createPayment(Payment(
+          id: '',
+          billNumber: billNumber,
+          amount: total,
+          method: PaymentMethod.card,
+          status: PaymentStatus.failed,
+          createdAt: DateTime.now(),
+        )));
+        final noResponse = raw == null || raw.trim().isEmpty;
+        throw Exception(noResponse
+            ? 'No response from terminal. Check the terminal screen before retrying — the card may already be charged.'
+            : (parsed.responseMsg ?? 'Card transaction declined'));
       }
 
       // Bill number was already reserved on the server before the charge.
