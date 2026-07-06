@@ -9,6 +9,11 @@ class ThermalPrintSettings {
   final int headerSize;
   final int metadataSize;
 
+  /// Which slips print on checkout. Both default ON; turning one off
+  /// skips that slip entirely.
+  final bool printInvoice;
+  final bool printTicket;
+
   ThermalPrintSettings({
     this.titleSize = 24,
     this.orgNameSize = 20,
@@ -16,6 +21,8 @@ class ThermalPrintSettings {
     this.bodySize = 20,
     this.headerSize = 24,
     this.metadataSize = 20,
+    this.printInvoice = true,
+    this.printTicket = true,
   });
 
   ThermalPrintSettings copyWith({
@@ -25,6 +32,8 @@ class ThermalPrintSettings {
     int? bodySize,
     int? headerSize,
     int? metadataSize,
+    bool? printInvoice,
+    bool? printTicket,
   }) {
     return ThermalPrintSettings(
       titleSize: titleSize ?? this.titleSize,
@@ -33,6 +42,8 @@ class ThermalPrintSettings {
       bodySize: bodySize ?? this.bodySize,
       headerSize: headerSize ?? this.headerSize,
       metadataSize: metadataSize ?? this.metadataSize,
+      printInvoice: printInvoice ?? this.printInvoice,
+      printTicket: printTicket ?? this.printTicket,
     );
   }
 
@@ -44,6 +55,8 @@ class ThermalPrintSettings {
     await prefs.setInt('thermal_body_size', bodySize);
     await prefs.setInt('thermal_header_size', headerSize);
     await prefs.setInt('thermal_metadata_size', metadataSize);
+    await prefs.setBool('thermal_print_invoice', printInvoice);
+    await prefs.setBool('thermal_print_ticket', printTicket);
   }
 
   static Future<ThermalPrintSettings> load() async {
@@ -55,6 +68,8 @@ class ThermalPrintSettings {
       bodySize: prefs.getInt('thermal_body_size') ?? 20,
       headerSize: prefs.getInt('thermal_header_size') ?? 24,
       metadataSize: prefs.getInt('thermal_metadata_size') ?? 20,
+      printInvoice: prefs.getBool('thermal_print_invoice') ?? true,
+      printTicket: prefs.getBool('thermal_print_ticket') ?? true,
     );
   }
 }
@@ -99,6 +114,16 @@ class ThermalPrintSettingsNotifier extends StateNotifier<ThermalPrintSettings> {
 
   Future<void> updateMetadataSize(int size) async {
     state = state.copyWith(metadataSize: size);
+    await state.save();
+  }
+
+  Future<void> updatePrintInvoice(bool value) async {
+    state = state.copyWith(printInvoice: value);
+    await state.save();
+  }
+
+  Future<void> updatePrintTicket(bool value) async {
+    state = state.copyWith(printTicket: value);
     await state.save();
   }
 

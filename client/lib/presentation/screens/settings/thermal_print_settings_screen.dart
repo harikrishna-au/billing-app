@@ -18,6 +18,42 @@ class ThermalPrintSettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
+            'What to Print',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            title: const Text('Invoice',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Full slip with GSTIN and tax breakup'),
+            value: settings.printInvoice,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => ref
+                .read(thermalPrintSettingsProvider.notifier)
+                .updatePrintInvoice(v),
+          ),
+          SwitchListTile(
+            title: const Text('Ticket',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Short slip without tax details'),
+            value: settings.printTicket,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => ref
+                .read(thermalPrintSettingsProvider.notifier)
+                .updatePrintTicket(v),
+          ),
+          if (!settings.printInvoice && !settings.printTicket)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                'Both are off — nothing will print on checkout.',
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          const Divider(height: 32),
+          Text(
             'Adjust Font Sizes',
             style: Theme.of(context).textTheme.titleLarge,
           ),
