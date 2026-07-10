@@ -65,11 +65,16 @@ android {
 
     buildTypes {
         release {
-            // If no production keystore is configured, fall back to debug signing
-            // so the generated release APK is still installable for testing.
-            signingConfig = keystorePropertiesFile.exists()
-                    ? signingConfigs.release
-                    : signingConfigs.debug
+            // Never silently debug-sign a release build: a debug-signed
+            // app-release.apk looks identical by filename and was shipped to
+            // Pine Labs, whose portal then registered the wrong certificate.
+            if (!keystorePropertiesFile.exists()) {
+                throw new GradleException(
+                        "Release build aborted: android/key.properties is missing, so this APK " +
+                        "would be signed with the DEBUG key. Restore key.properties pointing at " +
+                        "hadoom-mit-release.jks before building a release APK.")
+            }
+            signingConfig = signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
