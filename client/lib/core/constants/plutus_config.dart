@@ -9,11 +9,15 @@ class PlutusConfig {
   );
 
   /// Issued by Pine Labs for your billing app.
+  ///
+  /// PRODUCTION app id (Laxmi, 2026-06-19, PI-7925). Builds ship to live
+  /// terminals with this value.
+  ///
+  /// To test against the UAT terminal instead, override at build time:
+  ///   --dart-define=PLUTUS_APPLICATION_ID=50269e0a955c4370a9c04c78fb111bd4
   static const String applicationId = String.fromEnvironment(
     'PLUTUS_APPLICATION_ID',
-    // UAT app id shared by Pine team (corrected 32-char value; earlier email
-    // dropped the leading "5"). Can still be overridden via --dart-define.
-    defaultValue: '50269e0a955c4370a9c04c78fb111bd4',
+    defaultValue: '14103d3b12a444d6b5ffff15022d8a27',
   );
 
   /// Optional operator/user id for Pine header.
