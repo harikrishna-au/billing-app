@@ -22,9 +22,16 @@ IST = pytz.timezone('Asia/Kolkata')
 
 def _ist_day_bounds(date):
     """UTC bounds of the given calendar date in IST — matches how the
-    payments list and the client define a 'day'."""
+    payments list and the client define a 'day'.
+
+    For TODAY the window ends at the moment the report is generated
+    (00:00 → now), so the printed End time reflects when it was taken.
+    Past dates keep the full 00:00–23:59 window."""
     start = IST.localize(datetime(date.year, date.month, date.day, 0, 0, 0)).astimezone(timezone.utc)
     end = IST.localize(datetime(date.year, date.month, date.day, 23, 59, 59)).astimezone(timezone.utc)
+    now = datetime.now(timezone.utc)
+    if start <= now < end:
+        end = now
     return start, end
 
 
