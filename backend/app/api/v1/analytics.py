@@ -420,10 +420,10 @@ async def get_payments_report(
 
     # Helper function
     def sum_by_method(payment_list, method):
-        return sum(float(p.amount) for p in payment_list if p.method == method)
+        return sum(float(p.amount) for p in payment_list if p.method.lower() == method)
 
     def count_by_method(payment_list, method):
-        return len([p for p in payment_list if p.method == method])
+        return len([p for p in payment_list if p.method.lower() == method])
 
     # Totals
     success_total = sum(float(p.amount) for p in successful)
@@ -569,7 +569,7 @@ async def get_transaction_summary(
 
     # Calculate totals
     def sum_by_method(payment_list, method):
-        return sum(float(p.amount) for p in payment_list if p.method == method)
+        return sum(float(p.amount) for p in payment_list if p.method.lower() == method)
 
     success_total = sum(float(p.amount) for p in successful)
     failed_total = sum(float(p.amount) for p in failed)
@@ -655,10 +655,10 @@ async def get_sales_summary(
 
     # Calculate totals
     def sum_by_method(payment_list, method):
-        return sum(float(p.amount) for p in payment_list if p.method == method)
+        return sum(float(p.amount) for p in payment_list if p.method.lower() == method)
 
     def count_by_method(payment_list, method):
-        return len([p for p in payment_list if p.method == method])
+        return len([p for p in payment_list if p.method.lower() == method])
 
     total_amount = sum(float(p.amount) for p in successful)
     failed_upi_total = sum_by_method(failed, 'upi')

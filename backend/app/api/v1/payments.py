@@ -178,11 +178,19 @@ async def get_all_payments(
     end_date: Optional[str] = Query(None),
     machine_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=100),
+    # High default: the client's day-summary screen sums this list without
+    # paginating, so a low limit silently truncated busy days to the newest
+    # 50 payments while the printed summaries (unpaginated) showed the
+    # full total — the two disagreed past 50 bills/day.
+    limit: int = Query(1000, ge=1, le=2000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all payments with filters."""
+    # Machine tokens only ever see their own payments.
+    if isinstance(current_user, Machine):
+        machine_id = str(current_user.id)
+
     query = db.query(Payment)
     
     # Apply machine filter
