@@ -429,6 +429,10 @@ async def reserve_bill_number(
             detail="Machine not found"
         )
 
+    # Keep machine session alive (updates last_sync + status)
+    machine.status = "online"
+    machine.last_sync = datetime.now(timezone.utc)
+
     posid = (request.posid or '').strip() or 'BILL'
 
     # Row lock so two devices reserving concurrently get distinct numbers.
@@ -497,7 +501,12 @@ async def create_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new payment (manual entry)."""
+    """
+    Create a new payment (idempotent on bill_number).
+
+    Retries with the same bill_number return the existing payment.
+    This prevents double-posts even if network fails mid-response.
+    """
     assert_machine_owns(current_user, str(payment_data.machine_id))
 
     # Verify machine exists
@@ -508,9 +517,36 @@ async def create_payment(
             detail="Machine not found"
         )
 
+    # Update machine's last_sync to keep session alive (works with 7-day tokens)
+    machine.status = "online"
+    machine.last_sync = datetime.now(timezone.utc)
+
     # Normalize bill number: strip leading zeros from numeric suffix so that
     # "WSSBI-AP/000330" and "WSSBI-AP/330" are treated as the same bill.
     normalized_bill = _normalize_bill_number(payment_data.bill_number)
+
+    # IDEMPOTENT: Check if payment with this bill_number already exists for this machine
+    # If it does, return it (handles retries safely, prevents double-posts)
+    existing_payment = db.query(Payment).filter(
+        Payment.machine_id == payment_data.machine_id,
+        Payment.bill_number == normalized_bill,
+    ).first()
+
+    if existing_payment:
+        db.commit()  # Commit the last_sync update
+        print(f"♻️ IDEMPOTENT: Bill {normalized_bill} already exists, returning existing payment")
+        return {
+            "success": True,
+            "data": PaymentResponse(
+                id=str(existing_payment.id),
+                machine_id=str(existing_payment.machine_id),
+                bill_number=existing_payment.bill_number,
+                amount=float(existing_payment.amount),
+                method=existing_payment.method,
+                status=existing_payment.status,
+                created_at=existing_payment.created_at
+            )
+        }
 
     # Extract POSID and number from bill_number (e.g., "WSSBI-AP/333" -> "WSSBI-AP", 333)
     import re

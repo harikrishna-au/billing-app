@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days for POS machines (they run 24/7)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # Refresh token valid 30 days
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:8080,http://localhost:5173"

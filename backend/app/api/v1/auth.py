@@ -810,3 +810,35 @@ async def get_current_user_info(
             "created_at": current_user.created_at
         }
     }
+
+
+@router.post("/keepalive", response_model=SuccessResponse[dict])
+async def keepalive(
+    current_user: Union[User, Machine] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Lightweight endpoint to keep machine sessions alive during idle periods.
+
+    Machines can call this periodically (e.g., every 30 minutes) to prevent
+    session timeout. Updates last_sync so the machine stays marked as online.
+    Works with 7-day tokens to eliminate the "payment failed after 1 hour idle" bug.
+    """
+    if isinstance(current_user, Machine):
+        current_user.status = "online"
+        current_user.last_sync = datetime.now(timezone.utc)
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+        resolve_machine_alerts(db, str(current_user.id))
+        return {
+            "success": True,
+            "data": {"message": "Session kept alive", "server_time": datetime.now(timezone.utc).isoformat()}
+        }
+
+    # For users, just acknowledge
+    return {
+        "success": True,
+        "data": {"message": "Keepalive acknowledged"}
+    }
