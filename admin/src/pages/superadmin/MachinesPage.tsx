@@ -4,6 +4,7 @@ import SuperAdminLayout from "@/components/layout/SuperAdminLayout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { superadminApi, type SuperMachine } from "@/lib/api/superadmin";
+import { paymentsApi } from "@/lib/api";
 import { Wifi, WifiOff, Loader2, Search, Monitor } from "lucide-react";
 
 function fmt(iso: string | null) {
@@ -20,6 +21,26 @@ const MachinesPage = () => {
     queryFn: superadminApi.listMachines,
     refetchInterval: 30_000,
   });
+
+  // Fetch today's payments for "Today" column
+  const { data: todayPaymentsData = { payments: [] } } = useQuery({
+    queryKey: ['payments-today'],
+    queryFn: async () => {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
+      return paymentsApi.getPayments({ start_date: start, end_date: end });
+    },
+    refetchInterval: 60_000, // Refresh every minute
+  });
+  const todayPayments = todayPaymentsData?.payments || [];
+
+  // Calculate today's earnings for a machine
+  const getTodayEarnings = (machineId: string) => {
+    return todayPayments
+      .filter(p => p.machine_id === machineId && p.status === 'success')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+  };
 
   const filtered = machines.filter((m) => {
     const q = search.toLowerCase();
@@ -99,7 +120,7 @@ const MachinesPage = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    {["Machine", "Location", "Admin", "UPI ID", "Status", "Added"].map((h) => (
+                    {["Machine", "Location", "Admin", "UPI ID", "Status", "Today", "Added"].map((h) => (
                       <th key={h} className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</th>
                     ))}
                   </tr>
@@ -133,6 +154,7 @@ const MachinesPage = () => {
                           {m.status?.toUpperCase() ?? "UNKNOWN"}
                         </Badge>
                       </td>
+                      <td className="py-3 px-4 text-sm font-mono font-semibold text-emerald-600">₹{getTodayEarnings(m.id).toLocaleString()}</td>
                       <td className="py-3 px-4 text-xs font-mono text-muted-foreground">{fmt(m.created_at ?? null)}</td>
                     </tr>
                   ))}
