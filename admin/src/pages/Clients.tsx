@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { machinesApi, locationsApi, machineUpiRequestApi, type Machine as MachineType, type LocationType } from "@/lib/api";
+import { machinesApi, locationsApi, machineUpiRequestApi, paymentsApi, type Machine as MachineType, type LocationType } from "@/lib/api";
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -49,6 +49,13 @@ const Clients = () => {
 
   const { toast } = useToast();
 
+  // Calculate today's earnings for a machine
+  const getTodayEarnings = (machineId: string) => {
+    return todayPayments
+      .filter(p => p.machine_id === machineId && p.status === 'success')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+  };
+
   // Fetch all machines — poll every 30 s so status changes appear automatically
   const { data: machinesData, isLoading } = useQuery({
     queryKey: ['machines'],
@@ -61,6 +68,19 @@ const Clients = () => {
     queryKey: ['locations'],
     queryFn: () => locationsApi.getAll(),
   });
+
+  // Fetch today's payments for "Today" column
+  const { data: todayPaymentsData = { payments: [] } } = useQuery({
+    queryKey: ['payments-today'],
+    queryFn: async () => {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
+      return paymentsApi.getPayments({ start_date: start, end_date: end });
+    },
+    refetchInterval: 60_000, // Refresh every minute
+  });
+  const todayPayments = todayPaymentsData?.payments || [];
 
   const machines = machinesData?.machines || [];
 
@@ -649,6 +669,7 @@ const Clients = () => {
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Username</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Today</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Online</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Offline</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last Sync</th>
@@ -675,6 +696,7 @@ const Clients = () => {
                           {machine.status.toUpperCase()}
                         </span>
                       </td>
+                      <td className="py-3 px-4 text-foreground font-mono text-sm font-semibold text-emerald-600">₹{getTodayEarnings(machine.id).toLocaleString()}</td>
                       <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.online_collection).toLocaleString()}</td>
                       <td className="py-3 px-4 text-foreground font-mono text-sm">₹{Number(machine.offline_collection).toLocaleString()}</td>
                       <td className="py-3 px-4 text-muted-foreground text-xs font-mono">
