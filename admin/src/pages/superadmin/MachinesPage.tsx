@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { superadminApi, type SuperMachine } from "@/lib/api/superadmin";
 import { paymentsApi } from "@/lib/api";
-import { Wifi, WifiOff, Loader2, Search, Monitor } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Search, Monitor, TrendingUp } from "lucide-react";
 
 function fmt(iso: string | null) {
   if (!iso) return "—";
@@ -51,6 +51,9 @@ const MachinesPage = () => {
 
   const online = machines.filter((m) => m.status === "online").length;
   const offline = machines.length - online;
+  const totalCollection = todayPayments
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 
   return (
     <SuperAdminLayout>
@@ -62,11 +65,12 @@ const MachinesPage = () => {
         </div>
 
         {/* Summary row */}
-        <div className="grid grid-cols-3 gap-4 animate-slide-up">
+        <div className="grid grid-cols-4 gap-4 animate-slide-up">
           {[
             { label: "Total", value: machines.length, icon: Monitor, color: "" },
             { label: "Online", value: online, icon: Wifi, color: "text-emerald-500" },
             { label: "Offline", value: offline, icon: WifiOff, color: "text-red-500" },
+            { label: "Today Collection", value: `₹${totalCollection.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600" },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="stat-card p-4 flex items-center gap-3">
               <Icon className={`h-5 w-5 ${color || "text-muted-foreground"}`} />
