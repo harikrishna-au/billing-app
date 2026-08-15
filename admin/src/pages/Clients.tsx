@@ -76,7 +76,7 @@ const Clients = () => {
       const today = new Date();
       const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
       const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
-      return paymentsApi.getPayments({ start_date: start, end_date: end });
+      return paymentsApi.getAll({ start_date: start, end_date: end });
     },
     refetchInterval: 60_000, // Refresh every minute
   });

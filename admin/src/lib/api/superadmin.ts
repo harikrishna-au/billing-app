@@ -33,6 +33,16 @@ export interface SuperMachine {
     admin_id: string;
     last_sync: string | null;
     created_at: string | null;
+    /** Online = UPI + Card, offline = Cash. Successful payments only. */
+    today_online: number;
+    today_offline: number;
+    month_online: number;
+    month_offline: number;
+    total_online: number;
+    total_offline: number;
+    today_bills: number;
+    month_bills: number;
+    total_bills: number;
 }
 
 export interface UpiRequest {

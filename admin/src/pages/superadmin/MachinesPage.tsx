@@ -1,20 +1,41 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SuperAdminLayout from "@/components/layout/SuperAdminLayout";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { superadminApi, type SuperMachine } from "@/lib/api/superadmin";
-import { paymentsApi } from "@/lib/api";
-import { Wifi, WifiOff, Loader2, Search, Monitor, TrendingUp } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Search, Monitor, TrendingUp, Banknote, Receipt, ArrowUpDown } from "lucide-react";
+
+type Period = "today" | "month" | "total";
+type SortKey = "collection" | "name" | "admin";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  today: "Today",
+  month: "This Month",
+  total: "All Time",
+};
 
 function fmt(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function money(n: number) {
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+function collectionFor(m: SuperMachine, period: Period) {
+  const online = period === "today" ? m.today_online : period === "month" ? m.month_online : m.total_online;
+  const offline = period === "today" ? m.today_offline : period === "month" ? m.month_offline : m.total_offline;
+  const bills = period === "today" ? m.today_bills : period === "month" ? m.month_bills : m.total_bills;
+  return { online: Number(online) || 0, offline: Number(offline) || 0, bills: Number(bills) || 0 };
+}
+
 const MachinesPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
+  const [period, setPeriod] = useState<Period>("today");
+  const [sortKey, setSortKey] = useState<SortKey>("collection");
 
   const { data: machines = [], isLoading } = useQuery({
     queryKey: ["sa-machines"],
@@ -22,38 +43,62 @@ const MachinesPage = () => {
     refetchInterval: 30_000,
   });
 
-  // Fetch today's payments for "Today" column
-  const { data: todayPaymentsData = { payments: [] } } = useQuery({
-    queryKey: ['payments-today'],
-    queryFn: async () => {
-      const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
-      return paymentsApi.getPayments({ start_date: start, end_date: end });
-    },
-    refetchInterval: 60_000, // Refresh every minute
-  });
-  const todayPayments = todayPaymentsData?.payments || [];
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const rows = machines.filter((m) => {
+      const matchSearch =
+        !q ||
+        m.name.toLowerCase().includes(q) ||
+        m.location?.toLowerCase().includes(q) ||
+        m.admin?.toLowerCase().includes(q);
+      const matchStatus = statusFilter === "all" || m.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
 
-  // Calculate today's earnings for a machine
-  const getTodayEarnings = (machineId: string) => {
-    return todayPayments
-      .filter(p => p.machine_id === machineId && p.status === 'success')
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-  };
+    return [...rows].sort((a, b) => {
+      if (sortKey === "name") return a.name.localeCompare(b.name);
+      if (sortKey === "admin") return (a.admin ?? "").localeCompare(b.admin ?? "");
+      const ca = collectionFor(a, period);
+      const cb = collectionFor(b, period);
+      return cb.online + cb.offline - (ca.online + ca.offline);
+    });
+  }, [machines, search, statusFilter, sortKey, period]);
 
-  const filtered = machines.filter((m) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || m.name.toLowerCase().includes(q) || m.location?.toLowerCase().includes(q) || m.admin?.toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || m.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const totals = useMemo(
+    () =>
+      filtered.reduce(
+        (acc, m) => {
+          const c = collectionFor(m, period);
+          acc.online += c.online;
+          acc.offline += c.offline;
+          acc.bills += c.bills;
+          return acc;
+        },
+        { online: 0, offline: 0, bills: 0 }
+      ),
+    [filtered, period]
+  );
 
   const online = machines.filter((m) => m.status === "online").length;
   const offline = machines.length - online;
-  const totalCollection = todayPayments
-    .filter(p => p.status === 'success')
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const grandTotal = totals.online + totals.offline;
+
+  const exportCsv = () => {
+    const header = ["Machine", "Location", "Admin", "Status", "Online (UPI+Card)", "Cash", "Total", "Bills"];
+    const rows = filtered.map((m) => {
+      const c = collectionFor(m, period);
+      return [m.name, m.location ?? "", m.admin ?? "", m.status ?? "", c.online, c.offline, c.online + c.offline, c.bills];
+    });
+    const csv = [header, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `machine-collection-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <SuperAdminLayout>
@@ -61,22 +106,26 @@ const MachinesPage = () => {
         <div className="animate-fade-in">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Superadmin</p>
           <h1 className="text-2xl font-semibold text-foreground">All Machines</h1>
-          <p className="text-sm text-muted-foreground">Every machine across all admins</p>
+          <p className="text-sm text-muted-foreground">
+            Collection across every machine and admin · {PERIOD_LABELS[period]}
+          </p>
         </div>
 
         {/* Summary row */}
-        <div className="grid grid-cols-4 gap-4 animate-slide-up">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 animate-slide-up">
           {[
-            { label: "Total", value: machines.length, icon: Monitor, color: "" },
-            { label: "Online", value: online, icon: Wifi, color: "text-emerald-500" },
-            { label: "Offline", value: offline, icon: WifiOff, color: "text-red-500" },
-            { label: "Today Collection", value: `₹${totalCollection.toLocaleString()}`, icon: TrendingUp, color: "text-emerald-600" },
-          ].map(({ label, value, icon: Icon, color }) => (
+            { label: "Machines", value: `${machines.length}`, sub: `${online} online · ${offline} offline`, icon: Monitor, color: "" },
+            { label: `${PERIOD_LABELS[period]} Total`, value: money(grandTotal), sub: `${totals.bills} bills`, icon: TrendingUp, color: "text-emerald-600" },
+            { label: "Online (UPI + Card)", value: money(totals.online), sub: "settles to bank", icon: Wifi, color: "text-blue-500" },
+            { label: "Cash", value: money(totals.offline), sub: "collected at counter", icon: Banknote, color: "text-amber-500" },
+            { label: "Bills", value: totals.bills.toLocaleString("en-IN"), sub: PERIOD_LABELS[period], icon: Receipt, color: "text-muted-foreground" },
+          ].map(({ label, value, sub, icon: Icon, color }) => (
             <div key={label} className="stat-card p-4 flex items-center gap-3">
-              <Icon className={`h-5 w-5 ${color || "text-muted-foreground"}`} />
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-                <p className="text-xl font-bold text-foreground">{value}</p>
+              <Icon className={`h-5 w-5 shrink-0 ${color || "text-muted-foreground"}`} />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider truncate">{label}</p>
+                <p className="text-xl font-bold text-foreground truncate">{value}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{sub}</p>
               </div>
             </div>
           ))}
@@ -93,6 +142,21 @@ const MachinesPage = () => {
               className="h-8 pl-8 bg-secondary/50 text-sm"
             />
           </div>
+
+          <div className="flex items-center gap-1 rounded-full border border-border p-0.5">
+            {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+
           {(["all", "online", "offline"] as const).map((s) => (
             <button
               key={s}
@@ -106,6 +170,22 @@ const MachinesPage = () => {
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
+
+          <button
+            onClick={() => setSortKey(sortKey === "collection" ? "name" : sortKey === "name" ? "admin" : "collection")}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+          >
+            <ArrowUpDown className="h-3 w-3" />
+            Sort: {sortKey === "collection" ? "Collection" : sortKey === "name" ? "Name" : "Admin"}
+          </button>
+
+          <button
+            onClick={exportCsv}
+            disabled={filtered.length === 0}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-40"
+          >
+            Export CSV
+          </button>
         </div>
 
         {/* Table */}
@@ -124,45 +204,77 @@ const MachinesPage = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    {["Machine", "Location", "Admin", "UPI ID", "Status", "Today", "Added"].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{h}</th>
+                    {["Machine", "Location", "Admin", "Status", "Online", "Cash", "Total", "Bills", "Added"].map((h, i) => (
+                      <th
+                        key={h}
+                        className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${
+                          i >= 4 && i <= 7 ? "text-right" : "text-left"
+                        }`}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((m) => (
-                    <tr key={m.id} className="border-b border-border/30 hover:bg-accent/40 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary shrink-0">
-                            <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                  {filtered.map((m) => {
+                    const c = collectionFor(m, period);
+                    const total = c.online + c.offline;
+                    return (
+                      <tr key={m.id} className="border-b border-border/30 hover:bg-accent/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary shrink-0">
+                              <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
+                              <p className="font-mono text-[11px] text-muted-foreground truncate">{m.upi_id ?? "no UPI"}</p>
+                            </div>
                           </div>
-                          <span className="text-sm font-medium text-foreground">{m.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{m.location ?? "—"}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-[9px] font-bold uppercase">
-                            {m.admin?.[0] ?? "?"}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">{m.location ?? "—"}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-[9px] font-bold uppercase">
+                              {m.admin?.[0] ?? "?"}
+                            </div>
+                            <span className="text-sm text-muted-foreground">{m.admin ?? "—"}</span>
                           </div>
-                          <span className="text-sm text-muted-foreground">{m.admin ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-xs text-muted-foreground">{m.upi_id ?? "—"}</td>
-                      <td className="py-3 px-4">
-                        <Badge className={m.status === "online"
-                          ? "bg-emerald-500/10 text-emerald-500 border-0 text-xs gap-1"
-                          : "bg-red-500/10 text-red-500 border-0 text-xs gap-1"}>
-                          {m.status === "online" ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
-                          {m.status?.toUpperCase() ?? "UNKNOWN"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm font-mono font-semibold text-emerald-600">₹{getTodayEarnings(m.id).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-xs font-mono text-muted-foreground">{fmt(m.created_at ?? null)}</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            className={
+                              m.status === "online"
+                                ? "bg-emerald-500/10 text-emerald-500 border-0 text-xs gap-1"
+                                : "bg-red-500/10 text-red-500 border-0 text-xs gap-1"
+                            }
+                          >
+                            {m.status === "online" ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
+                            {m.status?.toUpperCase() ?? "UNKNOWN"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm font-mono text-blue-600">{money(c.online)}</td>
+                        <td className="py-3 px-4 text-right text-sm font-mono text-amber-600">{money(c.offline)}</td>
+                        <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-foreground">{money(total)}</td>
+                        <td className="py-3 px-4 text-right text-sm font-mono text-muted-foreground">{c.bills}</td>
+                        <td className="py-3 px-4 text-xs font-mono text-muted-foreground">{fmt(m.created_at ?? null)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t border-border bg-secondary/30">
+                    <td className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground" colSpan={4}>
+                      {filtered.length} machine{filtered.length === 1 ? "" : "s"}
+                    </td>
+                    <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-blue-600">{money(totals.online)}</td>
+                    <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-amber-600">{money(totals.offline)}</td>
+                    <td className="py-3 px-4 text-right text-sm font-mono font-bold text-foreground">{money(grandTotal)}</td>
+                    <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-muted-foreground">{totals.bills}</td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

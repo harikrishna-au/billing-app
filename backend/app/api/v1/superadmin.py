@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case, and_
 from typing import Optional, Tuple
 from datetime import datetime, timezone
 import httpx
 import json
+import pytz
 
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.machine import Machine
+from app.models.payment import Payment
 from app.models.upi_change_request import UpiChangeRequest
 from app.models.audit_log import AuditLog
 from app.dependencies import get_current_superadmin
@@ -240,6 +242,80 @@ async def toggle_admin_status(
 
 # ─── Machine overview ─────────────────────────────────────────────────────────
 
+# Same split the admin-side machine list uses: card/UPI money lands in a bank
+# account, cash does not.
+ONLINE_METHODS = ("UPI", "Card")
+OFFLINE_METHODS = ("Cash",)
+
+
+def _collection_by_machine(db: Session) -> dict:
+    """Successful collection per machine, split online/offline for today, this
+    month and all time. Day and month boundaries follow IST, matching the
+    payments API, so totals line up with what admins see."""
+    ist = pytz.timezone("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+    today_start = ist.localize(
+        datetime(now_ist.year, now_ist.month, now_ist.day)
+    ).astimezone(timezone.utc)
+    month_start = ist.localize(
+        datetime(now_ist.year, now_ist.month, 1)
+    ).astimezone(timezone.utc)
+
+    is_online = Payment.method.in_(ONLINE_METHODS)
+    is_offline = Payment.method.in_(OFFLINE_METHODS)
+
+    def total(*conditions):
+        return func.coalesce(
+            func.sum(case((and_(*conditions), Payment.amount), else_=0)), 0
+        )
+
+    rows = (
+        db.query(
+            Payment.machine_id,
+            total(is_online).label("total_online"),
+            total(is_offline).label("total_offline"),
+            total(is_online, Payment.created_at >= month_start).label("month_online"),
+            total(is_offline, Payment.created_at >= month_start).label("month_offline"),
+            total(is_online, Payment.created_at >= today_start).label("today_online"),
+            total(is_offline, Payment.created_at >= today_start).label("today_offline"),
+            func.count(Payment.id).label("total_bills"),
+            func.count(case((Payment.created_at >= month_start, Payment.id))).label("month_bills"),
+            func.count(case((Payment.created_at >= today_start, Payment.id))).label("today_bills"),
+        )
+        .filter(Payment.status == "success")
+        .group_by(Payment.machine_id)
+        .all()
+    )
+
+    return {
+        str(r.machine_id): {
+            "total_online": float(r.total_online or 0),
+            "total_offline": float(r.total_offline or 0),
+            "month_online": float(r.month_online or 0),
+            "month_offline": float(r.month_offline or 0),
+            "today_online": float(r.today_online or 0),
+            "today_offline": float(r.today_offline or 0),
+            "total_bills": int(r.total_bills or 0),
+            "month_bills": int(r.month_bills or 0),
+            "today_bills": int(r.today_bills or 0),
+        }
+        for r in rows
+    }
+
+
+_EMPTY_COLLECTION = {
+    "total_online": 0.0,
+    "total_offline": 0.0,
+    "month_online": 0.0,
+    "month_offline": 0.0,
+    "today_online": 0.0,
+    "today_offline": 0.0,
+    "total_bills": 0,
+    "month_bills": 0,
+    "today_bills": 0,
+}
+
+
 @router.get("/machines", response_model=SuccessResponse[dict])
 async def list_all_machines(
     db: Session = Depends(get_db),
@@ -249,6 +325,8 @@ async def list_all_machines(
 
     admin_ids = list({m.user_id for m in machines})
     admins = {str(u.id): u.username for u in db.query(User).filter(User.id.in_(admin_ids)).all()}
+
+    collection = _collection_by_machine(db) if machines else {}
 
     return {
         "success": True,
@@ -265,6 +343,7 @@ async def list_all_machines(
                     "admin_id": str(m.user_id),
                     "last_sync": m.last_sync.isoformat() if m.last_sync else None,
                     "created_at": m.created_at.isoformat() if m.created_at else None,
+                    **collection.get(str(m.id), _EMPTY_COLLECTION),
                 }
                 for m in machines
             ]
