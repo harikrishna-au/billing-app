@@ -19,6 +19,9 @@ class Machine(Base):
     username = Column(String(100), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     status = Column(String(50), nullable=False, default="offline")  # online, offline, maintenance
+    # Superadmin kill switch. Independent of `status`, which the machine itself
+    # writes on every sync — a machine must never be able to re-enable itself.
+    is_active = Column(String(10), nullable=False, default="true")  # "true" or "false" as string
     upi_id = Column(String(255), nullable=True)
     location_id = Column(UUID(as_uuid=True), ForeignKey('locations.id'), nullable=True)
     bill_counter = Column(Integer, default=0, nullable=False)

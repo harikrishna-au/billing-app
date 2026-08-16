@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SuperAdminLayout from "@/components/layout/SuperAdminLayout";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { superadminApi, type SuperMachine } from "@/lib/api/superadmin";
-import { Wifi, WifiOff, Loader2, Search, Monitor, TrendingUp, Banknote, Receipt, ArrowUpDown } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Search, Monitor, TrendingUp, Banknote, Receipt, ArrowUpDown, Power, PowerOff, Ban } from "lucide-react";
 
 type Period = "today" | "month" | "total";
 type SortKey = "collection" | "name" | "admin";
@@ -32,15 +37,36 @@ function collectionFor(m: SuperMachine, period: Period) {
 }
 
 const MachinesPage = () => {
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const [period, setPeriod] = useState<Period>("today");
   const [sortKey, setSortKey] = useState<SortKey>("collection");
+  const [confirmTarget, setConfirmTarget] = useState<SuperMachine | null>(null);
 
   const { data: machines = [], isLoading } = useQuery({
     queryKey: ["sa-machines"],
     queryFn: superadminApi.listMachines,
     refetchInterval: 30_000,
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => superadminApi.setMachineActive(id, active),
+    onSuccess: (_data, { active }) => {
+      qc.invalidateQueries({ queryKey: ["sa-machines"] });
+      setConfirmTarget(null);
+      toast({
+        title: active ? "Machine activated" : "Machine deactivated",
+        description: active
+          ? "It can log in and bill again."
+          : "It can no longer log in or bill, effective immediately.",
+      });
+    },
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast({ title: "Error", description: detail || "Failed to update machine", variant: "destructive" });
+    },
   });
 
   const filtered = useMemo(() => {
@@ -204,9 +230,9 @@ const MachinesPage = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    {["Machine", "Location", "Admin", "Status", "Online", "Cash", "Total", "Bills", "Added"].map((h, i) => (
+                    {["Machine", "Location", "Admin", "Status", "Online", "Cash", "Total", "Bills", "Added", ""].map((h, i) => (
                       <th
-                        key={h}
+                        key={h || "actions"}
                         className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground ${
                           i >= 4 && i <= 7 ? "text-right" : "text-left"
                         }`}
@@ -220,8 +246,12 @@ const MachinesPage = () => {
                   {filtered.map((m) => {
                     const c = collectionFor(m, period);
                     const total = c.online + c.offline;
+                    const disabled = m.is_active === "false";
                     return (
-                      <tr key={m.id} className="border-b border-border/30 hover:bg-accent/40 transition-colors">
+                      <tr
+                        key={m.id}
+                        className={`border-b border-border/30 hover:bg-accent/40 transition-colors ${disabled ? "opacity-60" : ""}`}
+                      >
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary shrink-0">
@@ -243,22 +273,53 @@ const MachinesPage = () => {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge
-                            className={
-                              m.status === "online"
-                                ? "bg-emerald-500/10 text-emerald-500 border-0 text-xs gap-1"
-                                : "bg-red-500/10 text-red-500 border-0 text-xs gap-1"
-                            }
-                          >
-                            {m.status === "online" ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
-                            {m.status?.toUpperCase() ?? "UNKNOWN"}
-                          </Badge>
+                          {disabled ? (
+                            <Badge className="bg-muted text-muted-foreground border-0 text-xs gap-1">
+                              <Ban className="h-2.5 w-2.5" />
+                              DEACTIVATED
+                            </Badge>
+                          ) : (
+                            <Badge
+                              className={
+                                m.status === "online"
+                                  ? "bg-emerald-500/10 text-emerald-500 border-0 text-xs gap-1"
+                                  : "bg-red-500/10 text-red-500 border-0 text-xs gap-1"
+                              }
+                            >
+                              {m.status === "online" ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
+                              {m.status?.toUpperCase() ?? "UNKNOWN"}
+                            </Badge>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right text-sm font-mono text-blue-600">{money(c.online)}</td>
                         <td className="py-3 px-4 text-right text-sm font-mono text-amber-600">{money(c.offline)}</td>
                         <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-foreground">{money(total)}</td>
                         <td className="py-3 px-4 text-right text-sm font-mono text-muted-foreground">{c.bills}</td>
                         <td className="py-3 px-4 text-xs font-mono text-muted-foreground">{fmt(m.created_at ?? null)}</td>
+                        <td className="py-3 px-4 text-right">
+                          {disabled ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1.5 text-xs"
+                              disabled={activeMutation.isPending}
+                              onClick={() => activeMutation.mutate({ id: m.id, active: true })}
+                            >
+                              <Power className="h-3 w-3" />
+                              Activate
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1.5 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                              onClick={() => setConfirmTarget(m)}
+                            >
+                              <PowerOff className="h-3 w-3" />
+                              Deactivate
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -273,12 +334,46 @@ const MachinesPage = () => {
                     <td className="py-3 px-4 text-right text-sm font-mono font-bold text-foreground">{money(grandTotal)}</td>
                     <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-muted-foreground">{totals.bills}</td>
                     <td />
+                    <td />
                   </tr>
                 </tfoot>
               </table>
             </div>
           )}
         </div>
+
+        <Dialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Deactivate {confirmTarget?.name}?</DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    The terminal stops working immediately — it cannot log in, record bills, or sync. This
+                    applies to the device even if it is already signed in.
+                  </p>
+                  <p>
+                    Any bills held offline on that device will fail to upload until you activate it again.
+                    Past collection stays on record.
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={activeMutation.isPending}
+                onClick={() => confirmTarget && activeMutation.mutate({ id: confirmTarget.id, active: false })}
+              >
+                {activeMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                Deactivate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </SuperAdminLayout>
   );

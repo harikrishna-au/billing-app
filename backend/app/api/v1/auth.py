@@ -583,6 +583,14 @@ async def machine_login(
             detail="Invalid machine username or password",
         )
     
+    # Deactivated by a superadmin — refuse to issue a token at all.
+    if machine.is_active != "true":
+        log_auth_failure(credentials.username, "Machine deactivated", client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This machine has been deactivated. Contact your administrator."
+        )
+
     # Check if machine is active (not in maintenance mode permanently)
     if machine.status == "maintenance":
         log_auth_failure(credentials.username, "Machine in maintenance mode", client_ip)
@@ -691,6 +699,11 @@ async def refresh_token(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Machine not found"
+            )
+        if machine.is_active != "true":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This machine has been deactivated. Contact your administrator."
             )
         access_token = create_access_token(
             data={

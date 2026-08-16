@@ -12,6 +12,20 @@ from app.models.machine import Machine
 security = HTTPBearer()
 
 
+def _assert_machine_active(machine: Machine) -> None:
+    """Block a deactivated machine on every request, not just at login.
+
+    Machine tokens are long-lived, so checking only in /auth/machine-login
+    would leave an already-signed-in terminal working for days after a
+    superadmin disabled it.
+    """
+    if machine.is_active != "true":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This machine has been deactivated. Contact your administrator.",
+        )
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
@@ -67,6 +81,7 @@ async def get_current_user(
                 detail="Machine not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        _assert_machine_active(machine)
         return machine
     
     # For access tokens, get user
@@ -75,6 +90,7 @@ async def get_current_user(
         # Fallback: Check if it's a machine (handle mislabeled tokens)
         machine = db.query(Machine).filter(Machine.id == entity_id).first()
         if machine:
+            _assert_machine_active(machine)
             return machine
 
         raise HTTPException(

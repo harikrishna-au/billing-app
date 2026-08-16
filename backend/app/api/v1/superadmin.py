@@ -338,6 +338,7 @@ async def list_all_machines(
                     "location": m.location,
                     "username": m.username,
                     "status": m.status,
+                    "is_active": m.is_active,
                     "upi_id": m.upi_id,
                     "admin": admins.get(str(m.user_id), "—"),
                     "admin_id": str(m.user_id),
@@ -347,6 +348,55 @@ async def list_all_machines(
                 }
                 for m in machines
             ]
+        },
+    }
+
+
+@router.patch("/machines/{machine_id}/active", response_model=SuccessResponse[dict])
+async def set_machine_active(
+    machine_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+    superadmin: User = Depends(get_current_superadmin),
+):
+    """Activate or deactivate a machine.
+
+    Deactivating takes effect immediately: existing machine tokens are rejected
+    on their next request, so the terminal stops billing without needing a new
+    app build.
+    """
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
+
+    new_state = body.get("is_active")
+    if new_state not in ("true", "false"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="is_active must be 'true' or 'false'",
+        )
+
+    machine.is_active = new_state
+    if new_state == "false":
+        # Don't leave it showing "online" in dashboards once it can't call in.
+        machine.status = "offline"
+    db.commit()
+
+    _log_audit(
+        db,
+        superadmin,
+        "machine.activate" if new_state == "true" else "machine.deactivate",
+        target_type="machine",
+        target_id=str(machine.id),
+        details={"name": machine.name, "username": machine.username},
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "id": str(machine.id),
+            "is_active": machine.is_active,
+            "status": machine.status,
         },
     }
 

@@ -178,6 +178,11 @@ async def startup_event():
                 conn.execute(text("ALTER TABLE machines ADD COLUMN location_id UUID"))
                 conn.commit()
                 print("✅ Migration: added location_id column to machines table")
+            if "is_active" not in machine_cols:
+                # Existing machines must keep working, so default to active.
+                conn.execute(text("ALTER TABLE machines ADD COLUMN is_active VARCHAR(10) NOT NULL DEFAULT 'true'"))
+                conn.commit()
+                print("✅ Migration: added is_active column to machines table")
 
             # Deduplicate payments and add unique constraint on (machine_id, bill_number).
             # This is heavy (full-table DELETE) and lock-taking (CREATE UNIQUE INDEX), so run

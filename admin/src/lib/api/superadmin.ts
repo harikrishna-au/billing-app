@@ -28,6 +28,8 @@ export interface SuperMachine {
     location: string;
     username: string;
     status: string;
+    /** Superadmin kill switch: "true" | "false". Blocks login and all API calls. */
+    is_active: string;
     upi_id: string | null;
     admin: string;
     admin_id: string;
@@ -102,6 +104,10 @@ export const superadminApi = {
     listMachines: async (): Promise<SuperMachine[]> => {
         const res = await apiClient.get<{ success: boolean; data: { machines: SuperMachine[] } }>(`${BASE}/machines`);
         return res.data.data.machines;
+    },
+
+    setMachineActive: async (machineId: string, isActive: boolean): Promise<void> => {
+        await apiClient.patch(`${BASE}/machines/${machineId}/active`, { is_active: isActive ? 'true' : 'false' });
     },
 
     listUpiRequests: async (status?: string): Promise<UpiRequest[]> => {
