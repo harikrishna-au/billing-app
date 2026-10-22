@@ -246,3 +246,9 @@ mit/
 ## Contributing
 
 Branch from `main`, make your changes, open a PR. The backend auto-migrates on startup so no manual schema steps are needed for new columns — just add the migration block in `startup_event` in `main.py` following the existing pattern.
+
+---
+
+## Built with
+
+Developed with AI pair-programming assistance from Claude Code and Cursor.
